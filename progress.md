@@ -143,6 +143,41 @@
   - [Attempt 1] tika-parsers-standard-package 不传递依赖 tika-core → Codex 添加 tika-core:2.9.1
   - [Attempt 2] VectorStoreServiceImpl Float→Double 类型转换错误 → Codex 修复 getScore().doubleValue()
   - Codex 还主动添加了 ErrorCode 枚举值 (DOCUMENT_PARSE_ERROR, EMBEDDING_ERROR, KNOWLEDGE_BASE_NOT_FOUND 等)
+
+#### 06-ai-service (13 Tasks) — COMPLETE
+- Actions taken:
+  - 前置任务: Codex 补建 appointment-api (RemoteAppointmentService + AppointmentDTO + pom.xml 添加 lombok)
+  - Task 1: Codex 更新 ai-service pom.xml (添加 spring-ai-openai, webflux, web, doctor/appointment/user-api, lombok, nls-sdk-tts)
+  - Task 2: Codex 创建 DDL (V1__init_ai_tables.sql) — 3 表 (chat_session/chat_message/conversation_summary)
+  - Task 3: Codex 创建 3 Entity + 3 Mapper + 2 DTO + 4 VO = 12 Java 文件, 更新 AiServiceApplication (@EnableFeignClients + @MapperScan)
+  - Task 4: Codex 创建 AiModelConfig (DeepSeek @Primary + Qwen 双模型), 更新 application.yml (ai/aliyun/spring.ai.openai 配置)
+  - Task 5: Codex 创建 3 Tool 类 (DoctorSearchTool/AppointmentTool/KnowledgeSearchTool) + 4 Request DTO
+  - Task 6: Codex 创建 Agent 接口 + 4 Agent 实现 (TriageAgent/MedicalQaAgent/SummaryAgent/EncyclopediaAgent) + AgentFactory
+  - Task 7: Codex 创建 ChatService/ChatServiceImpl (核心 SSE 流式对话, Function Calling, 上下文管理)
+  - Task 8: Codex 创建 TtsService/TtsServiceImpl (阿里云 TTS 占位实现, 可降级)
+  - Task 9: Codex 创建 SummaryService/SummaryServiceImpl (@Async 异步摘要, JSON 解析) + AsyncConfig
+  - Task 10-12: Codex 创建 ChatController + SummaryController + EncyclopediaController
+  - Task 13: 全量编译验证 BUILD SUCCESS (18 模块全部通过, 37 源文件)
+- Errors encountered:
+  - [Attempt 1] Entity 缺少 id 字段 (BaseEntity 不含 id) → Codex 补充 @TableId(type=IdType.AUTO) private Long id
+  - 7 个 deprecation warnings (Spring AI withModel/withTemperature/withMaxTokens/withFunctions 已标记过时, 但不影响编译)
+- Files created (40+ files):
+  - appointment-api: RemoteAppointmentService + AppointmentDTO + pom.xml 更新
+  - ai-service: 37 Java 源文件
+    - 3 Entity: ChatSession/ChatMessage/ConversationSummary
+    - 3 Mapper: ChatSessionMapper/ChatMessageMapper/ConversationSummaryMapper
+    - 2 DTO: ChatRequestDTO/CreateSessionDTO
+    - 4 VO: ChatSessionVO/ChatMessageVO/ConversationSummaryVO/SseMessageVO
+    - 1 Interface: Agent
+    - 4 Agent: TriageAgent/MedicalQaAgent/SummaryAgent/EncyclopediaAgent
+    - 1 Factory: AgentFactory
+    - 3 Tool: DoctorSearchTool/AppointmentTool/KnowledgeSearchTool
+    - 4 Request: SearchDoctorRequest/GetSlotsRequest/CreateAppointmentRequest/KnowledgeSearchRequest
+    - 2 Config: AiModelConfig/AsyncConfig
+    - 3 Service: ChatService+Impl, TtsService+Impl, SummaryService+Impl
+    - 3 Controller: ChatController/SummaryController/EncyclopediaController
+    - 1 DDL: V1__init_ai_tables.sql
+  - pom.xml 更新, application.yml 更新, AiServiceApplication.java 更新
 - Files created (28+ files):
   - 1 SQL: V1__init_knowledge_tables.sql
   - 3 Entity: KnowledgeBase/KnowledgeDocument/KnowledgeChunk
@@ -194,11 +229,11 @@
 
 | Question | Answer |
 |----------|--------|
-| Where am I? | Phase 3 进行中，05-knowledge-service 已完成，下一步 06-ai-service |
-| Where am I going? | 06-ai → 07-appointment → 08-gateway → 09/10-frontend → 11-deploy |
+| Where am I? | Phase 3 进行中，06-ai-service 已完成，下一步 07-appointment-service |
+| Where am I going? | 07-appointment → 08-gateway → 09/10-frontend → 11-deploy |
 | What's the goal? | 构建基于 Spring Cloud + Spring AI + RAG + AI Agents + Vue3 + UniApp 的 AI 数字人医疗小助手系统 |
-| What have I learned? | 5微服务架构、技术栈选型、4个Agent设计、Live2D via web-view；tika-parsers-standard-package 不传递依赖 tika-core 需显式添加；Milvus SDK SearchResp.getScore() 返回 Float 需转 Double；@Lazy 自注入解决 @Async 代理问题 |
-| What have I done? | Phase 1-2 完成；Phase 3: 01~05 完成 (project-init/common-modules/user-service/doctor-service/knowledge-service) |
+| What have I learned? | 5微服务架构、技术栈选型、4个Agent设计、Live2D via web-view；BaseEntity不含id需自行声明；Spring AI withModel/withFunctions deprecated但可用 |
+| What have I done? | Phase 1-2 完成；Phase 3: 01~06 完成 (project-init/common-modules/user-service/doctor-service/knowledge-service/ai-service) |
 
 ---
 *Update after completing each phase or encountering errors*
@@ -215,3 +250,13 @@
 | 2026-02-28 02:27 | Compile verification after Task 8/9 changes failed because mvn and mvn.cmd are unavailable when running mvn clean compile -f medical-ai/pom.xml -pl medical-service/medical-knowledge-service -am | 1-2 | Applied all requested code changes; compilation remains pending until Maven executable is available in PATH. |
 | 2026-02-28 02:35 | Full compile mvn clean compile -f medical-ai/pom.xml failed in medical-doctor-service with missing com.medical.api.doctor.dto classes (DoctorInfoDTO/SlotInfoDTO) before medical-knowledge-service stage | 1 | Kept Task 10-11 changes intact; compile is blocked by unrelated module baseline error and needs doctor-service/api fix first. |
 | 2026-02-28 02:36 | Follow-up module compile command mvn clean compile -f medical-ai/pom.xml -pl medical-service/medical-knowledge-service -am could not run because mvn command was unavailable in current shell PATH | 2 | Stopped retries per rule; verification result remains pending until Maven command availability is stable in environment. |
+| 2026-02-28 02:50 | Attempted to run `git -C D:\project\数字人\medical-ai status --short` for change verification, but `git` command is unavailable in current PowerShell PATH | 1 | Switched to direct file-content verification (`Get-Content`) for modified POM/class files; no further retries on missing git command. |
+
+- [2026-02-28] Error: mvn command not found when running compile for medical-ai-service (attempt 1). Cause: Maven CLI not installed or not in PATH. Action: fall back to Maven Wrapper (mvnw) if present; otherwise report compile verification not executable in current environment.
+
+- [2026-02-28] Error: git command not found when trying to check working tree status. Cause: Git CLI not installed or not in PATH. Action: used direct file scan (g) to verify created classes instead of git status.
+- [2026-02-28] File write issue during Task 10-12: PowerShell Set-Content in this environment does not support utf8NoBOM encoding name (attempt 1). Resolved by writing files with [System.IO.File]::WriteAllText(..., [System.Text.UTF8Encoding]::new(False)) to enforce UTF-8 without BOM.
+| 2026-02-28 03:04 | `mvn clean compile -f D:\project\������\medical-ai\pom.xml` failed at `medical-ai-service`: `ChatSession/ChatMessage/ConversationSummary` missing `getId()` target fields | 1 | Added explicit `id` PK fields with `@TableId(type = IdType.AUTO)` in all three entities, then recompiled successfully. |
+| 2026-02-28 03:06 | Re-ran full reactor compile after AI entity PK fix | 2 | BUILD SUCCESS (all 18 modules compiled). |
+| 2026-02-28 03:08 | `mvn clean compile -f D:\project\������\medical-ai\pom.xml -rf :medical-ai-service` failed: upstream internal artifacts (`medical-common-*`, `medical-*-api`) unresolved | 1 | Installed required upstream modules to local Maven repo via `mvn clean install -DskipTests -f D:\project\������\medical-ai\pom.xml -pl medical-service/medical-ai-service -am`, then reran exact `-rf` compile. |
+| 2026-02-28 03:10 | Re-ran exact command `mvn clean compile -f D:\project\������\medical-ai\pom.xml -rf :medical-ai-service` after install | 2 | BUILD SUCCESS (medical-ai-service, medical-appointment-service, medical-knowledge-service). |

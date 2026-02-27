@@ -208,3 +208,13 @@ ew Page<>(pageNum, pageSize) explicitly and map to PageResult.of(...).
 - [2026-02-28] `@Async` 注解的方法需要通过代理调用才能生效；在同一个类内部调用时需使用 `@Lazy` 自注入模式（`private final @Lazy KnowledgeBaseService self`）绕过 this 调用失效问题。
 - [2026-02-28] Codex 主动扩展了 `ErrorCode` 枚举，添加了 `DOCUMENT_PARSE_ERROR(5002)`, `EMBEDDING_ERROR(5003)`, `KNOWLEDGE_BASE_NOT_FOUND(5004)`, `PARAM_ERROR(4001)`, `NOT_FOUND(4004)` 等。
 - [2026-02-28] 05-knowledge-service 全量编译通过（18 模块 BUILD SUCCESS），25 个 Java 源文件。
+- [2026-02-28] `medical-api/medical-appointment-api` 当前仅有 `package-info.java`，且 `pom.xml` 仅含 common-core + openfeign，尚未声明 Lombok；新增 DTO 时需要补 `lombok`（`provided`）。
+- [2026-02-28] 现有模块实体/Mapper 约定为：实体使用 `@Data + @EqualsAndHashCode(callSuper = true) + @TableName`，Mapper 使用 `@Mapper + BaseMapper<T>`；`medical-ai-service` 当前仅有启动类，数据层需从零补建。
+
+- [2026-02-28] medical-service/medical-ai-service currently has domain entities/VOs/mappers and agent implementations (including SUMMARY in AgentFactory), plus Spring AI/WebFlux dependencies already declared in pom.xml; service-layer classes for chat/tts/summary were not present before Task 7-9.
+- [2026-02-28] medical-service/medical-ai-service currently has no controller package or *Controller.java; Task 10-12 should introduce initial REST controller layer (/chat, /summary, /encyclopedia).
+- [2026-02-28] `medical-ai-service` entity classes (`ChatSession`, `ChatMessage`, `ConversationSummary`) must declare explicit primary key field `id` (e.g., `@TableId(type = IdType.AUTO)`), because `BaseEntity` does not contain an id property; otherwise service/VO mapping calls like `getId()` fail at compile time.
+- [2026-02-28] Spring AI 1.0.0-M5 的 `OpenAiChatOptions.Builder` 中 `withModel()`, `withTemperature()`, `withMaxTokens()`, `withFunctions()` 已标记 deprecated，但仍可编译通过。
+- [2026-02-28] ai-service 同时引入 spring-boot-starter-web 和 spring-boot-starter-webflux，web 用于 REST Controller，webflux 仅用于 Reactor Flux (SSE 流式响应)。
+- [2026-02-28] 06-ai-service 全量编译通过（18 模块 BUILD SUCCESS），37 个 Java 源文件。
+- [2026-02-28] Running `mvn ... -rf :medical-ai-service` from root only resumes downstream modules (`medical-ai-service` and later), so internal upstream artifacts (e.g., `medical-common-*`, `medical-*-api`) must already be installed in local Maven repo; otherwise dependency resolution fails before compilation.

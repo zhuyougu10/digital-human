@@ -16,8 +16,33 @@ spring:
     url: jdbc:mysql://${MYSQL_HOST:localhost}:3306/medical_ai?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
     username: ${MYSQL_USER:root}
     password: ${MYSQL_PASSWORD:root123}
+  ai:
+    openai:
+      api-key: ${DEEPSEEK_API_KEY:your-key}
+      base-url: https://api.deepseek.com
 
 mybatis-plus:
   mapper-locations: classpath:mapper/**/*.xml
   configuration:
     map-underscore-to-camel-case: true
+
+ai:
+  deepseek:
+    api-key: ${DEEPSEEK_API_KEY:your-key}
+    base-url: https://api.deepseek.com
+    model: deepseek-chat
+  qwen:
+    api-key: ${DASHSCOPE_API_KEY:your-key}
+    base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+    model: qwen-plus
+
+aliyun:
+  tts:
+    access-key-id: ${ALIYUN_AK_ID:your-key}
+    access-key-secret: ${ALIYUN_AK_SECRET:your-secret}
+    app-key: ${ALIYUN_TTS_APPKEY:your-appkey}
+    voice: xiaoyun
+    format: mp3
+    sample-rate: 16000
+    speech-rate: 0
+    volume: 50
