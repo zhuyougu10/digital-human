@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.medical</groupId>
+        <artifactId>medical-ai</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>medical-service</artifactId>
+    <packaging>pom</packaging>
+    <name>medical-service</name>
+
+    <modules>
+        <module>medical-user-service</module>
+        <module>medical-doctor-service</module>
+        <module>medical-ai-service</module>
+        <module>medical-appointment-service</module>
+        <module>medical-knowledge-service</module>
+    </modules>
+</project>

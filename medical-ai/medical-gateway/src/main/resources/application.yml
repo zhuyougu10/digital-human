@@ -1,0 +1,61 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: medical-gateway
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:localhost:8848}
+    gateway:
+      routes:
+        - id: user-service
+          uri: lb://medical-user-service
+          predicates:
+            - Path=/api/user/**
+          filters:
+            - StripPrefix=2
+        - id: doctor-service
+          uri: lb://medical-doctor-service
+          predicates:
+            - Path=/api/doctor/**
+          filters:
+            - StripPrefix=2
+        - id: ai-service
+          uri: lb://medical-ai-service
+          predicates:
+            - Path=/api/ai/**
+          filters:
+            - StripPrefix=2
+        - id: appointment-service
+          uri: lb://medical-appointment-service
+          predicates:
+            - Path=/api/appointment/**
+          filters:
+            - StripPrefix=2
+        - id: knowledge-service
+          uri: lb://medical-knowledge-service
+          predicates:
+            - Path=/api/knowledge/**
+          filters:
+            - StripPrefix=2
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+            allowCredentials: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: 6379
+
+sa-token:
+  token-name: Authorization
+  token-prefix: Bearer
+  is-concurrent: true
+  is-share: true
+  is-read-cookie: false
+  is-read-header: true
