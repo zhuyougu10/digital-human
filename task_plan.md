@@ -4,7 +4,7 @@
 构建基于 Spring Cloud + Spring AI + RAG + AI Agents + Vue3 + UniApp 的 AI 数字人医疗小助手系统（毕业设计）
 
 ## Current Phase
-Phase 3 进行中 → 03-user-service 完成，下一步 04-doctor-service
+Phase 3 进行中 → 04-doctor-service 完成，下一步 05-knowledge-service
 
 ## Phases
 <!-- 
@@ -38,9 +38,18 @@ Phase 3 进行中 → 03-user-service 完成，下一步 04-doctor-service
 - **Status:** complete
 
 ### Phase 3: Implementation (TDD)
-- [ ] 按 01-11 计划逐步执行
-- [ ] 每完成一个模块：编译验证 + Commit
-- **Status:** pending
+- [x] 01-project-init (12 Tasks) — COMPLETE
+- [x] 02-common-modules (10 Tasks) — COMPLETE
+- [x] 03-user-service (12 Tasks) — COMPLETE
+- [x] 04-doctor-service (10 Tasks) — COMPLETE
+- [ ] 05-knowledge-service (12 Tasks)
+- [ ] 06-ai-service (13 Tasks)
+- [ ] 07-appointment-service (6 Tasks)
+- [ ] 08-gateway (5 Tasks)
+- [ ] 09-frontend-admin (18 Tasks)
+- [ ] 10-frontend-mp (14 Tasks)
+- [ ] 11-docker-deploy (9 Tasks)
+- **Status:** in_progress
 
 ### Phase 4: Testing & Verification
 - [ ] 端到端联调

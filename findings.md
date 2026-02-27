@@ -192,3 +192,7 @@ medical-ai/
 - [2026-02-28] `medical-common-core` contains `BaseEntity` with MyBatis-Plus annotations, so the module must declare `com.baomidou:mybatis-plus-annotation` (or equivalent MyBatis-Plus dependency) to compile independently.
 - [2026-02-28] `medical-api/medical-user-api` uses Lombok (`@Data` in DTOs), so `pom.xml` should include `org.projectlombok:lombok` with `provided` scope.
 - [2026-02-28] `medical-service/medical-user-service` requires both `org.projectlombok:lombok` (`provided`) and `org.springframework.boot:spring-boot-starter-web` for Lombok annotations and `@RestController` usage.
+- [2026-02-28] `medical-service/medical-doctor-service` currently contains only the bootstrap class (`DoctorServiceApplication`) and no domain/mapper/resources for doctor data yet; Tasks 1-4 need full initial data-layer scaffolding.
+- [2026-02-28] Both `medical-service/medical-doctor-service/pom.xml` and `medical-api/medical-doctor-api/pom.xml` are missing Lombok (`provided`), and doctor-service also needs `spring-boot-starter-web` for upcoming controller layer compatibility.
+- [2026-02-28] `UserConstants` role keys are uppercase (`ADMIN`/`DOCTOR`/`PATIENT`), so all `@SaCheckRole` checks in doctor-service should use those uppercase constants directly.
+- [2026-02-28] In `medical-doctor-service` DDL, `doctor_profile.user_id` is `NOT NULL`, while `DoctorProfileDTO` (Task 4 spec) does not include `userId`; service-side create/update flow must account for this mismatch to avoid runtime insert failures.

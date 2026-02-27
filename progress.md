@@ -81,6 +81,62 @@
   - 2 Java files + 1 imports under `medical-common-redis/`
   - 3 Java files + 1 imports under `medical-common-security/`
 
+#### 03-user-service (12 Tasks) — COMPLETE
+- Actions taken:
+  - Task 1: Codex 创建 DDL (V1__init_user_tables.sql) — 4 表 + 初始数据
+  - Task 2-4: Codex 创建 Entity(4) + Mapper(4) + DTO/VO(6) = 14 Java 文件
+  - Task 5: Codex 创建 StpInterfaceImpl (Sa-Token 权限适配)
+  - Task 6-7: Codex 创建 AuthService/Impl + WxService/Impl + 更新 application.yml (wx.miniapp)
+  - Task 8: Codex 创建 SysUserService/Impl (用户 CRUD + 分页 + 角色管理)
+  - Task 9-10: Codex 创建 AuthController + SysUserController (含 /inner/{userId} 内部接口)
+  - Task 11: Codex 创建 RemoteUserService Feign + UserInfoDTO + 修复 medical-user-api lombok 依赖
+  - Task 12: 全量编译验证 BUILD SUCCESS (18 模块全部通过, 24 源文件)
+- Errors encountered:
+  - [Attempt 1] medical-user-service 缺少 lombok(provided) + spring-boot-starter-web → Codex 修复 POM，第二次编译通过
+- Files created (26 files):
+  - 1 SQL: `V1__init_user_tables.sql`
+  - 4 Entity: SysUser/SysRole/SysUserRole/WxUserBinding
+  - 4 Mapper: SysUserMapper/SysRoleMapper/SysUserRoleMapper/WxUserBindingMapper
+  - 6 DTO/VO: LoginDTO/RegisterDTO/WxLoginDTO/UserUpdateDTO/UserVO/LoginVO
+  - 1 Config: StpInterfaceImpl
+  - 4 Service: AuthService/AuthServiceImpl/WxService/WxServiceImpl
+  - 2 Service: SysUserService/SysUserServiceImpl
+  - 2 Controller: AuthController/SysUserController
+  - 2 Feign API: RemoteUserService/UserInfoDTO
+- Files modified:
+  - `medical-user-service/pom.xml` (added lombok + spring-boot-starter-web)
+  - `medical-user-api/pom.xml` (added lombok)
+  - `application.yml` (added wx.miniapp config)
+
+#### 04-doctor-service (10 Tasks) — COMPLETE
+- Actions taken:
+  - Task 1: Codex 创建 DDL (V1__init_doctor_tables.sql) — 5 表 (department/doctor_profile/doctor_department/schedule_template/schedule_slot) + 10 个初始科室
+  - Task 2: Codex 创建 5 个 Entity (Department/DoctorProfile/DoctorDepartment/ScheduleTemplate/ScheduleSlot)
+  - POM 修复: Codex 添加 lombok(provided) + spring-boot-starter-web 到 doctor-service，lombok 到 doctor-api
+  - Task 3: Codex 创建 5 个 Mapper 接口
+  - Task 4: Codex 创建 3 DTO (DepartmentDTO/DoctorProfileDTO/ScheduleTemplateDTO) + 3 VO (DepartmentVO/DoctorVO/ScheduleSlotVO)
+  - Task 5: Codex 创建 DepartmentService/Impl (科室 CRUD + toggleStatus)
+  - Task 6: Codex 创建 DoctorProfileService/Impl (分页查询/症状搜索/医生自维护)
+  - Task 7: Codex 创建 ScheduleService/Impl (排班模板/号源生成定时任务/乐观锁预约)
+  - Task 8: Codex 创建 3 Controller (DepartmentController/DoctorController/ScheduleController 含 inner API)
+  - Task 9: Codex 创建 Feign API (RemoteDoctorService/RemoteScheduleService + DoctorInfoDTO/SlotInfoDTO)
+  - Task 10: 全量编译验证 BUILD SUCCESS (18 模块全部通过, 26 源文件)
+  - Codex 更新 DoctorServiceApplication 添加 @EnableScheduling
+- Errors encountered:
+  - [Attempt 1] ScheduleSlot#getAvailableSlots() 的 @TableField 注解不能用于 method → Codex 自行修复移除
+- Files created (27 files):
+  - 1 SQL: `V1__init_doctor_tables.sql`
+  - 5 Entity: Department/DoctorProfile/DoctorDepartment/ScheduleTemplate/ScheduleSlot
+  - 5 Mapper: DepartmentMapper/DoctorProfileMapper/DoctorDepartmentMapper/ScheduleTemplateMapper/ScheduleSlotMapper
+  - 6 DTO/VO: DepartmentDTO/DoctorProfileDTO/ScheduleTemplateDTO/DepartmentVO/DoctorVO/ScheduleSlotVO
+  - 6 Service: DepartmentService+Impl/DoctorProfileService+Impl/ScheduleService+Impl
+  - 3 Controller: DepartmentController/DoctorController/ScheduleController
+  - 4 Feign API: RemoteDoctorService/RemoteScheduleService/DoctorInfoDTO/SlotInfoDTO
+- Files modified:
+  - `medical-doctor-service/pom.xml` (added lombok + spring-boot-starter-web)
+  - `medical-doctor-api/pom.xml` (added lombok)
+  - `DoctorServiceApplication.java` (added @EnableScheduling)
+
 ### Phase 4: Testing & Verification
 - **Status:** pending
 - Actions taken:
@@ -108,11 +164,11 @@
 
 | Question | Answer |
 |----------|--------|
-| Where am I? | Phase 3 进行中，03-user-service 已完成，下一步 04-doctor-service |
-| Where am I going? | 04-doctor → 06-ai → 10-frontend-mp (核心路径) |
+| Where am I? | Phase 3 进行中，04-doctor-service 已完成，下一步 05-knowledge-service |
+| Where am I going? | 05-knowledge → 06-ai → 07-appointment → 08-gateway → 09/10-frontend → 11-deploy |
 | What's the goal? | 构建基于 Spring Cloud + Spring AI + RAG + AI Agents + Vue3 + UniApp 的 AI 数字人医疗小助手系统 |
-| What have I learned? | 5微服务架构、技术栈选型、4个Agent设计、Live2D via web-view；每个 service 模块需要直接声明 lombok(provided) + spring-boot-starter-web |
-| What have I done? | Phase 1-2 完成；Phase 3: 01-project-init + 02-common-modules + 03-user-service 完成 |
+| What have I learned? | 5微服务架构、技术栈选型、4个Agent设计、Live2D via web-view；每个 service 模块需要直接声明 lombok(provided) + spring-boot-starter-web；CCB ask 同步模式需要用统一 daemon (CCB_UNIFIED_ASKD 默认)，超时设置要长；@TableField 注解不能用于 method 上 |
+| What have I done? | Phase 1-2 完成；Phase 3: 01-project-init + 02-common-modules + 03-user-service + 04-doctor-service 完成 |
 
 ---
 *Update after completing each phase or encountering errors*
@@ -121,30 +177,6 @@
 | 2026-02-28 00:19 | `mvn clean compile -f medical-ai/pom.xml` failed at `medical-common-mybatis`: `PaginationInnerInterceptor` class not found | 2 | Added `com.baomidou:mybatis-plus-extension` to `medical-common-mybatis/pom.xml`, then recompiled |
 | 2026-02-28 00:20 | Added `mybatis-plus-extension` without explicit version caused POM validation failure | 3 | Set `mybatis-plus-extension` version to `${mybatis-plus.version}` in `medical-common-mybatis/pom.xml` |
 | 2026-02-28 00:21 | `PaginationInnerInterceptor` still unresolved with `mybatis-plus-extension:3.5.9` | 4 | Confirmed class location via jar inspection; added `com.baomidou:mybatis-plus-jsqlparser:${mybatis-plus.version}` to `medical-common-mybatis/pom.xml` |
+| 2026-02-28 01:34 | `mvn clean compile -f medical-ai/pom.xml` failed in `medical-doctor-service`: `ScheduleSlot#getAvailableSlots()` annotated with `@TableField` on method, causing annotation target error and cascading symbol errors | 1 | Removed the invalid method-level `@TableField` usage in `ScheduleSlot.java`, kept available slot calculation in VO/service mapping, then recompiled |
+| 2026-02-28 01:40 | Re-run `mvn clean compile -f medical-ai/pom.xml` after doctor-service fixes | 2 | BUILD SUCCESS (all 18 modules compiled) |
 
-#### 03-user-service (12 Tasks) — COMPLETE
-- Actions taken:
-  - Task 1: Codex 创建 DDL (V1__init_user_tables.sql) — 4 表 + 初始数据
-  - Task 2-4: Codex 创建 Entity(4) + Mapper(4) + DTO/VO(6) = 14 Java 文件
-  - Task 5: Codex 创建 StpInterfaceImpl (Sa-Token 权限适配)
-  - Task 6-7: Codex 创建 AuthService/Impl + WxService/Impl + 更新 application.yml (wx.miniapp)
-  - Task 8: Codex 创建 SysUserService/Impl (用户 CRUD + 分页 + 角色管理)
-  - Task 9-10: Codex 创建 AuthController + SysUserController (含 /inner/{userId} 内部接口)
-  - Task 11: Codex 创建 RemoteUserService Feign + UserInfoDTO + 修复 medical-user-api lombok 依赖
-  - Task 12: 全量编译验证 BUILD SUCCESS (18 模块全部通过, 24 源文件)
-- Errors encountered:
-  - [Attempt 1] medical-user-service 缺少 lombok(provided) + spring-boot-starter-web → Codex 修复 POM，第二次编译通过
-- Files created (26 files):
-  - 1 SQL: `V1__init_user_tables.sql`
-  - 4 Entity: SysUser/SysRole/SysUserRole/WxUserBinding
-  - 4 Mapper: SysUserMapper/SysRoleMapper/SysUserRoleMapper/WxUserBindingMapper
-  - 6 DTO/VO: LoginDTO/RegisterDTO/WxLoginDTO/UserUpdateDTO/UserVO/LoginVO
-  - 1 Config: StpInterfaceImpl
-  - 4 Service: AuthService/AuthServiceImpl/WxService/WxServiceImpl
-  - 2 Service: SysUserService/SysUserServiceImpl
-  - 2 Controller: AuthController/SysUserController
-  - 2 Feign API: RemoteUserService/UserInfoDTO
-- Files modified:
-  - `medical-user-service/pom.xml` (added lombok + spring-boot-starter-web)
-  - `medical-user-api/pom.xml` (added lombok)
-  - `application.yml` (added wx.miniapp config)

@@ -1,0 +1,25 @@
+package com.medical.doctor.service;
+
+import com.medical.common.core.domain.PageQuery;
+import com.medical.common.core.domain.PageResult;
+import com.medical.doctor.domain.dto.DoctorProfileDTO;
+import com.medical.doctor.domain.vo.DoctorVO;
+import java.util.List;
+
+public interface DoctorProfileService {
+    PageResult<DoctorVO> listByDepartment(Long departmentId, PageQuery pageQuery);
+
+    List<DoctorVO> searchBySymptom(String keywords);
+
+    DoctorVO getById(Long id);
+
+    DoctorVO getByUserId(Long userId);
+
+    void create(DoctorProfileDTO dto);
+
+    void update(Long id, DoctorProfileDTO dto);
+
+    void updateMyProfile(Long userId, DoctorProfileDTO dto);
+
+    void delete(Long id);
+}
