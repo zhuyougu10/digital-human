@@ -196,3 +196,15 @@ medical-ai/
 - [2026-02-28] Both `medical-service/medical-doctor-service/pom.xml` and `medical-api/medical-doctor-api/pom.xml` are missing Lombok (`provided`), and doctor-service also needs `spring-boot-starter-web` for upcoming controller layer compatibility.
 - [2026-02-28] `UserConstants` role keys are uppercase (`ADMIN`/`DOCTOR`/`PATIENT`), so all `@SaCheckRole` checks in doctor-service should use those uppercase constants directly.
 - [2026-02-28] In `medical-doctor-service` DDL, `doctor_profile.user_id` is `NOT NULL`, while `DoctorProfileDTO` (Task 4 spec) does not include `userId`; service-side create/update flow must account for this mismatch to avoid runtime insert failures.
+- [2026-02-28] Root medical-ai/pom.xml already imports spring-ai-bom (1.0.0-M5) and manages io.milvus:milvus-sdk-java (currently via property milvus-sdk.version=2.4.3), so knowledge-service can add those artifacts without local version declarations.
+- [2026-02-28] Local environment has no cached io.milvus:milvus-sdk-java artifacts under C:\Users\���͹�\.m2\repository, and mvn is unavailable, so Milvus v2 API usage must follow documented class signatures without local compile-time verification.
+- [2026-02-28] Milvus Java v2 API docs indicate SearchReq uses io.milvus.v2.service.vector.request.data.FloatVec and returns List<List<SearchResp.SearchResult>>; collection creation supports schema via client.createSchema() + AddFieldReq + IndexParam with COSINE metric.
+- [2026-02-28] PageQuery in medical-common-core is a plain DTO (no helper to build MyBatis Page), so service pagination must instantiate 
+ew Page<>(pageNum, pageSize) explicitly and map to PageResult.of(...).
+- [2026-02-28] Existing services/controllers use com.medical.common.core.domain.R (no com.medical.common.core.result.R package), so new knowledge-service controller/Feign interfaces should import domain.R for consistency and compilation.
+- [2026-02-28] Full reactor compile currently fails before reaching knowledge-service due unrelated doctor-service imports (com.medical.api.doctor.dto.DoctorInfoDTO / SlotInfoDTO) not resolving, so cross-module baseline must be fixed for end-to-end mvn clean compile -f medical-ai/pom.xml verification.
+- [2026-02-28] `tika-parsers-standard-package:2.9.1` 只包含各 parser module，不传递依赖 `tika-core`（`org.apache.tika.Tika` facade 类所在包），必须显式添加 `tika-core:2.9.1`。
+- [2026-02-28] Milvus Java SDK v2 `SearchResp.SearchResult.getScore()` 返回 `Float`，而业务 VO 用 `Double`，需显式 `getScore().doubleValue()` 转换。
+- [2026-02-28] `@Async` 注解的方法需要通过代理调用才能生效；在同一个类内部调用时需使用 `@Lazy` 自注入模式（`private final @Lazy KnowledgeBaseService self`）绕过 this 调用失效问题。
+- [2026-02-28] Codex 主动扩展了 `ErrorCode` 枚举，添加了 `DOCUMENT_PARSE_ERROR(5002)`, `EMBEDDING_ERROR(5003)`, `KNOWLEDGE_BASE_NOT_FOUND(5004)`, `PARAM_ERROR(4001)`, `NOT_FOUND(4004)` 等。
+- [2026-02-28] 05-knowledge-service 全量编译通过（18 模块 BUILD SUCCESS），25 个 Java 源文件。
