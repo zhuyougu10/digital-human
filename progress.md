@@ -66,6 +66,21 @@
   - `medical-ai/docker/docker-compose.yml` + `docker/mysql/init.sql`
   - `medical-ai/.gitignore`
 
+#### 02-common-modules (10 Tasks) — COMPLETE
+- Actions taken:
+  - Task 1-6: Codex 创建 common-core 全部 9 个 Java 文件 (R, ErrorCode, BusinessException, GlobalExceptionHandler, PageQuery, PageResult, Constants, UserConstants, BaseEntity)
+  - Task 7: Codex 创建 MybatisPlusConfig + MybatisPlusMetaObjectHandler + AutoConfiguration.imports
+  - Task 8: Codex 创建 RedisConfig + RedisUtil + AutoConfiguration.imports
+  - Task 9: Codex 创建 SaTokenConfig + SecurityUtil + SaTokenExceptionHandler + AutoConfiguration.imports
+  - Task 10: 全量编译验证 BUILD SUCCESS (18 模块全部通过)
+- Errors encountered:
+  - [Attempt 1-4] PaginationInnerInterceptor 在 MyBatis-Plus 3.5.9 中需要 mybatis-plus-jsqlparser 依赖 → Codex 自动修复 POM
+- Files created (18 files):
+  - 9 Java files under `medical-common-core/src/main/java/com/medical/common/core/`
+  - 2 Java files + 1 imports under `medical-common-mybatis/`
+  - 2 Java files + 1 imports under `medical-common-redis/`
+  - 3 Java files + 1 imports under `medical-common-security/`
+
 ### Phase 4: Testing & Verification
 - **Status:** pending
 - Actions taken:
@@ -93,11 +108,16 @@
 
 | Question | Answer |
 |----------|--------|
-| Where am I? | Phase 3 进行中，01-project-init 已完成，下一步 02-common-modules |
-| Where am I going? | 02-common-modules → 03-user → 06-ai → 10-frontend-mp (核心路径) |
+| Where am I? | Phase 3 进行中，02-common-modules 已完成，下一步 03-user-service |
+| Where am I going? | 03-user → 06-ai → 10-frontend-mp (核心路径) |
 | What's the goal? | 构建基于 Spring Cloud + Spring AI + RAG + AI Agents + Vue3 + UniApp 的 AI 数字人医疗小助手系统 |
 | What have I learned? | 5微服务架构、技术栈选型、4个Agent设计、Live2D via web-view 方案 → 见 findings.md |
 | What have I done? | Phase 1 需求确认 + 架构设计文档；Phase 2 拆分 11 模块 ~230 微任务计划 → 见上方日志 |
 
 ---
 *Update after completing each phase or encountering errors*
+| 2026-02-28 00:06 | `mvn clean compile -pl medical-common/medical-common-core` compile failed: missing MyBatis-Plus annotations in `BaseEntity` (`TableField`/`TableLogic`/`FieldFill`) | 1 | Added `com.baomidou:mybatis-plus-annotation:${mybatis-plus.version}` to `medical-common-core/pom.xml`, then recompiled |
+| 2026-02-28 00:18 | `mvn clean compile -f medical-ai/pom.xml` failed at `medical-common-security`: Lombok annotations not resolvable (`@Slf4j` / `log`) | 1 | Added `org.projectlombok:lombok` (`provided`) to `medical-common-security`, `medical-common-mybatis`, and `medical-common-redis` module POMs, then recompiled |
+| 2026-02-28 00:19 | `mvn clean compile -f medical-ai/pom.xml` failed at `medical-common-mybatis`: `PaginationInnerInterceptor` class not found | 2 | Added `com.baomidou:mybatis-plus-extension` to `medical-common-mybatis/pom.xml`, then recompiled |
+| 2026-02-28 00:20 | Added `mybatis-plus-extension` without explicit version caused POM validation failure | 3 | Set `mybatis-plus-extension` version to `${mybatis-plus.version}` in `medical-common-mybatis/pom.xml` |
+| 2026-02-28 00:21 | `PaginationInnerInterceptor` still unresolved with `mybatis-plus-extension:3.5.9` | 4 | Confirmed class location via jar inspection; added `com.baomidou:mybatis-plus-jsqlparser:${mybatis-plus.version}` to `medical-common-mybatis/pom.xml` |

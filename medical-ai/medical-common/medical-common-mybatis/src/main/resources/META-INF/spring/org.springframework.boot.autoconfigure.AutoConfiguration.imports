@@ -1,0 +1,2 @@
+com.medical.common.mybatis.config.MybatisPlusConfig
+com.medical.common.mybatis.handler.MybatisPlusMetaObjectHandler
