@@ -21,3 +21,8 @@ mybatis-plus:
   mapper-locations: classpath:mapper/**/*.xml
   configuration:
     map-underscore-to-camel-case: true
+
+wx:
+  miniapp:
+    appid: ${WX_APPID:your-appid}
+    secret: ${WX_SECRET:your-secret}

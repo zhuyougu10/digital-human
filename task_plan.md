@@ -4,7 +4,7 @@
 构建基于 Spring Cloud + Spring AI + RAG + AI Agents + Vue3 + UniApp 的 AI 数字人医疗小助手系统（毕业设计）
 
 ## Current Phase
-Phase 3 进行中 → 02-common-modules 完成，下一步 03-user-service
+Phase 3 进行中 → 03-user-service 完成，下一步 04-doctor-service
 
 ## Phases
 <!-- 

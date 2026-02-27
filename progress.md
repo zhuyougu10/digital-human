@@ -108,11 +108,11 @@
 
 | Question | Answer |
 |----------|--------|
-| Where am I? | Phase 3 进行中，02-common-modules 已完成，下一步 03-user-service |
-| Where am I going? | 03-user → 06-ai → 10-frontend-mp (核心路径) |
+| Where am I? | Phase 3 进行中，03-user-service 已完成，下一步 04-doctor-service |
+| Where am I going? | 04-doctor → 06-ai → 10-frontend-mp (核心路径) |
 | What's the goal? | 构建基于 Spring Cloud + Spring AI + RAG + AI Agents + Vue3 + UniApp 的 AI 数字人医疗小助手系统 |
-| What have I learned? | 5微服务架构、技术栈选型、4个Agent设计、Live2D via web-view 方案 → 见 findings.md |
-| What have I done? | Phase 1 需求确认 + 架构设计文档；Phase 2 拆分 11 模块 ~230 微任务计划 → 见上方日志 |
+| What have I learned? | 5微服务架构、技术栈选型、4个Agent设计、Live2D via web-view；每个 service 模块需要直接声明 lombok(provided) + spring-boot-starter-web |
+| What have I done? | Phase 1-2 完成；Phase 3: 01-project-init + 02-common-modules + 03-user-service 完成 |
 
 ---
 *Update after completing each phase or encountering errors*
@@ -121,3 +121,30 @@
 | 2026-02-28 00:19 | `mvn clean compile -f medical-ai/pom.xml` failed at `medical-common-mybatis`: `PaginationInnerInterceptor` class not found | 2 | Added `com.baomidou:mybatis-plus-extension` to `medical-common-mybatis/pom.xml`, then recompiled |
 | 2026-02-28 00:20 | Added `mybatis-plus-extension` without explicit version caused POM validation failure | 3 | Set `mybatis-plus-extension` version to `${mybatis-plus.version}` in `medical-common-mybatis/pom.xml` |
 | 2026-02-28 00:21 | `PaginationInnerInterceptor` still unresolved with `mybatis-plus-extension:3.5.9` | 4 | Confirmed class location via jar inspection; added `com.baomidou:mybatis-plus-jsqlparser:${mybatis-plus.version}` to `medical-common-mybatis/pom.xml` |
+
+#### 03-user-service (12 Tasks) — COMPLETE
+- Actions taken:
+  - Task 1: Codex 创建 DDL (V1__init_user_tables.sql) — 4 表 + 初始数据
+  - Task 2-4: Codex 创建 Entity(4) + Mapper(4) + DTO/VO(6) = 14 Java 文件
+  - Task 5: Codex 创建 StpInterfaceImpl (Sa-Token 权限适配)
+  - Task 6-7: Codex 创建 AuthService/Impl + WxService/Impl + 更新 application.yml (wx.miniapp)
+  - Task 8: Codex 创建 SysUserService/Impl (用户 CRUD + 分页 + 角色管理)
+  - Task 9-10: Codex 创建 AuthController + SysUserController (含 /inner/{userId} 内部接口)
+  - Task 11: Codex 创建 RemoteUserService Feign + UserInfoDTO + 修复 medical-user-api lombok 依赖
+  - Task 12: 全量编译验证 BUILD SUCCESS (18 模块全部通过, 24 源文件)
+- Errors encountered:
+  - [Attempt 1] medical-user-service 缺少 lombok(provided) + spring-boot-starter-web → Codex 修复 POM，第二次编译通过
+- Files created (26 files):
+  - 1 SQL: `V1__init_user_tables.sql`
+  - 4 Entity: SysUser/SysRole/SysUserRole/WxUserBinding
+  - 4 Mapper: SysUserMapper/SysRoleMapper/SysUserRoleMapper/WxUserBindingMapper
+  - 6 DTO/VO: LoginDTO/RegisterDTO/WxLoginDTO/UserUpdateDTO/UserVO/LoginVO
+  - 1 Config: StpInterfaceImpl
+  - 4 Service: AuthService/AuthServiceImpl/WxService/WxServiceImpl
+  - 2 Service: SysUserService/SysUserServiceImpl
+  - 2 Controller: AuthController/SysUserController
+  - 2 Feign API: RemoteUserService/UserInfoDTO
+- Files modified:
+  - `medical-user-service/pom.xml` (added lombok + spring-boot-starter-web)
+  - `medical-user-api/pom.xml` (added lombok)
+  - `application.yml` (added wx.miniapp config)
