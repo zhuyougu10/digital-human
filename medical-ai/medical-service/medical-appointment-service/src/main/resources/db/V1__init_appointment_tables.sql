@@ -1,0 +1,22 @@
+CREATE TABLE IF NOT EXISTS `appointment` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT,
+    `patient_id` BIGINT NOT NULL COMMENT 'patient user id',
+    `doctor_id` BIGINT NOT NULL COMMENT 'doctor profile id',
+    `department_id` BIGINT NOT NULL COMMENT 'department id',
+    `slot_id` BIGINT NOT NULL COMMENT 'slot id',
+    `session_id` BIGINT DEFAULT NULL COMMENT 'chat session id',
+    `appointment_date` DATE NOT NULL COMMENT 'appointment date',
+    `period` VARCHAR(16) NOT NULL COMMENT 'morning/afternoon',
+    `start_time` TIME NOT NULL,
+    `end_time` TIME NOT NULL,
+    `queue_number` INT DEFAULT NULL COMMENT 'queue number',
+    `status` TINYINT DEFAULT 0 COMMENT '0 pending,1 completed,2 cancelled,3 no-show',
+    `cancel_reason` VARCHAR(256) DEFAULT NULL,
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted` TINYINT DEFAULT 0,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_patient_slot` (`patient_id`, `slot_id`),
+    KEY `idx_doctor_date` (`doctor_id`, `appointment_date`),
+    KEY `idx_patient_id` (`patient_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='appointment table';

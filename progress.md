@@ -229,11 +229,11 @@
 
 | Question | Answer |
 |----------|--------|
-| Where am I? | Phase 3 进行中，06-ai-service 已完成，下一步 07-appointment-service |
-| Where am I going? | 07-appointment → 08-gateway → 09/10-frontend → 11-deploy |
+| Where am I? | Phase 3 进行中，08-gateway 已完成，下一步 09-frontend-admin |
+| Where am I going? | 09-frontend-admin → 10-frontend-mp → 11-deploy |
 | What's the goal? | 构建基于 Spring Cloud + Spring AI + RAG + AI Agents + Vue3 + UniApp 的 AI 数字人医疗小助手系统 |
-| What have I learned? | 5微服务架构、技术栈选型、4个Agent设计、Live2D via web-view；BaseEntity不含id需自行声明；Spring AI withModel/withFunctions deprecated但可用 |
-| What have I done? | Phase 1-2 完成；Phase 3: 01~06 完成 (project-init/common-modules/user-service/doctor-service/knowledge-service/ai-service) |
+| What have I learned? | 5微服务架构、技术栈选型、4个Agent设计、Live2D via web-view；BaseEntity不含id需自行声明；Spring AI withModel/withFunctions deprecated但可用；appointment-service 需要 doctor-api 依赖 |
+| What have I done? | Phase 1-2 完成；Phase 3: 01~08 完成 (project-init/common-modules/user/doctor/knowledge/ai/appointment-service/gateway) |
 
 ---
 *Update after completing each phase or encountering errors*
@@ -258,5 +258,46 @@
 - [2026-02-28] File write issue during Task 10-12: PowerShell Set-Content in this environment does not support utf8NoBOM encoding name (attempt 1). Resolved by writing files with [System.IO.File]::WriteAllText(..., [System.Text.UTF8Encoding]::new(False)) to enforce UTF-8 without BOM.
 | 2026-02-28 03:04 | `mvn clean compile -f D:\project\������\medical-ai\pom.xml` failed at `medical-ai-service`: `ChatSession/ChatMessage/ConversationSummary` missing `getId()` target fields | 1 | Added explicit `id` PK fields with `@TableId(type = IdType.AUTO)` in all three entities, then recompiled successfully. |
 | 2026-02-28 03:06 | Re-ran full reactor compile after AI entity PK fix | 2 | BUILD SUCCESS (all 18 modules compiled). |
-| 2026-02-28 03:08 | `mvn clean compile -f D:\project\������\medical-ai\pom.xml -rf :medical-ai-service` failed: upstream internal artifacts (`medical-common-*`, `medical-*-api`) unresolved | 1 | Installed required upstream modules to local Maven repo via `mvn clean install -DskipTests -f D:\project\������\medical-ai\pom.xml -pl medical-service/medical-ai-service -am`, then reran exact `-rf` compile. |
-| 2026-02-28 03:10 | Re-ran exact command `mvn clean compile -f D:\project\������\medical-ai\pom.xml -rf :medical-ai-service` after install | 2 | BUILD SUCCESS (medical-ai-service, medical-appointment-service, medical-knowledge-service). |
+| 2026-02-28 03:08 | `mvn clean compile -f D:\project\������\medical-ai\pom.xml -rf :medical-ai-service` failed: upstream internal artifacts (`medical-common-*`, `medical-*-api`) unresolved | 1 | Installed required upstream modules to local Maven repo via `mvn clean install -DskipTests -f D:\project\������\medical-ai\pom.xml -pl medical-service/medical-ai-service -am`, then reran exact `-rf` compile. |
+| 2026-02-28 03:10 | Re-ran exact command `mvn clean compile -f D:\project\������\medical-ai\pom.xml -rf :medical-ai-service` after install | 2 | BUILD SUCCESS (medical-ai-service, medical-appointment-service, medical-knowledge-service). |
+| 2026-02-28 03:24 | appointment-service compile failed: `com.medical.api.doctor.*` packages unresolved in `AppointmentServiceImpl` | 1 | Added `com.medical:medical-doctor-api` dependency to `medical-service/medical-appointment-service/pom.xml`, then recompiled successfully. |
+| 2026-02-28 03:25 | Recompiled `mvn clean compile -f D:\project\������\medical-ai\pom.xml -pl medical-service/medical-appointment-service -am` after POM fix | 2 | BUILD SUCCESS (`medical-appointment-service` and upstream modules). |
+| 2026-02-28 03:29 | Implemented 07-appointment-service Task 4-5 (`AppointmentController` + internal `/appointment/inner/create`) and validated module compile | 1 | `mvn clean compile -f D:\project\������\medical-ai\pom.xml -pl medical-service/medical-appointment-service -am` -> BUILD SUCCESS. |
+
+#### 07-appointment-service (6 Tasks) — COMPLETE
+- Actions taken:
+  - Task 1: Codex 创建 DDL (V1__init_appointment_tables.sql) — 1 表 (appointment)
+  - Task 2: Codex 创建 Entity (Appointment) + Mapper + 2 DTO (CreateAppointmentDTO/AppointmentQueryDTO) + 2 VO (AppointmentVO/AppointmentListVO), 更新 POM + AppointmentServiceApplication
+  - Task 3: Codex 创建 AppointmentService/Impl (create/cancel/query/statistics + Feign 调用 doctor-service)
+  - Task 4: Codex 创建 AppointmentController (7 REST 端点 + 1 inner API)
+  - Task 5: Codex 确认 Feign API 已存在，无需修改
+  - Task 6: OpenCode 全量编译验证 BUILD SUCCESS (18 模块全部通过, 10 源文件)
+- Errors encountered:
+  - [Attempt 1] appointment-service POM 缺少 medical-doctor-api 依赖 → Codex 修复
+- Files created (8 files):
+  - 1 SQL: V1__init_appointment_tables.sql
+  - 1 Entity: Appointment.java
+  - 1 Mapper: AppointmentMapper.java
+  - 2 DTO: CreateAppointmentDTO/AppointmentQueryDTO
+  - 2 VO: AppointmentVO/AppointmentListVO
+  - 2 Service: AppointmentService + AppointmentServiceImpl
+  - 1 Controller: AppointmentController
+- Files modified:
+  - medical-appointment-service/pom.xml (添加 lombok/web/doctor-api)
+  - AppointmentServiceApplication.java (添加 @MapperScan + @EnableFeignClients)
+| 2026-02-28 03:34 | `mvn clean compile -f D:\project\������\medical-ai\pom.xml -pl medical-gateway -am` failed in `medical-gateway`: new classes used Lombok annotations but gateway module has no Lombok dependency | 1 | Replaced Lombok usage with plain Java (`LoggerFactory` logger + explicit constructor) in `RequestLogFilter` and `GatewayExceptionHandler`, then recompiled. |
+| 2026-02-28 03:34 | Re-ran gateway module compile after code-only Lombok removal | 2 | BUILD SUCCESS (`medical-gateway`). |
+
+#### 08-gateway (5 Tasks) — COMPLETE
+- Actions taken:
+  - Task 1: Codex 创建 AuthFilter.java (SaReactorFilter 鉴权 + 白名单含 inner 路径)
+  - Task 2: Codex 重写 application.yml (6 路由 + SSE 120s 超时 + Nacos + Redis + CORS + Sa-Token)
+  - Task 3: Codex 创建 RequestLogFilter.java (GlobalFilter, method + URI + 耗时)
+  - Task 4: Codex 创建 GatewayExceptionHandler.java (ErrorWebExceptionHandler, 401/5xx JSON)
+  - Task 5: OpenCode 全量编译验证 BUILD SUCCESS (18 模块全部通过, Gateway 4 源文件)
+- Errors encountered:
+  - [Attempt 1] Gateway 新类使用了 Lombok 但 POM 无 Lombok → Codex 改用纯 Java 写法修复
+- Files created (3 files):
+  - AuthFilter.java, RequestLogFilter.java, GatewayExceptionHandler.java
+- Files modified:
+  - application.yml (完整路由 + SSE 超时 + Nacos/Redis/Sa-Token 配置)
