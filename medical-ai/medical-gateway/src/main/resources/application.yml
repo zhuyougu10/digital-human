@@ -10,6 +10,15 @@ spring:
         server-addr: ${NACOS_ADDR:localhost:8848}
     gateway:
       routes:
+        - id: ai-service-sse
+          uri: lb://medical-ai-service
+          predicates:
+            - Path=/api/ai/chat/send
+          filters:
+            - StripPrefix=2
+          metadata:
+            response-timeout: 120000
+            connect-timeout: 5000
         - id: user-service
           uri: lb://medical-user-service
           predicates:
@@ -50,7 +59,8 @@ spring:
   data:
     redis:
       host: ${REDIS_HOST:localhost}
-      port: 6379
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
 
 sa-token:
   token-name: Authorization
