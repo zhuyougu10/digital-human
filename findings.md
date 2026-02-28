@@ -224,3 +224,72 @@ ew Page<>(pageNum, pageSize) explicitly and map to PageResult.of(...).
 - [2026-02-28] There is a contract mismatch between `medical-api` and `appointment-service`: `RemoteAppointmentService#createAppointment` currently sends only `patientId/doctorId/slotId` via `@RequestParam`, while `AppointmentServiceImpl#createAppointment` validates `departmentId` as required. Controller-level adaptation is needed to avoid breaking existing Feign callers.
 - [2026-02-28] `medical-gateway` currently has only `GatewayApplication` (no auth/log/exception classes yet); existing `application.yml` already has basic service routes and Redis but lacks dedicated SSE route timeout metadata and gateway-side global exception handler for WebFlux.
 - [2026-02-28] For Spring Cloud Gateway (WebFlux), global exception handling should use `ErrorWebExceptionHandler` (registered as high-priority bean, e.g. `@Order(-1)`) instead of `@ControllerAdvice`; SSE path `/api/ai/chat/send` must be declared before generic `/api/ai/**` route and configured with extended response timeout (120s).
+
+## 09-frontend-admin 当前状态 (Session Recovery 2026-02-28)
+
+- [2026-02-28] Tasks 1-7 已提交 (commit 9004ef7): Vue3 项目骨架、Axios 封装、Pinia 状态、Router 权限守卫、Layout 组件、Login 页面
+- [2026-02-28] 文件命名约定与计划不同但可接受: 实际用 `*Management.vue`(admin)、短名称(doctor) vs 计划的 `*Manage.vue`/`My*` 前缀
+- [2026-02-28] 后端 API 端点对照: /api/user/**(8081), /api/doctor/**(8082), /api/ai/**(8083), /api/appointment/**(8084), /api/knowledge/**(8085)
+
+### 完整审计结果 (Session 3, 2026-02-28)
+
+**API 模块 (8 files) — 全部存在:**
+| 文件 | 行数 | 状态 | 导出函数 |
+|------|------|------|----------|
+| request.js | 51 | COMPLETE | axios instance, token注入, 401跳转 |
+| auth.js | 57 | COMPLETE | login, register, wxLogin, logout, getUserInfo |
+| user.js | 59 | COMPLETE | getUserList, getUserById, updateUser, toggleUserStatus, assignRole |
+| doctor.js | 97 | COMPLETE | getDoctorList, getDoctorById, createDoctor, updateDoctor, getScheduleTemplates, createScheduleTemplate, generateSlots, getAvailableSlots |
+| department.js | 58 | PARTIAL | getDepartmentList, getDepartmentById, createDepartment, updateDepartment, toggleDepartmentStatus — **缺少 deleteDepartment** |
+| appointment.js | 71 | PARTIAL | getAppointmentList, getAppointmentById, createAppointment, cancelAppointment, getAppointmentStats, getMyAppointments — **缺少 getStatistics, getDoctorTodayAppointments** |
+| knowledge.js | 127 | COMPLETE | 10个函数覆盖KB CRUD/文档上传/分块/搜索 |
+| chat.js | 111 | COMPLETE | 9个函数, SSE流式via raw fetch() |
+
+**公共组件 (2 files) — 全部完成:**
+| 文件 | 行数 | 状态 |
+|------|------|------|
+| ChatPanel.vue | 417 | COMPLETE — 会话侧栏+消息+SSE流式+markdown渲染 |
+| RichEditor.vue | 112 | COMPLETE — contenteditable+工具栏 |
+
+**Admin Views (8 files) — 全部完成但有import不匹配:**
+| 文件 | 行数 | 状态 | 问题 |
+|------|------|------|------|
+| UserManagement.vue | 200 | COMPLETE | **BUG**: imports `listUsers`/`updateUserStatus` 但 user.js 导出 `getUserList`/`toggleUserStatus`; assignRole 传array但API期望string |
+| DoctorManagement.vue | 332 | COMPLETE | OK |
+| DepartmentManagement.vue | 218 | COMPLETE | **BUG**: imports `listDepartments`/`deleteDepartment` 但 department.js 导出 `getDepartmentList`/无deleteDepartment |
+| AppointmentManagement.vue | 229 | COMPLETE | OK |
+| KnowledgeBase.vue | 234 | COMPLETE | OK |
+| DocumentManagement.vue | 323 | COMPLETE | OK |
+| ConversationManagement.vue | 149 | COMPLETE | OK |
+| SystemConfig.vue | 153 | COMPLETE | 仅localStorage无后端持久化(可接受) |
+
+**Dashboard:**
+| 文件 | 行数 | 状态 | 问题 |
+|------|------|------|------|
+| dashboard/index.vue | 243 | COMPLETE | **BUG**: imports `getStatistics`/`getDoctorTodayAppointments` 不存在于 appointment.js |
+
+**Doctor Views (5 files) — 全部为空壳:**
+| 文件 | 行数 | 状态 |
+|------|------|------|
+| Profile.vue | 15 | STUB — 仅 `<h1>` 占位 |
+| Schedule.vue | 15 | STUB — 仅 `<h1>` 占位 |
+| Appointments.vue | 15 | STUB — 仅 `<h1>` 占位 |
+| PatientSummary.vue | 15 | STUB — 仅 `<h1>` 占位 |
+| Assistant.vue | 15 | STUB — 仅 `<h1>` 占位 |
+
+### 关键修复清单 (必须在build前完成)
+1. **UserManagement.vue** — 修正 import 为 `getUserList`/`toggleUserStatus`; assignRole 改为循环发送单个角色
+2. **DepartmentManagement.vue** — 修正 import 为 `getDepartmentList`; 在 department.js 添加 `deleteDepartment`
+3. **dashboard/index.vue** — 在 appointment.js 添加 `getStatistics`/`getDoctorTodayAppointments`; 修正 import
+4. **5 个 Doctor Views** — 需要完整实现
+
+### 审计复核 (2026-02-28, Batch 1 import mismatch)
+- [2026-02-28] 复核 `medical-admin` Batch 1 的 5 个修复点后确认: 代码已实现并与 API 导出一致，无需额外改动。
+- [2026-02-28] `department.js` 已存在 `deleteDepartment`; `appointment.js` 已存在 `getStatistics`/`getDoctorTodayAppointments`。
+- [2026-02-28] `UserManagement.vue` 已使用 `getUserList`/`toggleUserStatus`，且 `assignRole` 已按单角色循环调用；`DepartmentManagement.vue` 与 `dashboard/index.vue` 的 import 与调用均匹配。
+- [2026-02-28] 全局检索确认不存在旧符号 `listUsers`、`updateUserStatus`、`listDepartments` 的遗留引用。
+- [2026-02-28] `medical-admin/src/api/doctor.js` contract details: profile update uses `updateDoctor(id, data)` with doctor id in path; schedule template APIs are doctor-scoped (`/schedule/template/{doctorId}`), while `generateSlots` takes only query params `{startDate,endDate}` and `getAvailableSlots` takes query params `{doctorId,date}`.
+- [2026-02-28] `useUserStore()` current shape in admin frontend: `userInfo` defaults to `{}` and route guard checks roles via computed `roles`; doctor pages should tolerate missing `userInfo.doctorId` and may need fallback resolution by querying doctor list with current username.
+- [2026-02-28] Task 16 route/API integration note: doctor summary page currently registered as `doctor/patient-summary` (no route param), but appointments page requirement navigates to `/doctor/patient-summary/:id`; router should use `doctor/patient-summary/:id?` to support param-based navigation while preserving backward compatibility.
+- [2026-02-28] `chat.js#getSummaryByAppointmentId(appointmentId)` provides summary by appointment; message history API is session-scoped (`getMessageList(sessionId)`), so PatientSummary page should resolve `sessionId` from summary payload when present and gracefully handle missing sessions.
+- [2026-02-28] `ChatPanel.vue` already encapsulates encyclopedia chat workflow (session CRUD, message history, SSE streaming via `encyclopediaChat`, markdown rendering) and exposes `sessionType` prop; doctor assistant page should be a lightweight container passing `ENCYCLOPEDIA`.

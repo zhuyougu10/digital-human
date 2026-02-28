@@ -229,11 +229,11 @@
 
 | Question | Answer |
 |----------|--------|
-| Where am I? | Phase 3 进行中，08-gateway 已完成，下一步 09-frontend-admin |
-| Where am I going? | 09-frontend-admin → 10-frontend-mp → 11-deploy |
+| Where am I? | Phase 3: 09-frontend-admin COMPLETE, npm run build SUCCESS. 下一步 10-frontend-mp |
+| Where am I going? | 10-frontend-mp (小程序+Live2D, 14 Tasks) → 11-docker-deploy (9 Tasks) → Phase 4 联调 |
 | What's the goal? | 构建基于 Spring Cloud + Spring AI + RAG + AI Agents + Vue3 + UniApp 的 AI 数字人医疗小助手系统 |
-| What have I learned? | 5微服务架构、技术栈选型、4个Agent设计、Live2D via web-view；BaseEntity不含id需自行声明；Spring AI withModel/withFunctions deprecated但可用；appointment-service 需要 doctor-api 依赖 |
-| What have I done? | Phase 1-2 完成；Phase 3: 01~08 完成 (project-init/common-modules/user/doctor/knowledge/ai/appointment-service/gateway) |
+| What have I learned? | 后端01-08全部完成; 管理端+医生端前端09完成(build通过); Gemini 不可用时 Codex 可降级接管前端; ChatPanel.vue 有编码裸换行问题需注意 |
+| What have I done? | Phase 1-2 完成; Phase 3: 01~09 全部完成; 总计约 160+ Tasks 已完成 |
 
 ---
 *Update after completing each phase or encountering errors*
@@ -301,3 +301,56 @@
   - AuthFilter.java, RequestLogFilter.java, GatewayExceptionHandler.java
 - Files modified:
   - application.yml (完整路由 + SSE 超时 + Nacos/Redis/Sa-Token 配置)
+
+## Session: 2026-02-28 (continued)
+
+### 09-frontend-admin Session Recovery
+- **Status:** in_progress
+- **Recovery findings:**
+  - Tasks 1-7 committed (9004ef7): project init, structure, axios, pinia, router, layout, login
+  - 3 files with uncommitted changes (+616 lines): Dashboard, UserManagement, DepartmentManagement
+  - All 14 View files exist (created during Task 2 scaffolding), most need full implementation
+  - 7 API modules missing (auth/user/doctor/department/appointment/knowledge/chat)
+  - 2 public components missing (ChatPanel/RichEditor)
+  - File naming convention differs from plan (acceptable): *Management.vue vs *Manage.vue
+
+## Session: 2026-02-28 (Session 3)
+
+### 09-frontend-admin 完整审计
+- **Status:** complete
+- **审计结果:**
+  - API模块(8个): 全部存在且基本完整, department.js缺deleteDepartment, appointment.js缺getStatistics/getDoctorTodayAppointments
+  - 公共组件: ChatPanel.vue(417行)和RichEditor.vue(112行)已完整实现
+  - Admin Views(8个): 全部实现, 但3处import名不匹配(UserManagement/DepartmentManagement/Dashboard)
+  - Doctor Views(5个): 全部为15行空壳, 零业务逻辑
+- **执行结果 (Gemini 降级 → Codex 接管前端):**
+  - Batch 1: Codex 验证 — 所有 API import 不匹配在上一个 session 中已修复
+  - Batch 2: Codex 实现 doctor/Profile.vue (322行) + doctor/Schedule.vue (383行)
+  - Batch 3: Codex 实现 doctor/Appointments.vue (183行) + doctor/PatientSummary.vue (253行) + router 路径修复
+  - Batch 4: Codex 实现 doctor/Assistant.vue (61行, ChatPanel wrapper)
+  - Build Fix 1: ChatPanel.vue SSE 字符串字面量中裸换行符 → 转义 \n
+  - Build Fix 2: ChatPanel.vue 正则表达式中裸换行符 → 转义 \n
+  - Build Fix 3: RichEditor.vue 导入不存在的 Bold/Italic 图标 → 替换为 EditPen/Edit
+  - **npm run build: SUCCESS** (2147 modules, 44s, dist/ 生成)
+| 2026-02-28 20:42 | `npm run build` in `medical-admin` failed: missing optional Rollup package `@rollup/rollup-linux-x64-gnu` (module not found) | 1 | Stopped retry; this is environment dependency issue. Next action: run `npm i` (or `pnpm install`) to restore optional deps, then rerun build for code-level verification. |
+| 2026-02-28 21:xx | ChatPanel.vue 'Unterminated string constant' at line 205 | 1 | Codex 修复: 将 SSE split 中的裸换行符替换为 \\n |
+| 2026-02-28 21:xx | ChatPanel.vue 'Unterminated regular expression' at line 242 | 2 | Codex 修复: 将 regex 中的裸换行符替换为 \\n |
+| 2026-02-28 21:xx | RichEditor.vue 'Bold is not exported by @element-plus/icons-vue' | 3 | Codex 修复: Bold→EditPen, Italic→Edit |
+
+#### 09-frontend-admin (18 Tasks) — COMPLETE
+- Actions taken:
+  - Tasks 1-7: 上一 session 已提交 (commit 9004ef7)
+  - Tasks 8-14: 上一 session 实现 admin views + dashboard + API 模块 + 公共组件
+  - Task 15: Codex 实现 doctor/Profile.vue (322行) — 预览/编辑模式切换, 头像上传, Tag 输入, RichEditor
+  - Task 16: Codex 实现 doctor/Appointments.vue (183行) + PatientSummary.vue (253行) + router 路径修复
+  - Task 17: Codex 实现 doctor/Assistant.vue (61行) — ChatPanel 封装
+  - Task 18: npm run build SUCCESS (3次修复后通过)
+- Files created/modified:
+  - doctor/Profile.vue (322行, 替换stub)
+  - doctor/Schedule.vue (383行, 替换stub)
+  - doctor/Appointments.vue (183行, 替换stub)
+  - doctor/PatientSummary.vue (253行, 替换stub)
+  - doctor/Assistant.vue (61行, 替换stub)
+  - components/ChatPanel.vue (修复2处裸换行符)
+  - components/RichEditor.vue (修复图标导入)
+  - router/index.js (添加 :id? 参数到 patient-summary 路由)

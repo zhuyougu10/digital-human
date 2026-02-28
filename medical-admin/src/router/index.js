@@ -89,7 +89,7 @@ const routes = [
         meta: { title: '预约患者', requiresRole: 'DOCTOR' }
       },
       {
-        path: 'doctor/patient-summary',
+        path: 'doctor/patient-summary/:id?',
         name: 'PatientSummary',
         component: () => import('@/views/doctor/PatientSummary.vue'),
         meta: { title: '患者摘要', requiresRole: 'DOCTOR' }
