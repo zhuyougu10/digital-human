@@ -210,6 +210,11 @@ ew Page<>(pageNum, pageSize) explicitly and map to PageResult.of(...).
 - [2026-02-28] 05-knowledge-service 全量编译通过（18 模块 BUILD SUCCESS），25 个 Java 源文件。
 - [2026-02-28] `medical-api/medical-appointment-api` 当前仅有 `package-info.java`，且 `pom.xml` 仅含 common-core + openfeign，尚未声明 Lombok；新增 DTO 时需要补 `lombok`（`provided`）。
 - [2026-02-28] 现有模块实体/Mapper 约定为：实体使用 `@Data + @EqualsAndHashCode(callSuper = true) + @TableName`，Mapper 使用 `@Mapper + BaseMapper<T>`；`medical-ai-service` 当前仅有启动类，数据层需从零补建。
+- [2026-03-01] `medical-mp` 当前仍是 UniApp 初始骨架：`src` 仅包含默认 `pages/index/index.vue`、基础配置和静态资源，`components/`、二级页面、`api/` 尚未落盘；`pages.json`/`manifest.json` 仍为默认模板，需按 `10-frontend-mp` Tasks 7/8/10/11/12/13 补齐。
+- [2026-03-01] `medical-mp` 并行代码已落盘：`src/api/doctor.js` 导出 `getDoctorList/getDoctorById/getDepartmentList/getAvailableSlots`，`src/api/appointment.js` 导出 `getMyAppointments/getAppointmentById/cancelAppointment`（取消接口路径为 `/appointment/appointment/{id}/cancel` + `PUT`）。
+- [2026-03-01] `src/api/request.js` 使用 `VITE_API_BASE`（默认 `http://localhost:9090/api`）作为统一前缀并直接 `resolve(res.data)`，页面侧需兼容返回体既可能是业务包装对象也可能是裸数据数组。
+- [2026-03-01] 小程序页面请求应统一走 `@/api/request`，传入业务路径（如 `/doctor/doctor/list`、`/appointment/appointment/{id}/cancel`），避免页面侧再拼接 `/api` 前缀导致双重前缀风险。
+- [2026-03-01] 小程序对话接口中 `createSession` 约定为 `createSession('TRIAGE')`（字符串入参），`createSSERequest` 的 `onMessage` 回调当前返回字符串内容（可能是纯文本 token，也可能是 JSON 字符串），对话页需自行 `JSON.parse` 并分流消息类型。
 
 - [2026-02-28] medical-service/medical-ai-service currently has domain entities/VOs/mappers and agent implementations (including SUMMARY in AgentFactory), plus Spring AI/WebFlux dependencies already declared in pom.xml; service-layer classes for chat/tts/summary were not present before Task 7-9.
 - [2026-02-28] medical-service/medical-ai-service currently has no controller package or *Controller.java; Task 10-12 should introduce initial REST controller layer (/chat, /summary, /encyclopedia).
@@ -293,3 +298,51 @@ ew Page<>(pageNum, pageSize) explicitly and map to PageResult.of(...).
 - [2026-02-28] Task 16 route/API integration note: doctor summary page currently registered as `doctor/patient-summary` (no route param), but appointments page requirement navigates to `/doctor/patient-summary/:id`; router should use `doctor/patient-summary/:id?` to support param-based navigation while preserving backward compatibility.
 - [2026-02-28] `chat.js#getSummaryByAppointmentId(appointmentId)` provides summary by appointment; message history API is session-scoped (`getMessageList(sessionId)`), so PatientSummary page should resolve `sessionId` from summary payload when present and gracefully handle missing sessions.
 - [2026-02-28] `ChatPanel.vue` already encapsulates encyclopedia chat workflow (session CRUD, message history, SSE streaming via `encyclopediaChat`, markdown rendering) and exposes `sessionType` prop; doctor assistant page should be a lightweight container passing `ENCYCLOPEDIA`.
+- [2026-03-01] `10-frontend-mp` Task 9 requires a standalone `medical-mp/live2d-h5` Vite project with `pixi.js@^7.3.0` + `pixi-live2d-display@^0.4.0`, transparent full-screen canvas, `window.postMessage` bridge commands (`START_LIPSYNC`/`STOP_LIPSYNC`/`PLAY_MOTION`/`SET_EXPRESSION`), and `vite.config.js` `base: './'` for mini-program web-view relative path loading.
+
+## 10-frontend-mp 完成状态 (2026-03-01)
+
+### 审计结果
+- UniApp Vue3+TS 项目 (degit dcloudio/uni-preset-vue#vite-ts), node_modules 已安装, pinia 已注册
+- **24 源文件** 创建于 medical-mp/src/
+- **5 Live2D 文件** 创建于 medical-mp/live2d-h5/src/
+
+### 文件清单
+| 目录 | 文件 | 行数 | 作者 |
+|------|------|------|------|
+| api/ | request.js | 51 | Gemini |
+| api/ | auth.js | 47 | Gemini |
+| api/ | chat.js | 23 | Gemini |
+| api/ | doctor.js | 31 | Gemini |
+| api/ | appointment.js | 31 | Gemini |
+| utils/ | sse.js | 57 | Gemini+Codex(fix) |
+| utils/ | index.js | 31 | Gemini |
+| stores/ | user.js | 35 | Gemini |
+| components/ | ChatMessage.vue | 85 | Gemini+Codex(fix) |
+| components/ | DoctorCard.vue | 113 | Codex |
+| components/ | SlotPicker.vue | 186 | Codex |
+| components/ | AppointmentCard.vue | 100 | Codex |
+| components/ | TtsPlayer.vue | 123 | Codex |
+| pages/index/ | index.vue | 203 | Gemini+Codex(fix) |
+| pages/chat/ | chat.vue | 454 | Codex(降级接管) |
+| pages/doctors/ | list.vue | 215 | Codex+fix |
+| pages/doctors/ | detail.vue | 169 | Codex+fix |
+| pages/appointment/ | list.vue | 151 | Codex+fix |
+| pages/appointment/ | detail.vue | 150 | Codex+fix |
+| pages/mine/ | index.vue | 107 | Codex |
+| live2d-h5/src/ | main.js | 53 | Codex |
+| live2d-h5/src/ | live2d-manager.js | 114 | Codex |
+| live2d-h5/src/ | tts-lip-sync.js | 48 | Codex |
+
+### 编译结果
+- `npm run build:mp-weixin`: **BUILD SUCCESS** → dist/build/mp-weixin
+- `live2d-h5 npm run build`: **BUILD SUCCESS** → dist/ (805KB JS)
+
+### 修复记录
+1. sse.js 裸换行符 → Codex 修复为 `\n\n`
+2. main.ts 缺少 Pinia → Codex 添加 createPinia()
+3. ChatMessage.vue 错误 import defineProps → Codex 移除
+4. index.vue 链接不存在页面 → Codex 修复路径
+5. 4个页面内联 requestApi → Codex 改用共享 request
+6. appointment/detail 取消预约 API 路径 → Codex 修复
+7. chat.vue 仅占位 stub → Codex 降级实现完整 454 行

@@ -1,0 +1,18 @@
+{
+  "name": "live2d-h5",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "pixi.js": "^7.3.0",
+    "pixi-live2d-display": "^0.4.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.19"
+  }
+}

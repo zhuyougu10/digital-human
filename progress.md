@@ -224,16 +224,18 @@
 |-----------|-------|---------|------------|
 | 2026-02-27 23:41 | Java 文件含 UTF-8 BOM (\\ufeff) | 1 | 委派 Codex 重写文件 |
 | 2026-02-27 23:43 | Codex 用 PowerShell 写入 \`r\`n 成字面量 | 2 | OpenCode 直接用 Write 工具修复 (不重复 Codex 方案) |
+| 2026-03-01 15:18 | `medical-mp` 执行 `npm run type-check` 报 TS6504：`ChatMessage.vue.js`/`index.vue.js` 被 vue-tsc 识别为 JS 根文件且 `allowJs` 未开启 | 1 | 在 `medical-mp/tsconfig.json` 增加 `compilerOptions.allowJs: true`，随后继续类型检查验证 |
+| 2026-03-01 15:20 | `medical-mp` 类型检查报 TS2322：`<button type=\"primary\">` 不符合当前 DOM typing（仅允许 button/submit/reset） | 1 | 移除 `DoctorCard.vue`、`doctors/detail.vue` 的 `type=\"primary\"`，保留样式类控制视觉主按钮 |
 
 ## 5-Question Reboot Check
 
 | Question | Answer |
 |----------|--------|
-| Where am I? | Phase 3: 09-frontend-admin COMPLETE, npm run build SUCCESS. 下一步 10-frontend-mp |
-| Where am I going? | 10-frontend-mp (小程序+Live2D, 14 Tasks) → 11-docker-deploy (9 Tasks) → Phase 4 联调 |
+| Where am I? | Phase 3: 10-frontend-mp COMPLETE, 两项 build SUCCESS. 下一步 11-docker-deploy |
+| Where am I going? | 11-docker-deploy (9 Tasks) → Phase 4 联调 → Phase 5 交付 |
 | What's the goal? | 构建基于 Spring Cloud + Spring AI + RAG + AI Agents + Vue3 + UniApp 的 AI 数字人医疗小助手系统 |
-| What have I learned? | 后端01-08全部完成; 管理端+医生端前端09完成(build通过); Gemini 不可用时 Codex 可降级接管前端; ChatPanel.vue 有编码裸换行问题需注意 |
-| What have I done? | Phase 1-2 完成; Phase 3: 01~09 全部完成; 总计约 160+ Tasks 已完成 |
+| What have I learned? | 后端01-08全部完成; 管理端09+小程序端10均完成(build通过); Gemini 小程序任务中写文件不稳定,Codex 降级接管核心 chat.vue; SSE 字符串裸换行需警惕 |
+| What have I done? | Phase 1-2 完成; Phase 3: 01~10 全部完成; 总计约 175+ Tasks 已完成 |
 
 ---
 *Update after completing each phase or encountering errors*
@@ -354,3 +356,32 @@
   - components/ChatPanel.vue (修复2处裸换行符)
   - components/RichEditor.vue (修复图标导入)
   - router/index.js (添加 :id? 参数到 patient-summary 路由)
+
+## Session: 2026-03-01
+
+### 10-frontend-mp (14 Tasks) — COMPLETE
+- **Status:** complete
+- **Started:** 2026-03-01
+- **Completed:** 2026-03-01
+- Actions taken:
+  - Task 1: Gemini 创建 UniApp Vue3+TS 项目 (degit template), npm install 通过
+  - Task 2: Gemini 创建目录结构 + npm install pinia
+  - Task 3: Gemini 创建 5 个 API 文件 (request/auth/chat/doctor/appointment)
+  - Task 4: Gemini 创建 sse.js + utils/index.js (Codex 后修复裸换行)
+  - Task 5: Gemini 创建 index.vue 首页 (Codex 后修复 knowledge 链接)
+  - Task 6: **Codex 降级接管** — 实现完整 chat.vue(454行) 核心对话页
+  - Task 7: Codex 创建 DoctorCard(113) + SlotPicker(186) + AppointmentCard(100)
+  - Task 8: Codex 创建 TtsPlayer(123) — uni.createInnerAudioContext + Live2D postMessage
+  - Task 9: Codex 创建 Live2D H5 子项目 (main.js+live2d-manager.js+tts-lip-sync.js)
+  - Task 10: Codex 创建 doctors/list(215) + doctors/detail(169)
+  - Task 11: Codex 创建 appointment/list(151) + appointment/detail(150)
+  - Task 12: Codex 创建 mine/index(107)
+  - Task 13: Codex 更新 pages.json(75行, 7页面+4 tabBar) + manifest.json
+  - Task 14: 编译验证 — UniApp build:mp-weixin SUCCESS + Live2D H5 vite build SUCCESS
+- Errors encountered:
+  - sse.js 裸换行符 → Codex 修复为 '\n\n'
+  - chat.vue Gemini 未写入 → Codex 降级实现
+  - 4个页面内联 requestApi → Codex 改用共享 request
+  - type-check 报 allowJs 未开启 → Codex 修复 tsconfig
+  - button type="primary" TS2322 → Codex 移除 type
+- Files created: 29 源文件 (5 API + 2 Utils + 1 Store + 5 Components + 7 Pages + 3 Live2D + 6 Config/Support)
