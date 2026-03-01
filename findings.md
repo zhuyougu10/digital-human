@@ -216,6 +216,51 @@ ew Page<>(pageNum, pageSize) explicitly and map to PageResult.of(...).
 - [2026-03-01] 小程序页面请求应统一走 `@/api/request`，传入业务路径（如 `/doctor/doctor/list`、`/appointment/appointment/{id}/cancel`），避免页面侧再拼接 `/api` 前缀导致双重前缀风险。
 - [2026-03-01] 小程序对话接口中 `createSession` 约定为 `createSession('TRIAGE')`（字符串入参），`createSSERequest` 的 `onMessage` 回调当前返回字符串内容（可能是纯文本 token，也可能是 JSON 字符串），对话页需自行 `JSON.parse` 并分流消息类型。
 - [2026-03-01] `medical-mp/live2d-h5` 的 Live2D 静态资源（`models/` + `live2dcubismcore.min.js`）已迁移到 Vite `public/` 目录，运行时使用绝对路径 `/models/...`、`/lib/...`，以确保 build 后原样复制到 `dist/`。
+- [2026-03-01] **ai-service Docker 启动失败**：`java.lang.NoSuchFieldError: Companion` at `okhttp3.internal.Util.<clinit>`。根因：Milvus SDK 传递依赖 `okhttp-4.12.0`（需要 Kotlin stdlib），Spring Boot `RestClientAutoConfiguration` 检测到 OkHttp 并尝试创建 `OkHttp3ClientHttpRequestFactory`，但 Kotlin runtime 不在 classpath。修复方案：在 `medical-ai-service/pom.xml` 中排除 Milvus SDK 的 OkHttp 传递依赖，让 Spring 回退到 JDK HttpClient。
+- [2026-03-01] Docker Compose 全栈启动结果：13 容器中 12 个正常（infra: MySQL/Redis/Nacos/Milvus+etcd+minio; services: user/doctor/appointment/knowledge/gateway; frontend: admin-web/live2d-h5），仅 ai-service 因 OkHttp/Kotlin 冲突 Exited(1)。
+- [2026-03-01] ai-service OkHttp 修复后重建镜像，14/14 容器全部 UP，ai-service 注册 Nacos 成功 (port 8083)。
+- [2026-03-01] `docker/mysql/init.sql` 原来只创建 5 个数据库但不建表，需要手动运行各服务 DDL。Codex 已将 5 个 `V1__init_*_tables.sql` 合并到 `init.sql`，后续 fresh deploy 自动建表+初始数据。
+- [2026-03-01] DDL 中 admin 用户的 BCrypt 哈希与密码 `admin123` 不匹配（Python bcrypt 验证失败）。Codex 已重新生成正确哈希 `$2b$10$.Lzfrzpy7U.7xK6GyYkZqOGqyubd/oBF/70BGQsE7ndEL4VMaqVWy` 并更新 DDL 和 init.sql。
+- [2026-03-01] 5 个微服务的 `application.yml` 全部缺少 `spring.data.redis` 配置，导致 Sa-Token 在容器内连接 `localhost:6379` 失败。Codex 已为 5 个服务添加 `spring.data.redis.host/port/password` 环境变量化配置。
+- [2026-03-01] Gateway 的 `sa-token` 配置为 `token-name: Authorization`, `token-prefix: Bearer`, `is-read-cookie: false`, `is-read-header: true`；而 5 个微服务使用 Sa-Token 默认配置（`token-name: satoken`）。**这导致 Gateway 和微服务的 token 读取方式不一致**。
+
+## 11-docker-deploy 联调阻塞分析 (2026-03-01)
+
+### 当前验证结果
+| 测试项 | 状态 | 详情 |
+|--------|------|------|
+| Nacos 注册 | PASS | 6 个服务全部注册 |
+| 管理端页面 (HTTP 80) | PASS | 200 OK |
+| Live2D H5 (HTTP 8090) | PASS | 200 OK |
+| Admin 登录 (POST /api/user/auth/login) | PASS | 返回 token + 用户信息 |
+| 用户列表 (GET /api/user/user/list) | **BLOCKED** | 401 — Gateway Sa-Token 校验失败 |
+| 科室列表 (GET /api/doctor/department/list) | **BLOCKED** | 401 — 同上 |
+
+### 当前阻塞点：Gateway Sa-Token token 校验
+**现象：**
+1. `satoken: <token>` → "未能读取到有效 token"（Gateway 不识别该 header）
+2. `Authorization: <token>` → "未按照指定前缀提交 token，prefix=Bearer"
+3. `Authorization: Bearer <token>` → "token 无效：<token>"（Gateway 提取到 token 但校验失败）
+
+**根因分析：**
+- Redis 中确认 `satoken:login:token:<tokenValue>` key 存在，value 为 userId=1
+- Gateway 使用 `sa-token-reactor-spring-boot3-starter` + `sa-token-redis-jackson` + `spring-boot-starter-data-redis`
+- Gateway Redis 配置存在 (`host: ${REDIS_HOST:localhost}`)
+- 启动日志显示 Redis repository scanning 完成，但未见 Sa-Token Redis DAO 初始化日志
+- **高概率原因**：Gateway 的 `sa-token-redis-jackson` 未正确接管 `SaTokenDao`，Sa-Token 回退到内存存储，因此找不到 user-service 写入 Redis 的 token
+
+### 根因确认 (2026-03-01 Session 3)
+
+**根本原因：Sa-Token 的 `token-name` 既是 HTTP Header 名，也是 Redis Key 前缀。**
+
+| 组件 | token-name | Redis Key 前缀 | Login 写入 | CheckLogin 查询 |
+|------|-----------|----------------|-----------|----------------|
+| user-service | `satoken` (默认) | `satoken:` | `satoken:login:token:xxx` → userId | — |
+| Gateway | `Authorization` | `Authorization:` | — | `Authorization:login:token:xxx` → NOT FOUND |
+
+**修复方案：统一所有 5 个微服务的 `sa-token` 配置与 Gateway 一致。**
+
+附加修复：Gateway pom.xml 添加 `spring-boot-starter-data-redis-reactive`（WebFlux 环境最佳实践，确保 LettuceConnectionFactory 完整初始化）。
 
 - [2026-02-28] medical-service/medical-ai-service currently has domain entities/VOs/mappers and agent implementations (including SUMMARY in AgentFactory), plus Spring AI/WebFlux dependencies already declared in pom.xml; service-layer classes for chat/tts/summary were not present before Task 7-9.
 - [2026-02-28] medical-service/medical-ai-service currently has no controller package or *Controller.java; Task 10-12 should introduce initial REST controller layer (/chat, /summary, /encyclopedia).
@@ -347,3 +392,35 @@ ew Page<>(pageNum, pageSize) explicitly and map to PageResult.of(...).
 5. 4个页面内联 requestApi → Codex 改用共享 request
 6. appointment/detail 取消预约 API 路径 → Codex 修复
 7. chat.vue 仅占位 stub → Codex 降级实现完整 454 行
+
+## 11-docker-deploy Session 3 修复记录 (2026-03-01)
+
+### 修复 1: Sa-Token 401 (根因确认 + 修复)
+- **根因**: Sa-Token `token-name` 同时作为 HTTP Header 名和 Redis Key 前缀。Gateway 用 `Authorization` → key 前缀 `Authorization:`；服务默认 `satoken` → key 前缀 `satoken:`
+- **修复**: Codex 为 5 个微服务 application.yml 添加统一 sa-token 配置块 (token-name: Authorization, token-prefix: Bearer)
+- **附加**: Gateway pom.xml 中 `spring-boot-starter-data-redis` 替换为 `spring-boot-starter-data-redis-reactive` (WebFlux 最佳实践)
+- **验证**: 登录后 GET /api/user/user/list 返回 200（之前 401）
+
+### 修复 2: -parameters 编译标志
+- **根因**: Spring Boot 3.x / Spring Framework 6.x 不再通过反射获取 `@RequestParam` 参数名，需 `-parameters` 编译选项
+- **修复**: Codex 在 medical-ai/pom.xml `<pluginManagement>` 中添加 maven-compiler-plugin `<parameters>true</parameters>`
+
+### 修复 3: DDL 缺少 BaseEntity 审计列
+- **根因**: `BaseEntity` 定义 `createBy`/`updateBy` 字段，但 13 张表 DDL 缺少 `create_by`/`update_by` 列，导致 `Unknown column 'create_by' in 'field list'`
+- **修复**: Codex 更新 docker/mysql/init.sql 补齐列；OpenCode 执行 ALTER TABLE 补齐现有数据库 13 张表
+
+### 修复 4: 非 user 服务缺 StpInterfaceImpl
+- **根因**: `StpInterfaceImpl`（角色查询）仅在 user-service 中实现，其他服务 `@SaCheckRole` 检查返回空角色 → 403
+- **修复**: Codex 在 medical-common-security 新建通用 `StpInterfaceImpl`（基于 RemoteUserService Feign 调用 `/user/inner/{userId}`，`@ConditionalOnMissingBean` 确保 user-service 本地实现优先）
+- **附加**: OpenCode 为 doctor-service/knowledge-service 添加 `@EnableFeignClients(basePackages="com.medical.api")` + loadbalancer 依赖
+
+### 当前状态 — 联调全通 (2026-03-01 Session 4)
+- Maven BUILD SUCCESS (18/18)
+- Docker 14/14 containers UP, 6/6 services registered
+- **12 项联调验证全部通过**
+
+### 追加修复 (Session 4)
+- [修复5] doctor/knowledge 服务: `allow-bean-definition-overriding: true` 避免自身 FeignClientSpecification 冲突
+- [修复6] docker-compose.yml: Codex 补齐 5 服务 `REDIS_HOST`/`REDIS_PORT` 环境变量 (knowledge-service 缺失导致 Redis 连接 localhost 失败)
+- [修复7] GlobalExceptionHandler: Codex 在 common-core 新建 `AutoConfiguration.imports` 注册 handler (原因: 跨模块 @RestControllerAdvice 未被 Spring Boot 自动发现)
+- [发现] `@EnableFeignClients(basePackages="com.medical.api")` 在 doctor/knowledge 服务中会扫描到指向自身的 FeignClient，需配合 `allow-bean-definition-overriding=true`

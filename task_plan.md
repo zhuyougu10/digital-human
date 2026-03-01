@@ -4,7 +4,7 @@
 构建基于 Spring Cloud + Spring AI + RAG + AI Agents + Vue3 + UniApp 的 AI 数字人医疗小助手系统（毕业设计）
 
 ## Current Phase
-Phase 3 进行中 → 10-frontend-mp COMPLETE → 下一步 11-docker-deploy
+Phase 3 完成 → 11-docker-deploy Task 8 联调验证 12/12 PASS，待 Task 9 Commit
 
 ## Phases
 <!-- 
@@ -48,8 +48,19 @@ Phase 3 进行中 → 10-frontend-mp COMPLETE → 下一步 11-docker-deploy
 - [x] 08-gateway (5 Tasks) — COMPLETE
 - [x] 09-frontend-admin (18 Tasks) — COMPLETE
 - [x] 10-frontend-mp (14 Tasks) — COMPLETE
-- [ ] 11-docker-deploy (9 Tasks)
-- **Status:** in_progress
+- [x] 11-docker-deploy (9 Tasks) — COMPLETE
+- **Status:** complete
+
+### 11-docker-deploy 详细进度
+- [x] Task 1: 6 个 Dockerfile (gateway + 5 services)
+- [x] Task 2: admin Nginx + Dockerfile
+- [x] Task 3: Live2D H5 Dockerfile + nginx.conf
+- [x] Task 4: 完整 docker-compose.yml (14 containers, healthcheck, depends_on)
+- [x] Task 5: .env.example (27 行)
+- [x] Task 6: Maven 全量打包 BUILD SUCCESS (18/18, 36s)
+- [x] Task 7: Docker Compose 启动 14/14 UP
+- [x] Task 8: 端到端联调验证 — 12/12 PASS (Session 4 全通)
+- [ ] Task 9: Commit
 
 ### Phase 4: Testing & Verification
 - [ ] 端到端联调
@@ -115,17 +126,17 @@ Phase 3 进行中 → 10-frontend-mp COMPLETE → 下一步 11-docker-deploy
 |          |           |
 
 ## Errors Encountered
-<!-- 
-  WHAT: Every error you encounter, what attempt number it was, and how you resolved it.
-  WHY: Logging errors prevents repeating the same mistakes. This is critical for learning.
-  WHEN: Add immediately when an error occurs, even if you fix it quickly.
-  EXAMPLE:
-    | FileNotFoundError | 1 | Check if file exists, create empty list if not |
-    | JSONDecodeError | 2 | Handle empty file case explicitly |
--->
 | Error | Attempt | Resolution |
 |-------|---------|------------|
-|       | 1       |            |
+| ai-service OkHttp Companion NoSuchFieldError | 1 | Milvus SDK 传递依赖 okhttp 排除 (前 session 已加 exclusion，重建镜像即解决) |
+| init.sql 只建库不建表 | 1 | Codex 合并 5 个 DDL 到 init.sql |
+| admin BCrypt hash 与 admin123 不匹配 | 1 | Codex 重新生成正确 BCrypt hash |
+| 5 服务缺少 Redis config | 1 | Codex 添加 spring.data.redis 配置到 5 个 application.yml |
+| Gateway Sa-Token 401 token 无效 | 1 | **已修复**: 根因=token-name 同时用作 Redis key 前缀，Gateway 用 Authorization 而服务用 satoken 默认值。统一 5 服务 sa-token 配置 + Gateway 改用 redis-reactive |
+| Spring Boot 3.x -parameters flag 缺失 | 1 | 父 POM 添加 maven-compiler-plugin parameters=true |
+| DDL 缺少 BaseEntity 审计列 create_by/update_by | 1 | Codex 更新 init.sql + ALTER TABLE 补齐 13 张表 |
+| 非 user 服务缺 StpInterfaceImpl 致 @SaCheckRole 403 | 1 | Codex 在 common-security 添加基于 Feign 的通用 StpInterfaceImpl |
+| doctor/knowledge 服务缺 @EnableFeignClients | 1 | OpenCode 手动添加 @EnableFeignClients + loadbalancer 依赖 |
 
 ## Notes
 <!-- 

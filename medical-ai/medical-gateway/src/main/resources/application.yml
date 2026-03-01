@@ -4,6 +4,8 @@ server:
 spring:
   application:
     name: medical-gateway
+  config:
+    import: optional:nacos:${spring.application.name}.${spring.cloud.nacos.config.file-extension:yml}
   cloud:
     nacos:
       discovery:

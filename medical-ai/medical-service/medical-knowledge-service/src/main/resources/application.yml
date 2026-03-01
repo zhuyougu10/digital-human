@@ -4,6 +4,11 @@ server:
 spring:
   application:
     name: medical-knowledge-service
+  config:
+    import: optional:nacos:${spring.application.name}.${spring.cloud.nacos.config.file-extension:yml}
+  main:
+    allow-circular-references: true
+    allow-bean-definition-overriding: true
   cloud:
     nacos:
       discovery:
@@ -16,6 +21,11 @@ spring:
     url: jdbc:mysql://${MYSQL_HOST:localhost}:3306/medical_knowledge?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
     username: ${MYSQL_USER:root}
     password: ${MYSQL_PASSWORD:root123}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
   ai:
     openai:
       api-key: ${DASHSCOPE_API_KEY:your-key}
@@ -31,3 +41,11 @@ mybatis-plus:
 milvus:
   host: ${MILVUS_HOST:localhost}
   port: ${MILVUS_PORT:19530}
+
+sa-token:
+  token-name: Authorization
+  token-prefix: Bearer
+  is-concurrent: true
+  is-share: true
+  is-read-cookie: false
+  is-read-header: true

@@ -227,15 +227,15 @@
 | 2026-03-01 15:18 | `medical-mp` 执行 `npm run type-check` 报 TS6504：`ChatMessage.vue.js`/`index.vue.js` 被 vue-tsc 识别为 JS 根文件且 `allowJs` 未开启 | 1 | 在 `medical-mp/tsconfig.json` 增加 `compilerOptions.allowJs: true`，随后继续类型检查验证 |
 | 2026-03-01 15:20 | `medical-mp` 类型检查报 TS2322：`<button type=\"primary\">` 不符合当前 DOM typing（仅允许 button/submit/reset） | 1 | 移除 `DoctorCard.vue`、`doctors/detail.vue` 的 `type=\"primary\"`，保留样式类控制视觉主按钮 |
 
-## 5-Question Reboot Check
+## 5-Question Reboot Check (updated 2026-03-01 session 2)
 
 | Question | Answer |
 |----------|--------|
-| Where am I? | Phase 3: 10-frontend-mp COMPLETE, 两项 build SUCCESS. 下一步 11-docker-deploy |
-| Where am I going? | 11-docker-deploy (9 Tasks) → Phase 4 联调 → Phase 5 交付 |
-| What's the goal? | 构建基于 Spring Cloud + Spring AI + RAG + AI Agents + Vue3 + UniApp 的 AI 数字人医疗小助手系统 |
-| What have I learned? | 后端01-08全部完成; 管理端09+小程序端10均完成(build通过); Gemini 小程序任务中写文件不稳定,Codex 降级接管核心 chat.vue; SSE 字符串裸换行需警惕 |
-| What have I done? | Phase 1-2 完成; Phase 3: 01~10 全部完成; 总计约 175+ Tasks 已完成 |
+| Where am I? | Phase 3: 11-docker-deploy Task 8 联调验证，阻塞于 Gateway Sa-Token 401 |
+| Where am I going? | 修复 Gateway Sa-Token → 完成 12 项联调 → Task 9 commit → Phase 4/5 |
+| What's the goal? | 构建 AI 数字人医疗小助手系统 (毕设) |
+| What have I learned? | Gateway WebFlux 环境的 Sa-Token Redis 集成可能需要 reactive driver; token-name 配置需全局统一 |
+| What have I done? | Phase 1-2 完成; Phase 3: 01-10 完成, 11-docker-deploy Task 1-7 完成; 14 Docker 容器全部运行; 登录验证通过 |
 
 ---
 *Update after completing each phase or encountering errors*
@@ -385,3 +385,89 @@
   - type-check 报 allowJs 未开启 → Codex 修复 tsconfig
   - button type="primary" TS2322 → Codex 移除 type
 - Files created: 29 源文件 (5 API + 2 Utils + 1 Store + 5 Components + 7 Pages + 3 Live2D + 6 Config/Support)
+
+### 11-docker-deploy (9 Tasks) — IN PROGRESS
+- **Status:** in_progress (Task 8 联调：Sa-Token 401 已修复，DDL 已补列，待最终验证)
+- **Started:** 2026-03-01
+- Actions taken:
+  - Task 1-5: 前 session 已完成 — Dockerfiles(6), nginx.conf(2), docker-compose.yml, .env.example
+  - Task 6: Maven 全量打包 BUILD SUCCESS (18/18, 36s)
+  - Task 7: Docker Compose 启动 — 14/14 containers UP
+    - ai-service 首次启动失败 (OkHttp/Kotlin Companion error)，重建镜像后正常启动
+  - Task 8: 端到端联调验证 — 多轮修复进行中
+- Codex 修复记录 (Session 2):
+  - Codex 修复 knowledge-service pom.xml: 排除 milvus-sdk-java 的 okhttp 传递依赖
+  - Codex 合并 5 个 DDL 到 docker/mysql/init.sql (一键建库建表+初始数据)
+  - Codex 重新生成 admin BCrypt hash (admin123) 并更新 DDL + init.sql
+  - Codex 为 5 个微服务 application.yml 添加 spring.data.redis 配置
+- **Session 3 修复记录 (2026-03-01):**
+  - [修复1] Sa-Token 401: Codex 统一 5 服务 sa-token 配置 (token-name=Authorization) + Gateway 改用 redis-reactive
+  - [修复2] -parameters 标志: Codex 在父 POM 添加 maven-compiler-plugin parameters=true
+  - [修复3] DDL 审计列: Codex 更新 init.sql; OpenCode ALTER TABLE 补齐 13 张表 create_by/update_by
+  - [修复4] StpInterfaceImpl: Codex 在 common-security 新建 Feign 版 (@ConditionalOnMissingBean)
+  - [修复5] @EnableFeignClients: OpenCode 为 doctor/knowledge 服务添加 @EnableFeignClients + loadbalancer
+- Docker 构建次数: 6 次 (Session 2: 3次; Session 3: 3次)
+- **Session 3 联调进度 (Sa-Token 修复后):**
+  - [PASS] 1. Nacos 注册: 6 services
+  - [PASS] 2. 管理端前端: HTTP 200
+  - [PASS] 3. Live2D H5: HTTP 200
+  - [PASS] 4. Admin 登录: code=200, token 返回
+  - [PASS] 5. 用户列表: code=200 (之前 401, **已修复**)
+  - [500]  6. 科室列表: Unknown column 'create_by' → DDL 已修复, 待重启验证
+  - [PASS] 7. 医生列表: code=200
+  - [500]  8. 知识库列表: 同 DDL 问题 → 已修复
+  - [500]  9. 创建会话: 同 DDL 问题 → 已修复
+  - [403]  10. 预约列表: 缺 StpInterfaceImpl → 已修复
+  - [403]  11. 预约统计: 同上 → 已修复
+  - [500]  12. 错误登录: GlobalExceptionHandler 未处理
+- **待执行**: 重启 6 服务 + 清理旧 Redis key + 完整 12 项验证
+- Errors encountered:
+  - [Attempt 1] ai-service: `NoSuchFieldError: Companion` at okhttp3 → 重建镜像
+  - [Attempt 1] init.sql 只建库不建表 → Codex 合并 DDL
+  - [Attempt 1] admin BCrypt hash 不匹配 → Codex 重新生成
+  - [Attempt 1] 5 服务缺 Redis config → Codex 添加 spring.data.redis
+  - [Attempt 1] Gateway Sa-Token 401 → **已修复** (token-name Redis key 前缀统一)
+  - [Attempt 1] -parameters 编译标志缺失 → 父 POM 添加 maven-compiler-plugin
+  - [Attempt 1] DDL 缺 create_by/update_by → init.sql 补列 + ALTER TABLE
+  - [Attempt 1] StpInterfaceImpl 缺失 → common-security Feign 版
+  - [Attempt 1] @EnableFeignClients 缺失 → doctor/knowledge 服务添加
+
+## Session: 2026-03-01 (Session 4 — 联调最终验证)
+
+### 追加修复
+- [修复6] doctor-service FeignClientSpecification bean 重复: 添加 allow-bean-definition-overriding=true
+- [修复7] knowledge-service 同上
+- [修复8] docker-compose.yml: Codex 补齐 5 服务 REDIS_HOST/REDIS_PORT 环境变量
+- [修复9] GlobalExceptionHandler: Codex 在 common-core 添加 AutoConfiguration.imports 注册
+
+### 12 项联调验证结果 — 全部通过
+| # | 测试项 | 结果 | 说明 |
+|---|--------|------|------|
+| 1 | Nacos 注册 | PASS | 6 services |
+| 2 | 管理端前端 | PASS | HTTP 200 |
+| 3 | Live2D H5 | PASS | HTTP 200 |
+| 4 | Admin 登录 | PASS | code=200, token 返回 |
+| 5 | 用户列表 | PASS | code=200 (原 401, 已修复) |
+| 6 | 科室列表 | PASS | code=200, 10 items (原 500 DDL, 已修复) |
+| 7 | 医生列表 | PASS | code=200 |
+| 8 | 知识库列表 | PASS | code=200 (原 500 Redis, 已修复) |
+| 9 | 创建会话 | PASS | code=200 |
+| 10 | 预约列表 | PASS | code=200 (原 403, 已修复) |
+| 11 | 预约统计 | PASS | code=200 (原 403, 已修复) |
+| 12 | 错误登录 | PASS | code=1001 "用户不存在" (原 500, 已修复) |
+
+### Docker 最终状态
+- 14/14 containers UP
+- 6/6 services registered in Nacos
+- Maven BUILD SUCCESS (18/18 modules, 38s)
+- Docker 镜像重建次数: Session 2(3次) + Session 3(3次) + Session 4(1次) = 7 次
+
+## 5-Question Reboot Check (updated 2026-03-01 Session 4)
+
+| Question | Answer |
+|----------|--------|
+| Where am I? | Phase 3 完成: 11-docker-deploy Task 8 联调 12/12 PASS, 待 Task 9 Commit |
+| Where am I going? | Task 9 Commit → Phase 4/5 |
+| What's the goal? | 构建 AI 数字人医疗小助手系统 (毕设) |
+| What have I learned? | Sa-Token token-name=Redis key前缀; -parameters必须; BaseEntity需DDL对齐; Docker环境变量须逐服务检查; AutoConfiguration.imports是跨模块Bean注册关键 |
+| What have I done? | Phase 1-3 全部完成 (230+ tasks); 14 Docker 容器全部运行; 12 项联调全部通过 |

@@ -4,6 +4,8 @@ server:
 spring:
   application:
     name: medical-user-service
+  config:
+    import: optional:nacos:${spring.application.name}.${spring.cloud.nacos.config.file-extension:yml}
   cloud:
     nacos:
       discovery:
@@ -16,6 +18,11 @@ spring:
     url: jdbc:mysql://${MYSQL_HOST:localhost}:3306/medical_user?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
     username: ${MYSQL_USER:root}
     password: ${MYSQL_PASSWORD:root123}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
 
 mybatis-plus:
   mapper-locations: classpath:mapper/**/*.xml
@@ -26,3 +33,11 @@ wx:
   miniapp:
     appid: ${WX_APPID:your-appid}
     secret: ${WX_SECRET:your-secret}
+
+sa-token:
+  token-name: Authorization
+  token-prefix: Bearer
+  is-concurrent: true
+  is-share: true
+  is-read-cookie: false
+  is-read-header: true

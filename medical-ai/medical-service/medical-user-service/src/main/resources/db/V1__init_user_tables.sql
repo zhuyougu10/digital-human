@@ -63,6 +63,6 @@ INSERT INTO `sys_role` (`role_key`, `role_name`, `sort`) VALUES
 
 -- 初始化管理员账号 (密码: admin123)
 INSERT INTO `sys_user` (`username`, `password`, `nickname`, `status`) VALUES
-('admin', '$2a$10$VQECfGqK8MzRhLXnBz7G6eFNv.rXOqDZCFGJGRFEdAPqke4dBwxYi', '系统管理员', 0);
+('admin', '$2b$10$.Lzfrzpy7U.7xK6GyYkZqOGqyubd/oBF/70BGQsE7ndEL4VMaqVWy', '系统管理员', 0);
 
 INSERT INTO `sys_user_role` (`user_id`, `role_id`) VALUES (1, 1);

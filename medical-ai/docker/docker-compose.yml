@@ -1,11 +1,9 @@
-version: '3.8'
-
 services:
   mysql:
     image: mysql:8.0
     container_name: medical-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-root123}
       TZ: Asia/Shanghai
     ports:
       - "3306:3306"
@@ -13,6 +11,11 @@ services:
       - mysql-data:/var/lib/mysql
       - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p${MYSQL_ROOT_PASSWORD:-root123}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   redis:
     image: redis:7-alpine
@@ -33,6 +36,11 @@ services:
     ports:
       - "8848:8848"
       - "9848:9848"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8848/nacos || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
 
   milvus-etcd:
     image: quay.io/coreos/etcd:v3.5.5
@@ -77,6 +85,136 @@ services:
       - "9091:9091"
     volumes:
       - milvus-data:/var/lib/milvus
+    command: ["milvus", "run", "standalone"]
+
+  gateway:
+    build: ../medical-gateway
+    container_name: medical-gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      nacos:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      NACOS_ADDR: ${NACOS_ADDR:-nacos:8848}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+
+  user-service:
+    build: ../medical-service/medical-user-service
+    container_name: medical-user-service
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      nacos:
+        condition: service_healthy
+    environment:
+      NACOS_ADDR: ${NACOS_ADDR:-nacos:8848}
+      MYSQL_HOST: ${MYSQL_HOST:-mysql}
+      MYSQL_USER: ${MYSQL_USER:-root}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root123}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      WX_APPID: ${WX_APPID:-}
+      WX_SECRET: ${WX_SECRET:-}
+
+  doctor-service:
+    build: ../medical-service/medical-doctor-service
+    container_name: medical-doctor-service
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    environment:
+      NACOS_ADDR: ${NACOS_ADDR:-nacos:8848}
+      MYSQL_HOST: ${MYSQL_HOST:-mysql}
+      MYSQL_USER: ${MYSQL_USER:-root}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root123}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+
+  ai-service:
+    build: ../medical-service/medical-ai-service
+    container_name: medical-ai-service
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      nacos:
+        condition: service_healthy
+      milvus:
+        condition: service_started
+    environment:
+      NACOS_ADDR: ${NACOS_ADDR:-nacos:8848}
+      MYSQL_HOST: ${MYSQL_HOST:-mysql}
+      MYSQL_USER: ${MYSQL_USER:-root}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root123}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      MILVUS_HOST: ${MILVUS_HOST:-milvus}
+      ALIYUN_AK_ID: ${ALIYUN_AK_ID:-}
+      ALIYUN_AK_SECRET: ${ALIYUN_AK_SECRET:-}
+      ALIYUN_TTS_APPKEY: ${ALIYUN_TTS_APPKEY:-}
+
+  appointment-service:
+    build: ../medical-service/medical-appointment-service
+    container_name: medical-appointment-service
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      nacos:
+        condition: service_healthy
+    environment:
+      NACOS_ADDR: ${NACOS_ADDR:-nacos:8848}
+      MYSQL_HOST: ${MYSQL_HOST:-mysql}
+      MYSQL_USER: ${MYSQL_USER:-root}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root123}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+
+  knowledge-service:
+    build: ../medical-service/medical-knowledge-service
+    container_name: medical-knowledge-service
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+      milvus:
+        condition: service_started
+    environment:
+      NACOS_ADDR: ${NACOS_ADDR:-nacos:8848}
+      MYSQL_HOST: ${MYSQL_HOST:-mysql}
+      MYSQL_USER: ${MYSQL_USER:-root}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root123}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      MILVUS_HOST: ${MILVUS_HOST:-milvus}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+
+  admin-web:
+    build: ../../medical-admin
+    container_name: medical-admin-web
+    ports:
+      - "80:80"
+    depends_on:
+      gateway:
+        condition: service_started
+
+  live2d-h5:
+    build: ../../medical-mp/live2d-h5
+    container_name: medical-live2d-h5
+    ports:
+      - "8090:8090"
 
 volumes:
   mysql-data:

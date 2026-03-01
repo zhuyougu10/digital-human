@@ -33,6 +33,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
@@ -54,7 +55,9 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     private final VectorStoreService vectorStoreService;
     private final DocumentParseService documentParseService;
     private final EmbeddingService embeddingService;
-    private final @Lazy KnowledgeBaseService knowledgeBaseService;
+    @Lazy
+    @Autowired
+    private KnowledgeBaseService self;
 
     @Value("${knowledge.upload-path:./uploads}")
     private String uploadPath;
@@ -148,7 +151,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
         kb.setDocumentCount(nvl(kb.getDocumentCount()) + 1);
         knowledgeBaseMapper.updateById(kb);
 
-        knowledgeBaseService.processDocument(document.getId());
+        self.processDocument(document.getId());
         return document.getId();
     }
 

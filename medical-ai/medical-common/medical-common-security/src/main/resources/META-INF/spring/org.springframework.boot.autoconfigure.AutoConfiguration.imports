@@ -1,2 +1,3 @@
 com.medical.common.security.config.SaTokenConfig
+com.medical.common.security.config.StpInterfaceImpl
 com.medical.common.security.handler.SaTokenExceptionHandler
