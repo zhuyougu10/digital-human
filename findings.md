@@ -215,6 +215,7 @@ ew Page<>(pageNum, pageSize) explicitly and map to PageResult.of(...).
 - [2026-03-01] `src/api/request.js` 使用 `VITE_API_BASE`（默认 `http://localhost:9090/api`）作为统一前缀并直接 `resolve(res.data)`，页面侧需兼容返回体既可能是业务包装对象也可能是裸数据数组。
 - [2026-03-01] 小程序页面请求应统一走 `@/api/request`，传入业务路径（如 `/doctor/doctor/list`、`/appointment/appointment/{id}/cancel`），避免页面侧再拼接 `/api` 前缀导致双重前缀风险。
 - [2026-03-01] 小程序对话接口中 `createSession` 约定为 `createSession('TRIAGE')`（字符串入参），`createSSERequest` 的 `onMessage` 回调当前返回字符串内容（可能是纯文本 token，也可能是 JSON 字符串），对话页需自行 `JSON.parse` 并分流消息类型。
+- [2026-03-01] `medical-mp/live2d-h5` 的 Live2D 静态资源（`models/` + `live2dcubismcore.min.js`）已迁移到 Vite `public/` 目录，运行时使用绝对路径 `/models/...`、`/lib/...`，以确保 build 后原样复制到 `dist/`。
 
 - [2026-02-28] medical-service/medical-ai-service currently has domain entities/VOs/mappers and agent implementations (including SUMMARY in AgentFactory), plus Spring AI/WebFlux dependencies already declared in pom.xml; service-layer classes for chat/tts/summary were not present before Task 7-9.
 - [2026-02-28] medical-service/medical-ai-service currently has no controller package or *Controller.java; Task 10-12 should introduce initial REST controller layer (/chat, /summary, /encyclopedia).

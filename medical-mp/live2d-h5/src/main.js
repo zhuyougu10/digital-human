@@ -16,7 +16,7 @@ async function bootstrap() {
   appRoot.appendChild(app.view)
 
   const live2dManager = new Live2DManager(app)
-  await live2dManager.load('./models/doctor/doctor.model3.json')
+  await live2dManager.load('/models/doctor/wariza.model3.json')
 
   const lipSyncManager = new LipSyncManager(() => live2dManager.getModel())
 
