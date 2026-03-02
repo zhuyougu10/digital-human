@@ -15,7 +15,7 @@
                 <span class="el-dropdown-link">
                   <el-icon><MoreFilled /></el-icon>
                 </span>
-                <template #footer>
+                <template #dropdown>
                   <el-dropdown-menu>
                     <el-dropdown-item command="delete" style="color: #f56c6c">删除</el-dropdown-item>
                   </el-dropdown-menu>
@@ -97,7 +97,7 @@ const fetchKBList = async () => {
   loading.value = true
   try {
     const res = await getKnowledgeBaseList({ pageNum: 1, pageSize: 100 })
-    kbList.value = res.data.list
+    kbList.value = res.data.records
   } catch (error) {
     console.error('Failed to fetch knowledge bases:', error)
   } finally {

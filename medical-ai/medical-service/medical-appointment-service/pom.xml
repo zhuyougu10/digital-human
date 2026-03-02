@@ -34,6 +34,10 @@
             <artifactId>medical-doctor-api</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.medical</groupId>
+            <artifactId>medical-user-api</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.alibaba.cloud</groupId>
             <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
         </dependency>

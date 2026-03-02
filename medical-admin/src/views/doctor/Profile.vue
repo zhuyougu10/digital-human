@@ -96,16 +96,13 @@
 <script setup>
 import { reactive, ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getDoctorById, getDoctorList, updateDoctor } from '@/api/doctor'
-import { useUserStore } from '@/stores/user'
+import { getMyProfile, updateMyProfile } from '@/api/doctor'
 import RichEditor from '@/components/RichEditor.vue'
 
-const userStore = useUserStore()
 const loading = ref(false)
 const saving = ref(false)
 const isEditing = ref(false)
 const formRef = ref(null)
-const doctorId = ref(null)
 
 const titleOptions = ['主任医师', '副主任医师', '主治医师', '住院医师']
 const profile = reactive({ name: '', title: '', avatar: '', specialties: [], focus: [], introduction: '', departmentIds: [] })
@@ -130,7 +127,7 @@ const mapDoctorToState = (raw = {}) => ({
   title: raw.title || '',
   avatar: raw.avatar || '',
   specialties: splitTags(raw.specialties),
-  focus: splitTags(raw.focus),
+  focus: splitTags(raw.focus || raw.treatmentAreas),
   introduction: raw.introduction || raw.description || '',
   departmentIds: raw.departments?.map(item => item.id) || raw.departmentIds || []
 })
@@ -140,26 +137,10 @@ const syncProfile = (state) => {
   Object.assign(form, JSON.parse(JSON.stringify(state)))
 }
 
-const resolveDoctorId = async () => {
-  const info = userStore.userInfo || {}
-  if (info.doctorId) return info.doctorId
-
-  const res = await getDoctorList({ pageNum: 1, pageSize: 100, keyword: info.username || info.nickname || '' })
-  const list = res.data?.list || []
-  const match = list.find(item => item.userId === info.id) || list.find(item => item.name === info.nickname) || list[0]
-  return match?.id || null
-}
-
 const fetchDoctorProfile = async () => {
   loading.value = true
   try {
-    const id = await resolveDoctorId()
-    if (!id) {
-      ElMessage.warning('未找到当前医生档案，请联系管理员关联账号')
-      return
-    }
-    doctorId.value = id
-    const res = await getDoctorById(id)
+    const res = await getMyProfile()
     const state = mapDoctorToState(res.data)
     syncProfile(state)
   } catch (error) {
@@ -201,7 +182,7 @@ const handleAvatarChange = (uploadFile) => {
 }
 
 const saveProfile = async () => {
-  if (!formRef.value || !doctorId.value) return
+  if (!formRef.value) return
   await formRef.value.validate(async (valid) => {
     if (!valid) return
     saving.value = true
@@ -209,11 +190,11 @@ const saveProfile = async () => {
       const payload = {
         ...form,
         specialties: form.specialties.join(','),
-        focus: form.focus.join(','),
+        treatmentAreas: form.focus.join(','),
         introduction: form.introduction,
         description: form.introduction
       }
-      await updateDoctor(doctorId.value, payload)
+      await updateMyProfile(payload)
       syncProfile(mapDoctorToState(payload))
       isEditing.value = false
       ElMessage.success('医生画像已更新')

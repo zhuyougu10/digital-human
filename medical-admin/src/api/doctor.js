@@ -24,6 +24,16 @@ export function getDoctorById(id) {
 }
 
 /**
+ * 获取当前医生画像
+ */
+export function getMyProfile() {
+  return service({
+    url: '/api/doctor/doctor/my-profile',
+    method: 'get'
+  })
+}
+
+/**
  * 创建医生信息
  * @param {Object} data 
  */
@@ -43,6 +53,18 @@ export function createDoctor(data) {
 export function updateDoctor(id, data) {
   return service({
     url: `/api/doctor/doctor/${id}`,
+    method: 'put',
+    data
+  })
+}
+
+/**
+ * 更新当前医生画像
+ * @param {Object} data
+ */
+export function updateMyProfile(data) {
+  return service({
+    url: '/api/doctor/doctor/my-profile',
     method: 'put',
     data
   })

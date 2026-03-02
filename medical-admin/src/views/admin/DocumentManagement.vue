@@ -11,17 +11,17 @@
     <el-card shadow="never" class="m-t-20">
       <el-table :data="docList" v-loading="loadingDocs" style="width: 100%">
         <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="name" label="文件名" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="type" label="类型" width="100" />
-        <el-table-column prop="size" label="大小" width="120">
+        <el-table-column prop="fileName" label="文件名" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="fileType" label="类型" width="100" />
+        <el-table-column prop="fileSize" label="大小" width="120">
           <template #default="{ row }">
-            {{ formatSize(row.size) }}
+            {{ formatSize(row.fileSize) }}
           </template>
         </el-table-column>
         <el-table-column prop="chunkCount" label="分块数" width="100" />
-        <el-table-column prop="status" label="状态" width="120">
+        <el-table-column prop="parseStatus" label="状态" width="120">
           <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)">{{ row.status }}</el-tag>
+            <el-tag :type="getStatusType(row.parseStatus)">{{ row.parseStatus }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="200" fixed="right">
@@ -96,7 +96,7 @@
     <!-- Chunks Drawer -->
     <el-drawer
       v-model="chunkDrawer.visible"
-      :title="`文档分块: ${chunkDrawer.currentDoc?.name}`"
+      :title="`文档分块: ${chunkDrawer.currentDoc?.fileName}`"
       size="600px"
     >
       <div v-loading="loadingChunks">
@@ -170,7 +170,7 @@ const fetchDocs = async () => {
   loadingDocs.value = true
   try {
     const res = await getDocumentList(kbId, searchForm)
-    docList.value = res.data.list
+    docList.value = res.data.records
     totalDocs.value = res.data.total
   } catch (error) {
     console.error('Failed to fetch documents:', error)
@@ -206,7 +206,7 @@ const handleUpload = async () => {
 
 const handleDeleteDoc = async (row) => {
   try {
-    await ElMessageBox.confirm(`确定要删除文档 "${row.name}" 吗？`, '提示', { type: 'warning' })
+    await ElMessageBox.confirm(`确定要删除文档 "${row.fileName}" 吗？`, '提示', { type: 'warning' })
     await deleteDocument(row.id)
     ElMessage.success('删除成功')
     fetchDocs()
@@ -221,7 +221,7 @@ const viewChunks = async (row) => {
   loadingChunks.value = true
   try {
     const res = await getChunkList(row.id, { pageNum: 1, pageSize: 100 })
-    chunks.value = res.data.list
+    chunks.value = res.data.records
   } catch (error) {
     console.error('Failed to fetch chunks:', error)
   } finally {
@@ -271,10 +271,14 @@ const formatSize = (bytes) => {
 
 const getStatusType = (status) => {
   const map = {
-    'SUCCESS': 'success',
+    0: 'info',
+    1: 'warning',
+    2: 'success',
+    3: 'danger',
+    'PENDING': 'info',
     'PARSING': 'warning',
-    'FAILED': 'danger',
-    'PENDING': 'info'
+    'SUCCESS': 'success',
+    'FAILED': 'danger'
   }
   return map[status] || 'info'
 }

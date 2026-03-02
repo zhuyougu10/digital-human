@@ -66,7 +66,7 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { getMyAppointments } from '@/api/appointment'
+import { getDoctorAppointments } from '@/api/appointment'
 
 const router = useRouter()
 const loading = ref(false)
@@ -98,8 +98,6 @@ const buildParams = () => {
   }
   if (searchForm.date) {
     params.date = searchForm.date
-    params.startDate = searchForm.date
-    params.endDate = searchForm.date
   }
   return params
 }
@@ -107,7 +105,7 @@ const buildParams = () => {
 const fetchAppointments = async () => {
   loading.value = true
   try {
-    const res = await getMyAppointments(buildParams())
+    const res = await getDoctorAppointments(buildParams())
     const data = res.data || {}
     if (Array.isArray(data)) {
       appointmentList.value = data

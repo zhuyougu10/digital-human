@@ -30,8 +30,10 @@ public class DoctorController {
     private final DoctorProfileService doctorProfileService;
 
     @GetMapping("/list")
-    public R<PageResult<DoctorVO>> list(@RequestParam(required = false) Long departmentId, PageQuery pageQuery) {
-        return R.ok(doctorProfileService.listByDepartment(departmentId, pageQuery));
+    public R<PageResult<DoctorVO>> list(@RequestParam(required = false) Long departmentId,
+                                        @RequestParam(required = false) String keyword,
+                                        PageQuery pageQuery) {
+        return R.ok(doctorProfileService.listByDepartment(departmentId, keyword, pageQuery));
     }
 
     @GetMapping("/{id}")

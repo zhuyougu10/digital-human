@@ -208,7 +208,14 @@ const handleSend = async () => {
         if (line.startsWith('data:')) {
           const content = line.replace('data:', '').trim()
           if (content === '[DONE]') break
-          streamingContent.value += content
+          try {
+            const parsed = JSON.parse(content)
+            if (parsed.content) {
+              streamingContent.value += parsed.content
+            }
+          } catch (e) {
+            streamingContent.value += content
+          }
           scrollToBottom()
         }
       }

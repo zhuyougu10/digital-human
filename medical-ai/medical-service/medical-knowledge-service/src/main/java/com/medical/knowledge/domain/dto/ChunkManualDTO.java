@@ -5,5 +5,6 @@ import lombok.Data;
 @Data
 public class ChunkManualDTO {
     private Long kbId;
+    private String title;
     private String content;
 }

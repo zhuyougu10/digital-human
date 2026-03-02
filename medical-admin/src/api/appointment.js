@@ -73,8 +73,23 @@ export function getStatistics() {
  */
 export function getDoctorTodayAppointments() {
   return service({
-    url: '/api/appointment/appointment/doctor/today',
-    method: 'get'
+    url: '/api/appointment/appointment/doctor',
+    method: 'get',
+    params: {
+      date: new Date().toISOString().slice(0, 10)
+    }
+  })
+}
+
+/**
+ * 获取医生预约列表
+ * @param {Object} params queryDTO + pageQuery
+ */
+export function getDoctorAppointments(params) {
+  return service({
+    url: '/api/appointment/appointment/doctor',
+    method: 'get',
+    params
   })
 }
 

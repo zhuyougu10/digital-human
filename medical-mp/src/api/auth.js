@@ -33,7 +33,7 @@ export const wxLogin = () => {
 
 export const getUserInfo = () => {
   return request({
-    url: '/user/auth/info',
+    url: '/user/user/info',
     method: 'GET'
   })
 }

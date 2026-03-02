@@ -135,7 +135,7 @@ const fetchAppointmentList = async () => {
       params.endDate = searchForm.dateRange[1]
     }
     const res = await getAppointmentList(params)
-    appointmentList.value = res.data.list
+    appointmentList.value = res.data.records
     total.value = res.data.total
   } catch (error) {
     console.error('Failed to fetch appointments:', error)
@@ -188,10 +188,15 @@ const handleCancel = async (row) => {
 
 const getStatusType = (status) => {
   const map = {
-    'PENDING': 'primary',
+    0: 'warning',
+    1: 'success',
+    2: 'danger',
+    3: 'info',
+    'PENDING': 'warning',
+    'CONFIRMED': 'success',
+    'CANCELLED': 'danger',
     'COMPLETED': 'success',
-    'CANCELLED': 'info',
-    'EXPIRED': 'warning'
+    'EXPIRED': 'info'
   }
   return map[status] || 'info'
 }

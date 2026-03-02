@@ -4,7 +4,7 @@
 构建基于 Spring Cloud + Spring AI + RAG + AI Agents + Vue3 + UniApp 的 AI 数字人医疗小助手系统（毕业设计）
 
 ## Current Phase
-ALL PHASES COMPLETE — Phase 1-5 全部完成
+Phase 6: API 联调审查与修复 — complete
 
 ## Phases
 <!-- 
@@ -111,6 +111,18 @@ ALL PHASES COMPLETE — Phase 1-5 全部完成
 | DDL 缺少 BaseEntity 审计列 create_by/update_by | 1 | Codex 更新 init.sql + ALTER TABLE 补齐 13 张表 |
 | 非 user 服务缺 StpInterfaceImpl 致 @SaCheckRole 403 | 1 | Codex 在 common-security 添加基于 Feign 的通用 StpInterfaceImpl |
 | doctor/knowledge 服务缺 @EnableFeignClients | 1 | OpenCode 手动添加 @EnableFeignClients + loadbalancer 依赖 |
+
+### Phase 6: API 联调审查与修复
+- [x] 5 批并行审查 (user/doctor/knowledge/ai/appointment)
+- [x] 修复批次A: 跨服务前端基础修复 (admin request.js msg字段 + mp request.js R<T>解包 + mp auth URL)
+- [x] 修复批次B: 小程序 API 修复 (chat session URL/字段 + doctor schedule URL)
+- [x] 修复批次C: Admin knowledge 视图修复 (records字段 + column props + dropdown slot)
+- [x] 修复批次D: Admin appointment/doctor 视图修复 (records字段 + doctor endpoint + getDoctorTodayAppointments)
+- [x] 修复批次E: ChatPanel SSE JSON 解析修复
+- [x] 修复批次F: Doctor Profile.vue my-profile 端点修复
+- [x] 修复批次G: 后端修复 (DepartmentController/DoctorController keyword + AppointmentQueryDTO + AppointmentListVO + ChunkManualDTO)
+- [x] 最终验证: Admin build SUCCESS + MP build SUCCESS + Maven 编译环境阻塞(WSL)
+- **Status:** complete
 
 ## Notes
 <!-- 

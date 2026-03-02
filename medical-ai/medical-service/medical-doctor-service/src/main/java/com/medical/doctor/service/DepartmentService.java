@@ -5,7 +5,7 @@ import com.medical.doctor.domain.vo.DepartmentVO;
 import java.util.List;
 
 public interface DepartmentService {
-    List<DepartmentVO> list();
+    List<DepartmentVO> list(String keyword);
 
     DepartmentVO getById(Long id);
 

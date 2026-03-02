@@ -8,6 +8,8 @@ import lombok.Data;
 public class AppointmentListVO {
     private Long id;
     private Long patientId;
+    private String patientName;
+    private String patientPhone;
     private Long doctorId;
     private LocalDate appointmentDate;
     private String period;

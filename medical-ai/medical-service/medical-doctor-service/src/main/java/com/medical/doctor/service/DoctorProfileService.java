@@ -7,7 +7,7 @@ import com.medical.doctor.domain.vo.DoctorVO;
 import java.util.List;
 
 public interface DoctorProfileService {
-    PageResult<DoctorVO> listByDepartment(Long departmentId, PageQuery pageQuery);
+    PageResult<DoctorVO> listByDepartment(Long departmentId, String keyword, PageQuery pageQuery);
 
     List<DoctorVO> searchBySymptom(String keywords);
 

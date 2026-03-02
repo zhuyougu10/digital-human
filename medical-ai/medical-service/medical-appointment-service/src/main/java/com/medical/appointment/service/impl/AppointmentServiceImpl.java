@@ -6,6 +6,8 @@ import com.medical.api.doctor.RemoteDoctorService;
 import com.medical.api.doctor.RemoteScheduleService;
 import com.medical.api.doctor.dto.DoctorInfoDTO;
 import com.medical.api.doctor.dto.SlotInfoDTO;
+import com.medical.api.user.RemoteUserService;
+import com.medical.api.user.dto.UserInfoDTO;
 import com.medical.appointment.domain.dto.AppointmentQueryDTO;
 import com.medical.appointment.domain.dto.CreateAppointmentDTO;
 import com.medical.appointment.domain.entity.Appointment;
@@ -42,6 +44,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     private final AppointmentMapper appointmentMapper;
     private final RemoteDoctorService remoteDoctorService;
     private final RemoteScheduleService remoteScheduleService;
+    private final RemoteUserService remoteUserService;
 
     @Override
     @Transactional
@@ -162,6 +165,15 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .eq(queryDTO != null && queryDTO.getStatus() != null, Appointment::getStatus, queryDTO.getStatus())
                 .eq(Appointment::getDeleted, 0)
                 .orderByDesc(Appointment::getCreateTime);
+        if (queryDTO != null) {
+            if (queryDTO.getStartDate() != null && queryDTO.getEndDate() != null) {
+                wrapper.between(Appointment::getAppointmentDate, queryDTO.getStartDate(), queryDTO.getEndDate());
+            } else if (queryDTO.getStartDate() != null) {
+                wrapper.ge(Appointment::getAppointmentDate, queryDTO.getStartDate());
+            } else if (queryDTO.getEndDate() != null) {
+                wrapper.le(Appointment::getAppointmentDate, queryDTO.getEndDate());
+            }
+        }
 
         Page<Appointment> page = new Page<>(pageQuery.getPageNum(), pageQuery.getPageSize());
         Page<Appointment> result = appointmentMapper.selectPage(page, wrapper);
@@ -225,6 +237,12 @@ public class AppointmentServiceImpl implements AppointmentService {
         AppointmentListVO vo = new AppointmentListVO();
         vo.setId(appointment.getId());
         vo.setPatientId(appointment.getPatientId());
+        UserInfoDTO userInfo = fetchUserInfo(appointment.getPatientId());
+        if (userInfo != null) {
+            vo.setPatientName(userInfo.getNickname() == null || userInfo.getNickname().isBlank()
+                    ? userInfo.getUsername() : userInfo.getNickname());
+            vo.setPatientPhone(userInfo.getPhone());
+        }
         vo.setDoctorId(appointment.getDoctorId());
         vo.setAppointmentDate(appointment.getAppointmentDate());
         vo.setPeriod(appointment.getPeriod());
@@ -279,5 +297,16 @@ public class AppointmentServiceImpl implements AppointmentService {
             return null;
         }
         return doctorResp.getData();
+    }
+
+    private UserInfoDTO fetchUserInfo(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        R<UserInfoDTO> userResp = remoteUserService.getUserById(userId);
+        if (userResp == null || !userResp.isSuccess()) {
+            return null;
+        }
+        return userResp.getData();
     }
 }

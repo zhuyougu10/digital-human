@@ -515,3 +515,20 @@
 | 用户指南 | docs/user-guide.md | 管理端/医生端/患者端操作指南 |
 | 架构设计 | docs/plans/2026-02-27-medical-ai-assistant-design.md | 完整系统设计文档 |
 | 实施计划 | docs/plans/00-12 | 12 份详细实施计划 (230+ tasks) |
+
+## Session: 2026-03-02 (MEDIUM M1-M9 联调修复)
+
+### 编译/运行错误记录（按规则）
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| `mvn -f medical-ai/pom.xml ... compile` 失败：`The JAVA_HOME environment variable is not defined correctly` | 1 | 识别为当前 WSL shell 无 Java 环境，切换到 Windows PowerShell 路径方案验证 |
+| 通过 Windows PowerShell 启动 Maven 失败：`command not found` / `WSL ... UtilBindVsockAnyPort ... socket failed` | 2-3 | 根因是当前会话无法桥接 Windows PowerShell。最终方案：保留代码修复并做静态校验；请在 Windows 终端（已配置 JAVA_HOME 的 Maven 环境）执行 `mvn -f D:\project\数字人\medical-ai\pom.xml -pl medical-service/medical-doctor-service,medical-service/medical-knowledge-service,medical-service/medical-appointment-service -am -DskipTests compile` 完成编译验证。 |
+
+## Session: 2026-03-02 (最终验证任务)
+
+### 编译/构建验证错误记录
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| `mvn clean compile -DskipTests` 失败：`JAVA_HOME environment variable is not defined correctly` | 1 | 尝试定位本机 JDK 并设置 JAVA_HOME |
+| 检测到 IntelliJ JBR `java.exe`，但在 WSL 执行报错：`WSL ... UtilBindVsockAnyPort ... socket failed 1` | 2 | 当前容器无法执行 Windows Java，可继续前端构建验证，后端编译需在可用 Java 终端执行 |
+| `npm run build:mp-weixin` 失败：`uv_interface_addresses returned Unknown system error 1` | 1 | 使用 `CI=1 npm run build:mp-weixin` 跳过 uni 更新检查后构建成功 |

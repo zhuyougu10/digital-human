@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -35,7 +36,7 @@ public class DoctorProfileServiceImpl implements DoctorProfileService {
     private final DepartmentMapper departmentMapper;
 
     @Override
-    public PageResult<DoctorVO> listByDepartment(Long departmentId, PageQuery pageQuery) {
+    public PageResult<DoctorVO> listByDepartment(Long departmentId, String keyword, PageQuery pageQuery) {
         List<Long> doctorIds = null;
         if (departmentId != null) {
             doctorIds = doctorDepartmentMapper.selectList(
@@ -56,6 +57,7 @@ public class DoctorProfileServiceImpl implements DoctorProfileService {
         if (doctorIds != null) {
             wrapper.in(DoctorProfile::getId, doctorIds);
         }
+        wrapper.like(StringUtils.hasText(keyword), DoctorProfile::getName, keyword);
         wrapper.orderByDesc(DoctorProfile::getCreateTime);
         Page<DoctorProfile> result = doctorProfileMapper.selectPage(page, wrapper);
         List<DoctorVO> records = result.getRecords().stream()

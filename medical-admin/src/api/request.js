@@ -28,7 +28,7 @@ service.interceptors.response.use(
     const res = response.data
     // Custom code logic, 200 is success
     if (res.code !== 200) {
-      ElMessage.error(res.message || 'Error')
+      ElMessage.error(res.msg || 'Error')
       
       // 401: Illegal token; 
       if (res.code === 401) {
@@ -36,7 +36,7 @@ service.interceptors.response.use(
         localStorage.removeItem('token')
         window.location.href = '/login'
       }
-      return Promise.reject(new Error(res.message || 'Error'))
+      return Promise.reject(new Error(res.msg || 'Error'))
     } else {
       return res
     }

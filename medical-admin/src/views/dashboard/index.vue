@@ -107,7 +107,7 @@ const initDoctorDashboard = async () => {
   loading.value = true
   try {
     const res = await getDoctorTodayAppointments()
-    todayAppointments.value = res.data.list
+    todayAppointments.value = res.data.records || res.data.list || []
     
     stats.value = [
       { title: '今日预约数', value: res.data.total, icon: Calendar, color: '#409EFF' },

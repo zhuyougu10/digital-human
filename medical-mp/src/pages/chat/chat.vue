@@ -261,7 +261,7 @@ const sendMessage = async (content) => {
     '/ai/chat/send',
     {
       sessionId: sessionId.value,
-      content: text
+      message: text
     },
     {
       onMessage: async (_eventType, raw) => {

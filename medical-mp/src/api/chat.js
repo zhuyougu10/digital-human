@@ -4,13 +4,13 @@ export const createSession = (type) => {
   return request({
     url: '/ai/chat/session',
     method: 'POST',
-    data: { type }
+    data: { sessionType: type }
   })
 }
 
 export const getSessionList = () => {
   return request({
-    url: '/ai/chat/session/list',
+    url: '/ai/chat/sessions',
     method: 'GET'
   })
 }

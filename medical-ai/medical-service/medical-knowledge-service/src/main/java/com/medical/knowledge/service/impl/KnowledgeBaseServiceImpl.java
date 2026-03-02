@@ -39,6 +39,7 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
@@ -329,11 +330,14 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
         chunk.setKbId(dto.getKbId());
         chunk.setDocId(0L);
         chunk.setChunkIndex(manualCount == null ? 0 : manualCount.intValue());
-        chunk.setContent(dto.getContent());
-        chunk.setTokenCount(dto.getContent().length());
+        String chunkContent = StringUtils.hasText(dto.getTitle())
+                ? dto.getTitle().trim() + "\n" + dto.getContent()
+                : dto.getContent();
+        chunk.setContent(chunkContent);
+        chunk.setTokenCount(chunkContent.length());
         knowledgeChunkMapper.insert(chunk);
 
-        float[] vector = embeddingService.embed(dto.getContent());
+        float[] vector = embeddingService.embed(chunkContent);
         VectorData vectorData = new VectorData();
         vectorData.setId(String.valueOf(chunk.getId()));
         vectorData.setVector(vector);

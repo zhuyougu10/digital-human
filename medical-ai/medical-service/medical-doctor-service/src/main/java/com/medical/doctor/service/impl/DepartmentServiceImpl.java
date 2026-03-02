@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -21,12 +22,12 @@ public class DepartmentServiceImpl implements DepartmentService {
     private final DepartmentMapper departmentMapper;
 
     @Override
-    public List<DepartmentVO> list() {
-        List<Department> departments = departmentMapper.selectList(
-                new LambdaQueryWrapper<Department>()
-                        .orderByAsc(Department::getSort)
-                        .orderByAsc(Department::getId)
-        );
+    public List<DepartmentVO> list(String keyword) {
+        LambdaQueryWrapper<Department> wrapper = new LambdaQueryWrapper<>();
+        wrapper.like(StringUtils.hasText(keyword), Department::getName, keyword)
+                .orderByAsc(Department::getSort)
+                .orderByAsc(Department::getId);
+        List<Department> departments = departmentMapper.selectList(wrapper);
         return departments.stream().map(this::toDepartmentVO).collect(Collectors.toList());
     }
 

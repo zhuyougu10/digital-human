@@ -14,7 +14,21 @@ const request = (options) => {
       },
       success: (res) => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
-          resolve(res.data)
+          const result = res.data
+          if (result && typeof result === 'object' && 'code' in result) {
+            if (result.code === 200) {
+              resolve(result.data)
+            } else {
+              const msg = result.msg || '请求失败'
+              uni.showToast({
+                title: msg,
+                icon: 'none'
+              })
+              reject(result)
+            }
+            return
+          }
+          resolve(result)
         } else if (res.statusCode === 401) {
           uni.removeStorageSync('token')
           uni.removeStorageSync('userInfo')
@@ -29,7 +43,7 @@ const request = (options) => {
           }, 1500)
           reject(res)
         } else {
-          const msg = res.data?.message || '请求失败'
+          const msg = res.data?.msg || '请求失败'
           uni.showToast({
             title: msg,
             icon: 'none'

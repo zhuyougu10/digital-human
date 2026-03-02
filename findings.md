@@ -424,3 +424,61 @@ ew Page<>(pageNum, pageSize) explicitly and map to PageResult.of(...).
 - [修复6] docker-compose.yml: Codex 补齐 5 服务 `REDIS_HOST`/`REDIS_PORT` 环境变量 (knowledge-service 缺失导致 Redis 连接 localhost 失败)
 - [修复7] GlobalExceptionHandler: Codex 在 common-core 新建 `AutoConfiguration.imports` 注册 handler (原因: 跨模块 @RestControllerAdvice 未被 Spring Boot 自动发现)
 - [发现] `@EnableFeignClients(basePackages="com.medical.api")` 在 doctor/knowledge 服务中会扫描到指向自身的 FeignClient，需配合 `allow-bean-definition-overriding=true`
+
+## Phase 6: API 联调全面审查 (2026-03-02)
+
+### 审查方法
+5 批并行审查: 对比每个后端 Controller 的每个端点与前端 API 模块/视图的调用，检查 URL 路径、HTTP 方法、请求参数、响应结构。
+
+### Gateway 路由规则
+所有路由 `StripPrefix=2`: `/api/user/**` → 后端 `/**`, `/api/doctor/**` → 后端 `/**`, etc.
+
+### 发现问题总汇 (按严重性排序)
+
+#### CRITICAL (运行时必崩)
+
+| # | 服务 | 问题 | 文件 | 修复方案 |
+|---|------|------|------|----------|
+| C1 | user | admin `request.js` 读 `res.message` 但后端 `R.java` 字段为 `msg` | `medical-admin/src/api/request.js:31,39` | 改为 `res.msg` |
+| C2 | user | MP `getUserInfo` 调 `/user/auth/info`(不存在), 应为 `/user/user/info` | `medical-mp/src/api/auth.js:35-38` | 改 URL |
+| C3 | user | MP `request.js` 未解包 `R<T>`, 页面直接访问 `result.token` 为 undefined | `medical-mp/src/api/request.js` + `auth.js:15` | request 拦截器解包 `res.data.data` when `code===200` |
+| C4 | knowledge | 前端读 `res.data.list` 但 `PageResult` 字段为 `records` (3处) | `KnowledgeBase.vue:100`, `DocumentManagement.vue:173,224` | 改为 `res.data.records` |
+| C5 | knowledge | DocumentManagement 表格 column prop 与 VO 字段名不匹配 (name→fileName等, 8处) | `DocumentManagement.vue:14-24,99,209` | 逐一修正 prop 名 |
+| C6 | ai | MP `getSessionList` URL `/session/list` 不存在, 应为 `/sessions` → 404 | `medical-mp/src/api/chat.js:13` | 改 URL |
+| C7 | ai | MP `createSession` 发 `{type}` 但 DTO 字段为 `sessionType` → null | `medical-mp/src/api/chat.js:7` | 改为 `{sessionType: type}` |
+| C8 | ai | MP SSE 发 `content` 但 DTO 字段为 `message` → null | `medical-mp/src/pages/chat/chat.vue:263` | 改为 `message: text` |
+| C9 | appointment | `getDoctorTodayAppointments` 调 `/doctor/today`(不存在) → 404 | `medical-admin/src/api/appointment.js:74` | 改 URL 为 `/doctor` + `date=today` |
+| C10 | appointment | Doctor Appointments.vue 用 `getMyAppointments`(患者端点), 应用 doctor 端点 | `medical-admin/src/views/doctor/Appointments.vue:69` | 新增 getDoctorAppointments API, 调 `/appointment/doctor` |
+| C11 | appointment | admin AppointmentManagement 读 `res.data.list` 但 PageResult 为 `records` | `AppointmentManagement.vue:138` | 改为 `res.data.records` |
+
+#### MEDIUM (功能异常/数据缺失)
+
+| # | 服务 | 问题 | 文件 | 修复方案 |
+|---|------|------|------|----------|
+| M1 | ai | Admin ChatPanel SSE 未解析 JSON, 直接拼接原始 data → 显示乱码 | `ChatPanel.vue:206-214` | 解析 JSON 提取 content |
+| M2 | doctor | Department/Doctor 搜索栏发 keyword 但后端不接受 → 搜索无效 | `DepartmentController.java` + `DoctorController.java` | 后端添加 keyword 参数 |
+| M3 | doctor | Profile.vue 用 `updateDoctor(id)` 需 ADMIN 角色 → 医生 403 | `Profile.vue:216` | 改用 `PUT /doctor/my-profile` |
+| M4 | knowledge | ChunkManualDTO 缺 `title` 字段, 前端 title 输入被丢弃 | `ChunkManualDTO.java` + `DocumentManagement.vue:78` | 后端添加 title 字段 |
+| M5 | knowledge | 下拉菜单 slot `#footer` 应为 `#dropdown` | `KnowledgeBase.vue:18` | 改 slot 名 |
+| M6 | appointment | AppointmentQueryDTO.status 为 Integer 但前端发 String | `AppointmentQueryDTO.java` + `AppointmentManagement.vue` | 后端改 String 或前端改数字 |
+| M7 | appointment | AppointmentQueryDTO 缺 startDate/endDate 字段 | `AppointmentQueryDTO.java` | 后端添加字段 |
+| M8 | appointment | AppointmentListVO 缺 patientName/patientPhone | `AppointmentListVO.java` | 后端添加字段并查询填充 |
+| M9 | knowledge | parseStatus 为 Integer 但前端按 String 匹配 | `DocumentManagement.vue:272-279` | 改 map key 为整数 |
+
+#### LOW (功能可用但不完善)
+
+| # | 问题 |
+|---|------|
+| L1 | Profile.vue 用 getDoctorById + 列表查找, 应用 GET /doctor/my-profile |
+| L2 | user removeRole 后端端点无前端调用 |
+| L3 | admin 调用 /user/inner/{id} 内部端点 |
+| L4 | MP logout 未调后端注销 |
+| L5 | Schedule 无删除模板 UI |
+| L6 | /doctor/search、/schedule/slots/department 无前端调用 |
+| L7 | /chat/session/{id}/end 无前端调用 |
+| L8 | /encyclopedia/sessions, /encyclopedia/session/{id}/messages 无前端调用 |
+| L9 | MP appointment 页面未用 API 模块, 直接 import request |
+| L10 | Backend /appointment/doctor 返回 List 但前端用分页 |
+
+- [2026-03-02] `medical-knowledge-service` 与 `medical-appointment-service` 的 DTO/VO 路径使用 `domain/dto`、`domain/vo`（不是 `dto`、`vo` 顶层目录），后续修复需按实际包路径修改以避免误改或找不到文件。
+- [2026-03-02] 在当前 WSL 环境执行 `uni build -p mp-weixin` 可能因 `os.networkInterfaces()` 抛出 `uv_interface_addresses` 系统错误；设置环境变量 `CI=1` 可跳过 `@dcloudio/uni-cli-shared` 的更新检查并正常完成构建。
