@@ -76,6 +76,85 @@ Phase 7: Mock 数据修复 — complete
 - [x] Task 6: Final commit + 清理
 - **Status:** complete
 
+### Phase 6: API 联调审查与修复
+- [x] 5 批并行审查 (user/doctor/knowledge/ai/appointment)
+- [x] 修复批次A: 跨服务前端基础修复 (admin request.js msg字段 + mp request.js R<T>解包 + mp auth URL)
+- [x] 修复批次B: 小程序 API 修复 (chat session URL/字段 + doctor schedule URL)
+- [x] 修复批次C: Admin knowledge 视图修复 (records字段 + column props + dropdown slot)
+- [x] 修复批次D: Admin appointment/doctor 视图修复 (records字段 + doctor endpoint + getDoctorTodayAppointments)
+- [x] 修复批次E: ChatPanel SSE JSON 解析修复
+- [x] 修复批次F: Doctor Profile.vue my-profile 端点修复
+- [x] 修复批次G: 后端修复 (DepartmentController/DoctorController keyword + AppointmentQueryDTO + AppointmentListVO + ChunkManualDTO)
+- [x] 最终验证: Admin build SUCCESS + MP build SUCCESS + Maven 编译环境阻塞(WSL)
+- **Status:** complete
+
+### Phase 7: Mock 数据修复
+- [x] **[高] #1** login/index.vue: 移除 setTimeout mock 登录，接入 api/auth.js 真实 login + getUserInfo
+- [x] **[高] #2** stores/user.js: 移除 "Mock login for now" 注释代码，实现真实 login() 流程
+- [x] **[中] #3** SystemConfig.vue: 硬编码 AI 配置仅存 localStorage → 保留现状(无后端 API)，添加 TODO 注释
+- [x] **[中] #5** DoctorManagement.vue: specialtyOptions 写死 → 添加注释说明为快捷标签
+- [x] **[中] #6** DoctorManagement.vue: 排班入口被注释 → 恢复路由跳转
+- [x] **[低] #4** Navbar.vue: 头像硬编码外部 URL → 绑定 userStore.userInfo.avatar
+- [x] **[低] #7** mine/index.vue: 设置/关于 showDeveloping() → 改为分别的 comingSoon 提示
+- [x] **[低] #8** ChatMessage.vue: AI头像固定 ai-avatar.png + 用户头像动态绑定 message.avatar
+- [x] **[低] #9** index/index.vue quickActions → 添加注释说明为固定配置
+- [x] **验证:** Admin build SUCCESS + MP build:mp-weixin SUCCESS
+- **Status:** complete
+
+### Phase 2: Planning & Task Decomposition
+- [x] 创建 00-overview.md 总览计划
+- [x] 创建 01-project-init.md 项目初始化（12 Tasks）
+- [x] 创建 02-common-modules.md 公共模块（10 Tasks）
+- [x] 创建 03-user-service.md 用户服务（12 Tasks）
+- [x] 创建 04-doctor-service.md 医生服务（10 Tasks）
+- [x] 创建 05-knowledge-service.md 知识库服务（12 Tasks）
+- [x] 创建 06-ai-service.md AI服务（13 Tasks）
+- [x] 创建 07-appointment-service.md 预约服务（6 Tasks）
+- [x] 创建 08-gateway.md 网关服务（5 Tasks）
+- [x] 创建 09-frontend-admin.md 管理端+医生端前端（18 Tasks）
+- [x] 创建 10-frontend-mp.md 小程序端+Live2D（14 Tasks）
+- [x] 创建 11-docker-deploy.md 部署+联调（9 Tasks）
+- **Status:** complete
+
+### Phase 3: Implementation (TDD)
+- [x] 01-project-init (12 Tasks) — COMPLETE
+- [x] 02-common-modules (10 Tasks) — COMPLETE
+- [x] 03-user-service (12 Tasks) — COMPLETE
+- [x] 04-doctor-service (10 Tasks) — COMPLETE
+    - [x] 05-knowledge-service (12 Tasks) — COMPLETE
+    - [x] 06-ai-service (13 Tasks) — COMPLETE
+    - [x] 07-appointment-service (6 Tasks) — COMPLETE
+- [x] 08-gateway (5 Tasks) — COMPLETE
+- [x] 09-frontend-admin (18 Tasks) — COMPLETE
+- [x] 10-frontend-mp (14 Tasks) — COMPLETE
+- [x] 11-docker-deploy (9 Tasks) — COMPLETE
+- **Status:** complete
+
+### 11-docker-deploy 详细进度
+- [x] Task 1: 6 个 Dockerfile (gateway + 5 services)
+- [x] Task 2: admin Nginx + Dockerfile
+- [x] Task 3: Live2D H5 Dockerfile + nginx.conf
+- [x] Task 4: 完整 docker-compose.yml (14 containers, healthcheck, depends_on)
+- [x] Task 5: .env.example (27 行)
+- [x] Task 6: Maven 全量打包 BUILD SUCCESS (18/18, 36s)
+- [x] Task 7: Docker Compose 启动 14/14 UP
+- [x] Task 8: 端到端联调验证 — 12/12 PASS (Session 4 全通)
+- [x] Task 9: Commit — feat(deploy): 0b72f91
+
+### Phase 4: Testing & Verification
+- [x] 端到端联调 (11-docker-deploy Task 8 完成)
+- [x] 12 项联调验证全部通过 (Session 4)
+- **Status:** complete
+
+### Phase 5: Delivery (12-delivery)
+- [x] Task 1: 项目 README.md (项目概述/技术栈/架构/快速启动) — Codex
+- [x] Task 2: docs/deployment-guide.md (Docker 部署手册) — Codex
+- [x] Task 3: docs/database-design.md (数据库设计文档) — Codex
+- [x] Task 4: docs/api-reference.md (API 接口文档) — Codex
+- [x] Task 5: docs/user-guide.md (用户使用指南: 管理端/医生端/患者端) — Gemini
+- [x] Task 6: Final commit + 清理
+- **Status:** complete
+
 ## Key Questions
 <!-- 
   WHAT: Important questions you need to answer during the task.
