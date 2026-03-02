@@ -157,6 +157,7 @@ const loading = ref(false)
 const doctorList = ref([])
 const total = ref(0)
 const departmentOptions = ref([])
+// 常用擅长领域标签（快捷选择用，用户也可手动输入自定义标签）
 const specialtyOptions = ref(['高血压', '糖尿病', '感冒', '儿科', '外科', '中医'])
 
 const searchForm = reactive({
@@ -293,9 +294,8 @@ const handleSubmit = async () => {
   })
 }
 
-const goToSchedule = (row) => {
-  // router.push(`/admin/doctor/${row.id}/schedule`)
-  ElMessage.info('排班功能开发中...')
+const goToSchedule = () => {
+  router.push('/doctor/schedule')
 }
 
 onMounted(() => {

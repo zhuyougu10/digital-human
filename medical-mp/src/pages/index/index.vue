@@ -6,6 +6,7 @@ import { useUserStore } from '@/stores/user'
 const userStore = useUserStore()
 const greeting = ref('你好')
 
+// 首页快捷入口（固定配置，无需后端动态化）
 const quickActions = [
   { id: 1, name: '找医生', icon: 'hospital', path: '/pages/doctors/list' },
   { id: 2, name: '我的预约', icon: 'calendar', path: '/pages/appointment/list' },

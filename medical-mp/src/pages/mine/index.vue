@@ -8,8 +8,8 @@
     <view class="menu-card">
       <view class="menu-item" @click="go('/pages/appointment/list')">我的预约</view>
       <view class="menu-item" @click="go('/pages/chat/chat')">对话记录</view>
-      <view class="menu-item" @click="showDeveloping">设置</view>
-      <view class="menu-item" @click="showDeveloping">关于</view>
+      <view class="menu-item" @click="showSettingsComingSoon">设置</view>
+      <view class="menu-item" @click="showAboutComingSoon">关于</view>
     </view>
 
     <button class="logout-btn" @click="logout">退出登录</button>
@@ -37,8 +37,12 @@ const go = (url: string) => {
   uni.navigateTo({ url })
 }
 
-const showDeveloping = () => {
-  uni.showToast({ title: '功能开发中', icon: 'none' })
+const showSettingsComingSoon = () => {
+  uni.showToast({ title: '设置页面即将上线', icon: 'none' })
+}
+
+const showAboutComingSoon = () => {
+  uni.showToast({ title: '关于页面即将上线', icon: 'none' })
 }
 
 const logout = () => {

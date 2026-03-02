@@ -532,3 +532,24 @@
 | `mvn clean compile -DskipTests` 失败：`JAVA_HOME environment variable is not defined correctly` | 1 | 尝试定位本机 JDK 并设置 JAVA_HOME |
 | 检测到 IntelliJ JBR `java.exe`，但在 WSL 执行报错：`WSL ... UtilBindVsockAnyPort ... socket failed 1` | 2 | 当前容器无法执行 Windows Java，可继续前端构建验证，后端编译需在可用 Java 终端执行 |
 | `npm run build:mp-weixin` 失败：`uv_interface_addresses returned Unknown system error 1` | 1 | 使用 `CI=1 npm run build:mp-weixin` 跳过 uni 更新检查后构建成功 |
+
+## Session: 2026-03-02 (Phase 7 — Mock 数据修复)
+
+### Phase 7: Mock 数据修复
+- **Status:** complete
+- **Started:** 2026-03-02
+- **Completed:** 2026-03-02
+- Actions taken:
+  - Codex 审查前端 mock 数据，发现 9 处问题 (1 高/4 中/4 低)
+  - 委派 Codex 一次性修复全部 9 项
+  - 验证: Admin `npm run build` SUCCESS (2148 modules, 47.70s) + MP `npm run build:mp-weixin` SUCCESS
+- Files modified:
+  - `medical-admin/src/views/login/index.vue` — 移除 setTimeout mock，接入真实 login API + getUserInfo fallback
+  - `medical-admin/src/stores/user.js` — 实现真实 login/fetchUserInfo/logout，导入 auth API
+  - `medical-admin/src/views/admin/SystemConfig.vue` — 添加 TODO 注释标记 localStorage 临时方案
+  - `medical-admin/src/views/admin/DoctorManagement.vue` — 添加 specialtyOptions 注释 + 恢复 goToSchedule 路由跳转
+  - `medical-admin/src/components/Layout/Navbar.vue` — 头像改为动态绑定 userStore.userInfo.avatar
+  - `medical-mp/src/pages/mine/index.vue` — 拆分为 showSettingsComingSoon/showAboutComingSoon
+  - `medical-mp/src/components/ChatMessage.vue` — AI 头像固定 ai-avatar.png，用户头像动态 message.avatar
+  - `medical-mp/src/pages/index/index.vue` — quickActions 添加注释说明
+- Errors encountered: 无

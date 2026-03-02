@@ -15,7 +15,8 @@ const props = defineProps({
 
 <template>
   <view :class="['message-item', message.role === 'user' ? 'message-user' : 'message-ai']">
-    <image v-if="message.role === 'assistant'" class="avatar" src="/static/logo.png" mode="aspectFill" />
+    <!-- AI 头像保持固定，用户头像从 message.avatar（或默认头像）获取 -->
+    <image v-if="message.role === 'assistant'" class="avatar" :src="'/static/ai-avatar.png'" mode="aspectFill" />
     <view class="content-wrapper">
       <view v-if="message.type === 'text'" class="bubble">
         <text selectable>{{ message.content }}</text>
@@ -25,7 +26,7 @@ const props = defineProps({
         <slot name="special" :message="message"></slot>
       </view>
     </view>
-    <image v-if="message.role === 'user'" class="avatar" src="/static/logo.png" mode="aspectFill" />
+    <image v-if="message.role === 'user'" class="avatar" :src="message.avatar || '/static/logo.png'" mode="aspectFill" />
   </view>
 </template>
 

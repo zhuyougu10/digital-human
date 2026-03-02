@@ -4,7 +4,7 @@
 构建基于 Spring Cloud + Spring AI + RAG + AI Agents + Vue3 + UniApp 的 AI 数字人医疗小助手系统（毕业设计）
 
 ## Current Phase
-Phase 6: API 联调审查与修复 — complete
+Phase 7: Mock 数据修复 — complete
 
 ## Phases
 <!-- 
@@ -122,6 +122,19 @@ Phase 6: API 联调审查与修复 — complete
 - [x] 修复批次F: Doctor Profile.vue my-profile 端点修复
 - [x] 修复批次G: 后端修复 (DepartmentController/DoctorController keyword + AppointmentQueryDTO + AppointmentListVO + ChunkManualDTO)
 - [x] 最终验证: Admin build SUCCESS + MP build SUCCESS + Maven 编译环境阻塞(WSL)
+- **Status:** complete
+
+### Phase 7: Mock 数据修复
+- [x] **[高] #1** login/index.vue: 移除 setTimeout mock 登录，接入 api/auth.js 真实 login + getUserInfo
+- [x] **[高] #2** stores/user.js: 移除 "Mock login for now" 注释代码，实现真实 login() 流程
+- [x] **[中] #3** SystemConfig.vue: 硬编码 AI 配置仅存 localStorage → 保留现状(无后端 API)，添加 TODO 注释
+- [x] **[中] #5** DoctorManagement.vue: specialtyOptions 写死 → 添加注释说明为快捷标签
+- [x] **[中] #6** DoctorManagement.vue: 排班入口被注释 → 恢复路由跳转
+- [x] **[低] #4** Navbar.vue: 头像硬编码外部 URL → 绑定 userStore.userInfo.avatar
+- [x] **[低] #7** mine/index.vue: 设置/关于 showDeveloping() → 改为分别的 comingSoon 提示
+- [x] **[低] #8** ChatMessage.vue: AI头像固定 ai-avatar.png + 用户头像动态绑定 message.avatar
+- [x] **[低] #9** index/index.vue quickActions → 添加注释说明为固定配置
+- **验证:** Admin build SUCCESS + MP build:mp-weixin SUCCESS
 - **Status:** complete
 
 ## Notes

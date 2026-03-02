@@ -113,6 +113,7 @@ const config = reactive({
 })
 
 const handleSave = () => {
+  // TODO: 当后端实现系统配置 API 后，替换 localStorage 为真实 API 调用
   try {
     localStorage.setItem('sys_config', JSON.stringify(config))
     ElMessage.success('配置已保存到本地')
@@ -122,6 +123,7 @@ const handleSave = () => {
 }
 
 onMounted(() => {
+  // TODO: 当后端实现系统配置 API 后，替换 localStorage 为真实 API 调用
   const saved = localStorage.getItem('sys_config')
   if (saved) {
     const parsed = JSON.parse(saved)

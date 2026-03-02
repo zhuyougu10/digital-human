@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { login as loginApi, getUserInfo, logout as logoutApi } from '@/api/auth'
 
 export const useUserStore = defineStore('user', () => {
   const token = ref(localStorage.getItem('token') || '')
@@ -21,15 +22,22 @@ export const useUserStore = defineStore('user', () => {
   }
 
   async function login(username, password) {
-    // Mock login for now, will be replaced with real API call
-    console.log('Login attempt:', username)
-    // In real implementation:
-    // const res = await request.post('/auth/login', { username, password })
-    // setToken(res.data.token)
-    // setUserInfo(res.data.user)
+    const res = await loginApi({ username, password })
+    setToken(res.data.token)
+    setUserInfo(res.data.user)
   }
 
-  function logout() {
+  async function fetchUserInfo() {
+    const res = await getUserInfo()
+    setUserInfo(res.data)
+  }
+
+  async function logout() {
+    try {
+      await logoutApi()
+    } catch (error) {
+      // Ignore logout request errors and continue local cleanup
+    }
     token.value = ''
     userInfo.value = {}
     localStorage.removeItem('token')
@@ -47,6 +55,7 @@ export const useUserStore = defineStore('user', () => {
     setToken,
     setUserInfo,
     login,
+    fetchUserInfo,
     logout
   }
 })

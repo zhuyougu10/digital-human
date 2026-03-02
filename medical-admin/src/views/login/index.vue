@@ -12,18 +12,12 @@
           <el-input v-model="loginForm.password" type="password" placeholder="密码" prefix-icon="Lock" show-password />
         </el-form-item>
         <el-form-item>
-          <el-radio-group v-model="loginForm.role">
-            <el-radio label="ADMIN">管理员</el-radio>
-            <el-radio label="DOCTOR">医生</el-radio>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item>
           <el-button type="primary" class="login-button" @click="handleLogin" :loading="loading">登录</el-button>
         </el-form-item>
       </el-form>
       <div class="tips">
         <p>演示账号：admin / doctor</p>
-        <p>初始密码：任意</p>
+        <p>默认密码：admin123</p>
       </div>
     </el-card>
   </div>
@@ -34,7 +28,7 @@ import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
-import { User, Lock } from '@element-plus/icons-vue'
+import { login, getUserInfo } from '@/api/auth'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -42,23 +36,23 @@ const loading = ref(false)
 
 const loginForm = reactive({
   username: 'admin',
-  password: 'password',
-  role: 'ADMIN'
+  password: 'admin123'
 })
 
 const handleLogin = async () => {
   loading.value = true
   try {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    // Set mock data
-    userStore.setToken('mock-token-' + Date.now())
-    userStore.setUserInfo({
+    const res = await login({
       username: loginForm.username,
-      roles: [loginForm.role]
+      password: loginForm.password
     })
-    
+    userStore.setToken(res.data.token)
+    if (res.data.user) {
+      userStore.setUserInfo(res.data.user)
+    } else {
+      const userRes = await getUserInfo()
+      userStore.setUserInfo(userRes.data)
+    }
     ElMessage.success('登录成功')
     router.push('/')
   } catch (error) {
