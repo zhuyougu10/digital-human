@@ -4,7 +4,7 @@
 构建基于 Spring Cloud + Spring AI + RAG + AI Agents + Vue3 + UniApp 的 AI 数字人医疗小助手系统（毕业设计）
 
 ## Current Phase
-Phase 9: 接口测试 — in_progress
+Phase 9: 接口测试 — complete
 
 ## Phases
 <!-- 
@@ -216,14 +216,14 @@ Phase 9: 接口测试 — in_progress
 - **Status:** complete
 
 ### Phase 9: 接口测试 (13-api-testing)
-- [ ] Task 0: 测试基础设施搭建 (父 POM + surefire + 各服务 application-test.yml + SecurityUtil mock 策略)
-- [ ] Task 1: medical-user-service 接口测试 (AuthController 8 + SysUserController 12 = 20 用例)
-- [ ] Task 2: medical-doctor-service 接口测试 (Doctor 14 + Department 10 + Schedule 13 = 37 用例)
-- [ ] Task 3: medical-ai-service 接口测试 (Chat 10 + Encyclopedia 6 + Summary 4 = 20 用例)
-- [ ] Task 4: medical-appointment-service 接口测试 (Appointment 14 用例)
-- [ ] Task 5: medical-knowledge-service 接口测试 (KnowledgeBase 18 用例)
-- [ ] 全量验证: mvn test → 109 用例全部 GREEN
-- **Status:** in_progress
+- [x] Task 0: 测试基础设施搭建 (父 POM + surefire + 各服务 application-test.yml + SecurityUtil mock 策略)
+- [x] Task 1: medical-user-service 接口测试 (AuthController 8 + SysUserController 12 = 20 用例)
+- [x] Task 2: medical-doctor-service 接口测试 (Doctor 14 + Department 10 + Schedule 13 = 37 用例)
+- [x] Task 3: medical-ai-service 接口测试 (Chat 10 + Encyclopedia 6 + Summary 4 = 20 用例)
+- [x] Task 4: medical-appointment-service 接口测试 (Appointment 14 用例)
+- [x] Task 5: medical-knowledge-service 接口测试 (KnowledgeBase 18 用例)
+- [x] 全量验证: mvn test → 109 用例全部 GREEN
+- **Status:** complete
 
 ## Notes
 <!-- 
