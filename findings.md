@@ -482,3 +482,16 @@ ew Page<>(pageNum, pageSize) explicitly and map to PageResult.of(...).
 
 - [2026-03-02] `medical-knowledge-service` 与 `medical-appointment-service` 的 DTO/VO 路径使用 `domain/dto`、`domain/vo`（不是 `dto`、`vo` 顶层目录），后续修复需按实际包路径修改以避免误改或找不到文件。
 - [2026-03-02] 在当前 WSL 环境执行 `uni build -p mp-weixin` 可能因 `os.networkInterfaces()` 抛出 `uv_interface_addresses` 系统错误；设置环境变量 `CI=1` 可跳过 `@dcloudio/uni-cli-shared` 的更新检查并正常完成构建。
+- [2026-03-02] **测试基础设施现状**: 项目当前 0 个测试类、0 个 src/test/ 目录。5 个 service module 已有 `spring-boot-starter-test`（JUnit5+Mockito+MockMvc），但 gateway/common/api 模块均无。
+- [2026-03-02] **共 55 个 REST 端点** (46 public + 9 inner/Feign)，分布于 10 个 Controller 类。
+- [2026-03-02] **需要 mock 的外部依赖 (9 项)**: MySQL, Redis, Nacos, Milvus, DeepSeek API, DashScope Embedding, Aliyun TTS, WeChat API, OpenFeign 跨服务调用。
+- [2026-03-02] **测试策略**: 采用 `@WebMvcTest` + `@MockBean` + `@AutoConfigureMockMvc(addFilters=false)` 进行 Controller 层隔离测试，不依赖任何外部服务。SSE 端点需特殊处理（WebTestClient 或简化验证）。
+- [2026-03-02] **发现缺陷**: `RemoteAppointmentService` 声明了 `cancelAppointment(Long)` 映射到 `POST /inner/cancel`，但 AppointmentController 无对应端点，Feign 调用会 404。
+- [2026-03-02] **发现缺陷**: `RemoteAppointmentService.createAppointment` 仅声明 3 个参数 (patientId/doctorId/slotId)，但 Controller 的 innerCreate 接受 5 个参数（多了 optional departmentId/sessionId），Feign 侧无法传递。
+- [2026-03-02] 接口测试计划: `docs/plans/13-api-testing.md`，共 10 个测试类、109 个测试用例，覆盖全部 55 个端点。
+- [2026-03-02] Controller tests must align with real binding behavior: many endpoints (e.g., user/doctor/appointment/knowledge create/update APIs) do **not** use `@Valid`, so `400` should be asserted mainly for binding/type errors (missing required `@RequestParam`, bad date format, malformed JSON), while business errors should be simulated via `BusinessException` from mocked services.
+- [2026-03-02] Auth context is obtained through static methods: most controllers call `SecurityUtil.getUserId()`, while `AppointmentController` calls `StpUtil.getLoginIdAsLong()` directly. Tests need static mocking for the matching utility to avoid auth-related runtime failures under `@WebMvcTest`.
+- [2026-03-02] GlobalExceptionHandler returns `R.fail(...)` without `@ResponseStatus`, so most business/validation exceptions in controller tests still return HTTP 200 with non-200 `$.code`; assertions should prioritize `$.code/$.msg` contract over HTTP status for these paths.
+- [2026-03-02] AI controller DTOs (`CreateSessionDTO`, `ChatRequestDTO`) currently have no Bean Validation annotations; "invalid" test cases should be modeled via mocked `BusinessException` paths rather than relying on automatic 400 validation.
+- [2026-03-02] `AppointmentController` does not use `SecurityUtil`; it directly calls static `StpUtil.getLoginIdAsLong()`. Controller tests for appointment module require static mocking `StpUtil` even with `addFilters = false`.
+- [2026-03-02] `KnowledgeBaseController` bypasses service for some endpoints (`listDocuments`, `deleteChunk`) and directly calls mappers + `VectorStoreService`; `@WebMvcTest` must `@MockBean` `KnowledgeDocumentMapper/KnowledgeChunkMapper/KnowledgeBaseMapper/VectorStoreService` to load context and cover those branches.

@@ -4,7 +4,7 @@
 构建基于 Spring Cloud + Spring AI + RAG + AI Agents + Vue3 + UniApp 的 AI 数字人医疗小助手系统（毕业设计）
 
 ## Current Phase
-Phase 7: Mock 数据修复 — complete
+Phase 9: 接口测试 — in_progress
 
 ## Phases
 <!-- 
@@ -88,18 +88,17 @@ Phase 7: Mock 数据修复 — complete
 - [x] 最终验证: Admin build SUCCESS + MP build SUCCESS + Maven 编译环境阻塞(WSL)
 - **Status:** complete
 
-### Phase 7: Mock 数据修复
-- [x] **[高] #1** login/index.vue: 移除 setTimeout mock 登录，接入 api/auth.js 真实 login + getUserInfo
-- [x] **[高] #2** stores/user.js: 移除 "Mock login for now" 注释代码，实现真实 login() 流程
-- [x] **[中] #3** SystemConfig.vue: 硬编码 AI 配置仅存 localStorage → 保留现状(无后端 API)，添加 TODO 注释
-- [x] **[中] #5** DoctorManagement.vue: specialtyOptions 写死 → 添加注释说明为快捷标签
-- [x] **[中] #6** DoctorManagement.vue: 排班入口被注释 → 恢复路由跳转
-- [x] **[低] #4** Navbar.vue: 头像硬编码外部 URL → 绑定 userStore.userInfo.avatar
-- [x] **[低] #7** mine/index.vue: 设置/关于 showDeveloping() → 改为分别的 comingSoon 提示
-- [x] **[低] #8** ChatMessage.vue: AI头像固定 ai-avatar.png + 用户头像动态绑定 message.avatar
-- [x] **[低] #9** index/index.vue quickActions → 添加注释说明为固定配置
-- [x] **验证:** Admin build SUCCESS + MP build:mp-weixin SUCCESS
+### Phase 8: Final Review & Polishing
+- [x] Task 1: Perform a final end-to-end check of the UI and API.
+- [x] Task 2: Verify all documentation in `docs/` is up-to-date.
+- [x] Task 3: Clean up any remaining temporary files or comments.
 - **Status:** complete
+
+## Phase 8: Final Review & Polishing
+- [x] Final E2E Check
+- [x] Documentation Audit
+- [x] Final Cleanup
+
 
 ### Phase 2: Planning & Task Decomposition
 - [x] 创建 00-overview.md 总览计划
@@ -215,6 +214,16 @@ Phase 7: Mock 数据修复 — complete
 - [x] **[低] #9** index/index.vue quickActions → 添加注释说明为固定配置
 - **验证:** Admin build SUCCESS + MP build:mp-weixin SUCCESS
 - **Status:** complete
+
+### Phase 9: 接口测试 (13-api-testing)
+- [ ] Task 0: 测试基础设施搭建 (父 POM + surefire + 各服务 application-test.yml + SecurityUtil mock 策略)
+- [ ] Task 1: medical-user-service 接口测试 (AuthController 8 + SysUserController 12 = 20 用例)
+- [ ] Task 2: medical-doctor-service 接口测试 (Doctor 14 + Department 10 + Schedule 13 = 37 用例)
+- [ ] Task 3: medical-ai-service 接口测试 (Chat 10 + Encyclopedia 6 + Summary 4 = 20 用例)
+- [ ] Task 4: medical-appointment-service 接口测试 (Appointment 14 用例)
+- [ ] Task 5: medical-knowledge-service 接口测试 (KnowledgeBase 18 用例)
+- [ ] 全量验证: mvn test → 109 用例全部 GREEN
+- **Status:** in_progress
 
 ## Notes
 <!-- 

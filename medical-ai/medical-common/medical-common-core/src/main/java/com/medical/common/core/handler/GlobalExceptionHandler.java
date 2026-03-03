@@ -10,6 +10,9 @@ import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -49,6 +52,21 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public R<Void> handleHttpMessageNotReadableException(HttpMessageNotReadableException e) {
         return R.fail(ErrorCode.PARAM_ERROR.getCode(), "请求参数格式错误或缺失");
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public R<Void> handleMissingServletRequestParameterException(MissingServletRequestParameterException e) {
+        return R.fail(ErrorCode.PARAM_ERROR.getCode(), "缺少必填参数: " + e.getParameterName());
+    }
+
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public R<Void> handleMissingServletRequestPartException(MissingServletRequestPartException e) {
+        return R.fail(ErrorCode.PARAM_ERROR.getCode(), "缺少必填文件或参数: " + e.getRequestPartName());
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public R<Void> handleMethodArgumentTypeMismatchException(MethodArgumentTypeMismatchException e) {
+        return R.fail(ErrorCode.PARAM_ERROR.getCode(), "参数类型错误: " + e.getName());
     }
 
     @ExceptionHandler(Exception.class)
