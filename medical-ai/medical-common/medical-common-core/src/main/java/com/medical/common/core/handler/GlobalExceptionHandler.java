@@ -5,6 +5,7 @@ import com.medical.common.core.exception.BusinessException;
 import com.medical.common.core.exception.ErrorCode;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
@@ -43,6 +44,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public R<Void> handleMethodNotSupported(HttpRequestMethodNotSupportedException e) {
         return R.fail(ErrorCode.PARAM_ERROR.getCode(), "不支持的请求方法: " + e.getMethod());
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public R<Void> handleHttpMessageNotReadableException(HttpMessageNotReadableException e) {
+        return R.fail(ErrorCode.PARAM_ERROR.getCode(), "请求参数格式错误或缺失");
     }
 
     @ExceptionHandler(Exception.class)

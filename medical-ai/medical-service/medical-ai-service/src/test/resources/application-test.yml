@@ -1,0 +1,35 @@
+spring:
+  cloud:
+    nacos:
+      discovery:
+        enabled: false
+      config:
+        enabled: false
+    loadbalancer:
+      enabled: false
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=MYSQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  # Disable AI auto-configuration if possible or provide dummy values
+  ai:
+    openai:
+      api-key: test-key
+      base-url: http://localhost:8080
+      chat:
+        options:
+          model: deepseek-chat
+
+sa-token:
+  token-name: Authorization
+  token-prefix: Bearer
+
+# 禁用 Knife4j
+springdoc:
+  api-docs:
+    enabled: false

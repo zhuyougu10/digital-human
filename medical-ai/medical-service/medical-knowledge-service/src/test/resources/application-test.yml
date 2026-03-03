@@ -1,0 +1,42 @@
+spring:
+  cloud:
+    nacos:
+      discovery:
+        enabled: false
+      config:
+        enabled: false
+    loadbalancer:
+      enabled: false
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=MYSQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  
+  # AI & Milvus dummy config
+  ai:
+    openai:
+      api-key: test-key
+      base-url: http://localhost:8080
+      embedding:
+        options:
+          model: text-embedding-ada-002
+  
+milvus:
+  host: localhost
+  port: 19530
+  token: root:Milvus
+  database: medical_knowledge
+
+sa-token:
+  token-name: Authorization
+  token-prefix: Bearer
+
+# 禁用 Knife4j
+springdoc:
+  api-docs:
+    enabled: false
