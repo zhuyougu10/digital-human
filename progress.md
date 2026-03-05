@@ -116,3 +116,32 @@
   - `test_06_knowledge.py::test_add_manual_chunk`
   - `test_06_knowledge.py::test_delete_chunk`
 - Skip reason: placeholder `DASHSCOPE_API_KEY` causes expected embedding failure (`code=5003`), which is environment/config limitation rather than code defect.
+
+## Session: 2026-03-05 (init.sql encoding + schema sync)
+
+### Error Encountered
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| MySQL syntax error on `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` for `medical_user.sys_user_role` (ERROR 1064) | 1 | Switched to standard `ALTER TABLE ... ADD COLUMN ...` (without IF NOT EXISTS), then verified columns via `SHOW COLUMNS` and `information_schema`. |
+
+## Session: 2026-03-05 (DB 全量中文乱码修复)
+
+### 问题
+所有预置中文数据乱码: sys_role.role_name (管理员/医生/患者)、sys_user.nickname (系统管理员)、department.name (内科等10条)
+根因: Docker MySQL 初始化时以 latin-1 连接执行 init.sql，中文被错误编码存储
+
+### 修复内容
+| 操作 | 详情 |
+|------|------|
+| UPDATE sys_role | 管理员 / 医生 / 患者 — 3条 |
+| UPDATE sys_user | admin 昵称 → 系统管理员 |
+| UPDATE department | 内科/外科/神经内科/儿科/妇产科/眼科/耳鼻喉科/皮肤科/中医科/口腔科 — 10条 |
+| docker-compose.yml | MySQL command 加 `--character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --init-connect='SET NAMES utf8mb4'` |
+
+### 验证结果 (OpenCode 审核确认)
+- sys_role: 管理员 / 医生 / 患者 ✅
+- sys_user admin: 系统管理员 ✅
+- department id 1-10: 全部中文正常 ✅
+
+### Commit
+- `a32364a` fix(db): 修复所有预置中文数据乱码 (sys_role/department) + init.sql SET NAMES 位置
