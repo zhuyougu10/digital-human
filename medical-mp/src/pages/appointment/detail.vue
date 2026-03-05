@@ -22,7 +22,7 @@
 // [Codex 降级接管] 预约详情页在 Gemini 不可用时由 Codex 接管实现。
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import request from '@/api/request'
+import { getAppointmentById, cancelAppointment as cancelApi } from '@/api/appointment'
 
 interface AppointmentDetail {
   id: string | number
@@ -54,10 +54,7 @@ const isPending = (status: string) => ['PENDING', 'pending'].includes(status)
 const fetchDetail = async () => {
   if (!appointmentId.value) return
   try {
-    const res = await request({
-      url: `/appointment/appointment/${appointmentId.value}`,
-      method: 'GET'
-    })
+    const res = await getAppointmentById(appointmentId.value)
     const data = (res as any)?.data || res
     appointment.value = {
       id: data.id,
@@ -76,10 +73,7 @@ const fetchDetail = async () => {
 const cancelAppointment = async () => {
   if (!appointmentId.value) return
   try {
-    await request({
-      url: `/appointment/appointment/${appointmentId.value}/cancel`,
-      method: 'PUT'
-    })
+    await cancelApi(appointmentId.value)
   } catch {
     uni.showToast({ title: '取消预约失败', icon: 'none' })
     return

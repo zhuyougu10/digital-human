@@ -20,6 +20,7 @@
 // [Codex 降级接管] 个人中心页在 Gemini 不可用时由 Codex 接管实现。
 import { reactive } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+import { logout } from '@/api/auth'
 
 const defaultAvatar = '/static/logo.png'
 const user = reactive({
@@ -43,12 +44,6 @@ const showSettingsComingSoon = () => {
 
 const showAboutComingSoon = () => {
   uni.showToast({ title: '关于页面即将上线', icon: 'none' })
-}
-
-const logout = () => {
-  uni.removeStorageSync('token')
-  uni.removeStorageSync('userInfo')
-  uni.reLaunch({ url: '/pages/index/index' })
 }
 
 onShow(loadUser)

@@ -24,7 +24,7 @@
 // [Codex 降级接管] 医生详情页在 Gemini 不可用时由 Codex 接管实现。
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import request from '@/api/request'
+import { getDoctorById } from '@/api/doctor'
 
 interface DoctorDetail {
   id: string | number
@@ -48,10 +48,7 @@ const parseSpecialties = (input: unknown) => {
 const fetchDoctorDetail = async () => {
   if (!doctorId.value) return
   try {
-    const res = await request({
-      url: `/doctor/doctor/${doctorId.value}`,
-      method: 'GET'
-    })
+    const res = await getDoctorById(doctorId.value)
     const data = (res as any)?.data || res
     doctor.value = {
       id: data.id,

@@ -1,56 +1,89 @@
 <template>
   <div class="doctor-management">
-    <el-card shadow="never" class="search-card">
-      <el-form :inline="true" :model="searchForm">
-        <el-form-item label="关键词">
-          <el-input v-model="searchForm.keyword" placeholder="姓名/职称" clearable @keyup.enter="handleSearch" />
-        </el-form-item>
-        <el-form-item label="科室">
-          <el-select v-model="searchForm.departmentId" placeholder="选择科室" clearable style="width: 200px">
-            <el-option
-              v-for="dept in departmentOptions"
-              :key="dept.id"
-              :label="dept.name"
-              :value="dept.id"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="handleSearch">查询</el-button>
-          <el-button @click="resetSearch">重置</el-button>
-          <el-button type="success" @click="handleAdd">新增医生</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
+    <el-card shadow="hover" class="main-card">
+      <template #header>
+        <div class="card-header">
+          <div class="left-panel">
+            <span class="title">医生管理</span>
+          </div>
+          <div class="right-panel">
+            <el-form :inline="true" :model="searchForm" class="search-form">
+              <el-form-item>
+                <el-input 
+                  v-model="searchForm.keyword" 
+                  placeholder="搜索姓名/职称" 
+                  clearable 
+                  @keyup.enter="handleSearch"
+                  class="search-input"
+                >
+                  <template #prefix><el-icon><Search /></el-icon></template>
+                </el-input>
+              </el-form-item>
+              <el-form-item>
+                <el-select v-model="searchForm.departmentId" placeholder="选择科室" clearable class="dept-select">
+                  <el-option
+                    v-for="dept in departmentOptions"
+                    :key="dept.id"
+                    :label="dept.name"
+                    :value="dept.id"
+                  />
+                </el-select>
+              </el-form-item>
+              <el-form-item>
+                <el-button type="primary" @click="handleSearch">查询</el-button>
+                <el-button @click="resetSearch">重置</el-button>
+              </el-form-item>
+            </el-form>
+            <div class="divider"></div>
+            <el-button type="primary" icon="Plus" @click="handleAdd">新增医生</el-button>
+          </div>
+        </div>
+      </template>
 
-    <el-card shadow="never" class="m-t-20">
-      <el-table :data="doctorList" v-loading="loading" style="width: 100%">
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column label="姓名" width="120">
+      <el-table 
+        :data="doctorList" 
+        v-loading="loading" 
+        style="width: 100%"
+        :header-cell-style="{ background: '#F7F8FA', color: '#1F2937', fontWeight: '600' }"
+      >
+        <el-table-column prop="id" label="ID" width="80" align="center" />
+        <el-table-column label="姓名" width="180">
           <template #default="{ row }">
             <div class="doctor-info">
-              <el-avatar :size="32" :src="row.avatar">{{ row.name?.charAt(0) }}</el-avatar>
-              <span class="m-l-10">{{ row.name }}</span>
+              <el-avatar :size="36" :src="row.avatar" class="mr-2">{{ row.name?.charAt(0) }}</el-avatar>
+              <span class="doctor-name">{{ row.name }}</span>
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="title" label="职称" width="120">
+        <el-table-column prop="title" label="职称" width="140">
           <template #default="{ row }">
-            <el-tag size="small">{{ row.title }}</el-tag>
+            <el-tag size="small" effect="plain" type="info">{{ row.title }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="所属科室" min-width="150">
+        <el-table-column label="所属科室" min-width="180">
           <template #default="{ row }">
-            <el-tag v-for="dept in row.departments" :key="dept.id" size="small" class="m-r-5">
-              {{ dept.name }}
-            </el-tag>
+            <div class="dept-tags">
+              <el-tag 
+                v-for="dept in row.departments" 
+                :key="dept.id" 
+                size="small" 
+                class="dept-tag"
+                effect="light"
+              >
+                {{ dept.name }}
+              </el-tag>
+            </div>
           </template>
         </el-table-column>
-        <el-table-column prop="specialties" label="擅长" show-overflow-tooltip />
-        <el-table-column label="操作" width="150" fixed="right">
+        <el-table-column prop="specialties" label="擅长领域" min-width="200" show-overflow-tooltip />
+        <el-table-column label="操作" width="160" fixed="right" align="center">
           <template #default="{ row }">
-            <el-button type="primary" link @click="handleEdit(row)">编辑</el-button>
-            <el-button type="primary" link @click="goToSchedule(row)">排班</el-button>
+            <el-button type="primary" link @click="handleEdit(row)">
+              <el-icon class="mr-1"><Edit /></el-icon>编辑
+            </el-button>
+            <el-button type="primary" link @click="goToSchedule(row)">
+              <el-icon class="mr-1"><Calendar /></el-icon>排班
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -64,6 +97,7 @@
           :total="total"
           @size-change="handleSizeChange"
           @current-change="handleCurrentChange"
+          background
         />
       </div>
     </el-card>
@@ -72,11 +106,13 @@
     <el-dialog
       v-model="dialog.visible"
       :title="dialog.isEdit ? '编辑医生' : '新增医生'"
-      width="700px"
+      width="680px"
+      class="custom-dialog"
+      destroy-on-close
       @closed="resetDialog"
     >
-      <el-form :model="dialog.form" :rules="rules" ref="formRef" label-width="100px">
-        <el-row :gutter="20">
+      <el-form :model="dialog.form" :rules="rules" ref="formRef" label-width="90px" class="doctor-form">
+        <el-row :gutter="24">
           <el-col :span="12">
             <el-form-item label="姓名" prop="name">
               <el-input v-model="dialog.form.name" placeholder="请输入医生姓名" />
@@ -100,6 +136,8 @@
             multiple
             placeholder="请选择科室"
             style="width: 100%"
+            collapse-tags
+            collapse-tags-tooltip
           >
             <el-option
               v-for="dept in departmentOptions"
@@ -119,6 +157,8 @@
             default-first-option
             placeholder="输入擅长领域并按回车"
             style="width: 100%"
+            collapse-tags
+            collapse-tags-tooltip
           >
             <el-option v-for="item in specialtyOptions" :key="item" :label="item" :value="item" />
           </el-select>
@@ -129,17 +169,21 @@
             v-model="dialog.form.description"
             type="textarea"
             :rows="4"
-            placeholder="请输入医生简介"
+            placeholder="请输入医生个人简介..."
           />
         </el-form-item>
 
         <el-form-item label="头像URL" prop="avatar">
-          <el-input v-model="dialog.form.avatar" placeholder="请输入头像URL" />
+          <el-input v-model="dialog.form.avatar" placeholder="请输入头像URL">
+            <template #prefix><el-icon><Picture /></el-icon></template>
+          </el-input>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialog.visible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit" :loading="dialog.loading">确定</el-button>
+        <div class="dialog-footer">
+          <el-button @click="dialog.visible = false">取消</el-button>
+          <el-button type="primary" @click="handleSubmit" :loading="dialog.loading">确定</el-button>
+        </div>
       </template>
     </el-dialog>
   </div>
@@ -151,14 +195,14 @@ import { useRouter } from 'vue-router'
 import { getDoctorList, createDoctor, updateDoctor } from '@/api/doctor'
 import { getDepartmentList } from '@/api/department'
 import { ElMessage } from 'element-plus'
+import { Plus, Search, Edit, Calendar, Picture } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const loading = ref(false)
 const doctorList = ref([])
 const total = ref(0)
 const departmentOptions = ref([])
-// 常用擅长领域标签（快捷选择用，用户也可手动输入自定义标签）
-const specialtyOptions = ref(['高血压', '糖尿病', '感冒', '儿科', '外科', '中医'])
+const specialtyOptions = ref(['高血压', '糖尿病', '感冒', '儿科', '外科', '中医', '心理咨询', '康复理疗'])
 
 const searchForm = reactive({
   pageNum: 1,
@@ -306,26 +350,77 @@ onMounted(() => {
 
 <style scoped>
 .doctor-management {
-  padding: 20px;
 }
-.search-card {
-  margin-bottom: 20px;
+
+.main-card {
+  border: none;
+  border-radius: var(--radius-md);
 }
-.m-t-20 {
-  margin-top: 20px;
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
 }
-.m-l-10 {
-  margin-left: 10px;
+
+.title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
 }
-.m-r-5 {
-  margin-right: 5px;
+
+.search-form {
+  display: flex;
+  gap: 10px;
 }
+
+.search-form .el-form-item {
+  margin-bottom: 0;
+  margin-right: 0;
+}
+
+.search-input {
+  width: 200px;
+}
+
+.dept-select {
+  width: 160px;
+}
+
+.right-panel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.divider {
+  width: 1px;
+  height: 20px;
+  background-color: var(--border-color);
+  margin: 0 4px;
+}
+
 .doctor-info {
   display: flex;
   align-items: center;
+  gap: 10px;
 }
+
+.doctor-name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.dept-tags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
 .pagination-container {
-  margin-top: 20px;
+  margin-top: 24px;
   display: flex;
   justify-content: flex-end;
 }

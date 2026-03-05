@@ -495,3 +495,119 @@ ew Page<>(pageNum, pageSize) explicitly and map to PageResult.of(...).
 - [2026-03-02] AI controller DTOs (`CreateSessionDTO`, `ChatRequestDTO`) currently have no Bean Validation annotations; "invalid" test cases should be modeled via mocked `BusinessException` paths rather than relying on automatic 400 validation.
 - [2026-03-02] `AppointmentController` does not use `SecurityUtil`; it directly calls static `StpUtil.getLoginIdAsLong()`. Controller tests for appointment module require static mocking `StpUtil` even with `addFilters = false`.
 - [2026-03-02] `KnowledgeBaseController` bypasses service for some endpoints (`listDocuments`, `deleteChunk`) and directly calls mappers + `VectorStoreService`; `@WebMvcTest` must `@MockBean` `KnowledgeDocumentMapper/KnowledgeChunkMapper/KnowledgeBaseMapper/VectorStoreService` to load context and cover those branches.
+
+## Phase 10: Admin UI 重构美化 — Design Specification (2026-03-03)
+
+### 审计现状
+- **UI 框架**: Element Plus 2.13.2 (全局注册) + @element-plus/icons-vue
+- **图表**: ECharts 6.0.0
+- **无自定义主题**: 所有颜色为硬编码十六进制值，无 CSS 变量
+- **无全局工具类**: `.m-t-20`/`.m-r-5` 在多个文件中重复定义
+- **布局**: 暗色侧边栏(#304156) + 白色导航 + 灰色内容区(#f0f2f5)
+- **20 个 .vue 文件**，总计约 4015 行
+
+### 设计方向：「医疗级 SaaS」— 专业、可信、现代
+
+**Tone**: Refined clinical meets modern SaaS — 不是过度装饰的华丽风格，而是克制精致的专业风格。医疗系统需要传达信任感和专业度。
+
+### 色彩系统 (CSS Custom Properties)
+
+```css
+/* 主色 — 医疗蓝/青 */
+--primary: #1677FF;          /* Element Plus 覆盖 */
+--primary-light: #4096FF;
+--primary-lighter: #BAE0FF;
+--primary-bg: #E6F4FF;
+
+/* 辅色 */
+--success: #52C41A;
+--warning: #FAAD14;
+--danger: #FF4D4F;
+--info: #8C8C8C;
+
+/* 中性色 */
+--text-primary: #1F2937;
+--text-secondary: #6B7280;
+--text-placeholder: #9CA3AF;
+--border: #E5E7EB;
+--border-light: #F3F4F6;
+--bg-page: #F7F8FA;
+--bg-card: #FFFFFF;
+
+/* 侧边栏 — 深蓝渐变 */
+--sidebar-bg: linear-gradient(180deg, #0C2340 0%, #1B3A5C 100%);
+--sidebar-active: rgba(22, 119, 255, 0.15);
+--sidebar-text: rgba(255, 255, 255, 0.65);
+--sidebar-text-active: #FFFFFF;
+
+/* 阴影层级 */
+--shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.03), 0 1px 6px -1px rgba(0, 0, 0, 0.02);
+--shadow-md: 0 2px 8px 0 rgba(0, 0, 0, 0.06), 0 4px 16px -2px rgba(0, 0, 0, 0.04);
+--shadow-lg: 0 4px 16px 0 rgba(0, 0, 0, 0.08), 0 8px 32px -4px rgba(0, 0, 0, 0.06);
+
+/* 圆角 */
+--radius-sm: 6px;
+--radius-md: 8px;
+--radius-lg: 12px;
+--radius-xl: 16px;
+```
+
+### 字体
+
+```css
+font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+```
+
+(使用系统中文字体栈，不引入外部字体文件，保证加载性能)
+
+### Element Plus 主题覆盖
+
+通过 CSS 变量覆盖 Element Plus 默认主题色:
+```css
+:root {
+  --el-color-primary: #1677FF;
+  --el-color-success: #52C41A;
+  --el-color-warning: #FAAD14;
+  --el-color-danger: #FF4D4F;
+  --el-border-radius-base: 6px;
+  --el-fill-color-light: #F7F8FA;
+}
+```
+
+### 布局改进
+1. **侧边栏**: 深蓝渐变背景 + 透明活跃态 + 白色图标文字 + 品牌 logo 区域
+2. **导航栏**: 白色背景 + 更精致的阴影代替边框 + 更好的头像下拉
+3. **内容区**: 更大的圆角卡片 + 统一间距(24px) + 更好的过渡动画
+
+### 关键改进点
+1. 搜索区域与表格区域合并为单卡片，减少视觉碎片
+2. 统计卡片增加微妙的渐变背景和图标容器
+3. 表格行增加 hover 效果，操作按钮改为图标按钮组
+4. 对话框增加圆角和更好的间距
+5. 分页组件与表格的间距优化
+6. 全局 NProgress 顶部加载条
+7. 空状态使用定制插图或更好的文案
+
+### 文件变更清单
+
+| Task | 文件 | 变更类型 |
+|------|------|----------|
+| T1 | `src/style.css` | **重写** → 设计系统变量 + 全局样式 + 工具类 + Element Plus 覆盖 |
+| T1 | `src/App.vue` | 修改全局样式块 |
+| T1 | `src/main.js` | 添加 NProgress 导入 + 路由守卫集成 |
+| T1 | `src/components/Layout/AppLayout.vue` | **重写** scoped CSS |
+| T1 | `src/components/Layout/Sidebar.vue` | **重写** scoped CSS + 品牌 logo |
+| T1 | `src/components/Layout/Navbar.vue` | **重写** scoped CSS |
+| T2 | `src/views/login/index.vue` | **重写** 完整页面 |
+| T2 | `src/views/dashboard/index.vue` | **重写** scoped CSS + ECharts 主题 |
+| T3 | 8 个 admin views | **重写** scoped CSS，保留所有 JS 逻辑 |
+| T4 | 5 个 doctor views | **重写** scoped CSS，保留所有 JS 逻辑 |
+| T5 | ChatPanel.vue + RichEditor.vue | **重写** scoped CSS |
+
+### 约束 (所有 Task 通用)
+- **不改变任何 JS/TS 业务逻辑**: 只修改 `<template>` 结构布局和 `<style>` 样式
+- **不新增依赖**: 只用现有 Element Plus + ECharts + @element-plus/icons-vue
+- **保持所有 Element Plus 组件引用不变**: el-table, el-form, el-dialog 等
+- **保持所有 API 调用和 store 引用不变**
+- **中文 UI 文案不变**
+- **路由结构不变**

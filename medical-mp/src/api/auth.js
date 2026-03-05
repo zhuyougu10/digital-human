@@ -38,7 +38,15 @@ export const getUserInfo = () => {
   })
 }
 
-export const logout = () => {
+export const logout = async () => {
+  try {
+    await request({
+      url: '/user/auth/logout',
+      method: 'POST'
+    })
+  } catch (e) {
+    // Ignore logout error
+  }
   uni.removeStorageSync('token')
   uni.removeStorageSync('userInfo')
   uni.reLaunch({

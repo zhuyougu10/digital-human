@@ -20,7 +20,7 @@
 <script setup lang="ts">
 // [Codex 降级接管] 预约列表页在 Gemini 不可用时由 Codex 接管实现。
 import { onMounted, ref } from 'vue'
-import request from '@/api/request'
+import { getMyAppointments } from '@/api/appointment'
 
 interface Appointment {
   id: string | number
@@ -66,11 +66,7 @@ const unwrapList = (payload: any): any[] => {
 
 const fetchAppointments = async () => {
   try {
-    const res = await request({
-      url: '/appointment/appointment/my',
-      method: 'GET',
-      data: {}
-    })
+    const res = await getMyAppointments({})
     const list = unwrapList(res)
     appointments.value = list.map((item) => ({
       id: item.id,

@@ -1,33 +1,67 @@
 <template>
   <div class="document-management">
-    <div class="header-actions">
-      <el-button @click="router.back()">返回知识库</el-button>
-      <div>
-        <el-button type="success" @click="addChunkDialog.visible = true">添加知识条目</el-button>
-        <el-button type="primary" @click="uploadDialog.visible = true">上传文档</el-button>
-      </div>
-    </div>
+    <el-card shadow="hover" class="main-card">
+      <template #header>
+        <div class="card-header">
+          <div class="left-panel">
+            <el-button link @click="router.back()" class="back-btn">
+              <el-icon><ArrowLeft /></el-icon>
+            </el-button>
+            <div class="divider-v"></div>
+            <span class="title">文档管理</span>
+          </div>
+          <div class="right-panel">
+            <el-button type="success" icon="Plus" @click="addChunkDialog.visible = true">添加知识条目</el-button>
+            <el-button type="primary" icon="Upload" @click="uploadDialog.visible = true">上传文档</el-button>
+          </div>
+        </div>
+      </template>
 
-    <el-card shadow="never" class="m-t-20">
-      <el-table :data="docList" v-loading="loadingDocs" style="width: 100%">
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="fileName" label="文件名" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="fileType" label="类型" width="100" />
-        <el-table-column prop="fileSize" label="大小" width="120">
+      <el-table 
+        :data="docList" 
+        v-loading="loadingDocs" 
+        style="width: 100%"
+        :header-cell-style="{ background: '#F7F8FA', color: '#1F2937', fontWeight: '600' }"
+      >
+        <el-table-column prop="id" label="ID" width="80" align="center" />
+        <el-table-column prop="fileName" label="文件名" min-width="200" show-overflow-tooltip>
+          <template #default="{ row }">
+            <div class="file-info">
+              <el-icon class="file-icon"><Document /></el-icon>
+              <span>{{ row.fileName }}</span>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="fileType" label="类型" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag size="small" type="info">{{ row.fileType }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="fileSize" label="大小" width="120" align="right">
           <template #default="{ row }">
             {{ formatSize(row.fileSize) }}
           </template>
         </el-table-column>
-        <el-table-column prop="chunkCount" label="分块数" width="100" />
-        <el-table-column prop="parseStatus" label="状态" width="120">
+        <el-table-column prop="chunkCount" label="分块数" width="100" align="center" />
+        <el-table-column prop="parseStatus" label="状态" width="120" align="center">
           <template #default="{ row }">
-            <el-tag :type="getStatusType(row.parseStatus)">{{ row.parseStatus }}</el-tag>
+            <el-tag :type="getStatusType(row.parseStatus)" effect="light" round>
+              {{ row.parseStatus }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="180" fixed="right" align="center">
           <template #default="{ row }">
-            <el-button type="primary" link @click="viewChunks(row)">查看分块</el-button>
-            <el-button type="danger" link @click="handleDeleteDoc(row)">删除</el-button>
+            <el-button type="primary" link @click="viewChunks(row)">
+              <el-icon class="mr-1"><View /></el-icon>查看
+            </el-button>
+            <el-popconfirm title="确定要删除文档吗？" @confirm="handleDeleteDoc(row)" width="200px">
+              <template #reference>
+                <el-button type="danger" link>
+                  <el-icon class="mr-1"><Delete /></el-icon>删除
+                </el-button>
+              </template>
+            </el-popconfirm>
           </template>
         </el-table-column>
       </el-table>
@@ -39,12 +73,13 @@
           layout="total, prev, pager, next"
           :total="totalDocs"
           @current-change="fetchDocs"
+          background
         />
       </div>
     </el-card>
 
     <!-- Upload Dialog -->
-    <el-dialog v-model="uploadDialog.visible" title="上传文档" width="500px">
+    <el-dialog v-model="uploadDialog.visible" title="上传文档" width="500px" class="custom-dialog">
       <el-upload
         class="upload-demo"
         drag
@@ -65,15 +100,17 @@
         </template>
       </el-upload>
       <template #footer>
-        <el-button @click="uploadDialog.visible = false">取消</el-button>
-        <el-button type="primary" @click="handleUpload" :loading="uploadDialog.loading">
-          开始上传
-        </el-button>
+        <div class="dialog-footer">
+          <el-button @click="uploadDialog.visible = false">取消</el-button>
+          <el-button type="primary" @click="handleUpload" :loading="uploadDialog.loading">
+            开始上传
+          </el-button>
+        </div>
       </template>
     </el-dialog>
 
     <!-- Add Manual Chunk Dialog -->
-    <el-dialog v-model="addChunkDialog.visible" title="添加知识条目" width="600px">
+    <el-dialog v-model="addChunkDialog.visible" title="添加知识条目" width="600px" class="custom-dialog">
       <el-form :model="addChunkDialog.form" :rules="addChunkDialog.rules" ref="chunkFormRef" label-width="80px">
         <el-form-item label="标题" prop="title">
           <el-input v-model="addChunkDialog.form.title" placeholder="请输入标题" />
@@ -88,8 +125,10 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="addChunkDialog.visible = false">取消</el-button>
-        <el-button type="primary" @click="handleAddChunk" :loading="addChunkDialog.loading">确定</el-button>
+        <div class="dialog-footer">
+          <el-button @click="addChunkDialog.visible = false">取消</el-button>
+          <el-button type="primary" @click="handleAddChunk" :loading="addChunkDialog.loading">确定</el-button>
+        </div>
       </template>
     </el-dialog>
 
@@ -98,16 +137,19 @@
       v-model="chunkDrawer.visible"
       :title="`文档分块: ${chunkDrawer.currentDoc?.fileName}`"
       size="600px"
+      class="chunk-drawer"
     >
-      <div v-loading="loadingChunks">
+      <div v-loading="loadingChunks" class="chunk-list">
         <div v-for="chunk in chunks" :key="chunk.id" class="chunk-item">
           <div class="chunk-header">
             <span class="chunk-id">Chunk #{{ chunk.id }}</span>
-            <el-button type="danger" link @click="handleDeleteChunk(chunk)">删除</el-button>
+            <el-button type="danger" link @click="handleDeleteChunk(chunk)">
+              <el-icon><Delete /></el-icon>
+            </el-button>
           </div>
           <div class="chunk-content">{{ chunk.content }}</div>
         </div>
-        <el-empty v-if="chunks.length === 0" description="暂无分块信息" />
+        <el-empty v-if="!loadingChunks && chunks.length === 0" description="暂无分块信息" />
       </div>
     </el-drawer>
   </div>
@@ -124,7 +166,7 @@ import {
   addManualChunk, 
   deleteChunk 
 } from '@/api/knowledge'
-import { UploadFilled } from '@element-plus/icons-vue'
+import { UploadFilled, ArrowLeft, Plus, Upload, View, Delete, Document } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const route = useRoute()
@@ -206,12 +248,11 @@ const handleUpload = async () => {
 
 const handleDeleteDoc = async (row) => {
   try {
-    await ElMessageBox.confirm(`确定要删除文档 "${row.fileName}" 吗？`, '提示', { type: 'warning' })
     await deleteDocument(row.id)
     ElMessage.success('删除成功')
     fetchDocs()
   } catch (error) {
-    if (error !== 'cancel') console.error('Failed to delete doc:', error)
+    console.error('Failed to delete doc:', error)
   }
 }
 
@@ -290,38 +331,104 @@ onMounted(() => {
 
 <style scoped>
 .document-management {
-  padding: 20px;
 }
-.header-actions {
+
+.main-card {
+  border: none;
+  border-radius: var(--radius-md);
+}
+
+.card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
-.m-t-20 {
-  margin-top: 20px;
+
+.left-panel {
+  display: flex;
+  align-items: center;
 }
+
+.back-btn {
+  font-size: 18px;
+  color: var(--text-primary);
+  margin-right: 12px;
+}
+
+.divider-v {
+  width: 1px;
+  height: 16px;
+  background-color: var(--border-color);
+  margin-right: 12px;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.right-panel {
+  display: flex;
+  gap: 12px;
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.file-icon {
+  font-size: 16px;
+  color: var(--text-secondary);
+}
+
 .pagination-container {
-  margin-top: 20px;
+  margin-top: 24px;
   display: flex;
   justify-content: flex-end;
 }
-.chunk-item {
-  border: 1px solid #ebeef5;
-  border-radius: 4px;
-  padding: 15px;
-  margin-bottom: 15px;
+
+.chunk-list {
+  padding: 0 20px;
 }
+
+.chunk-item {
+  border: 1px solid var(--border-color-light);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  margin-bottom: 16px;
+  background-color: #FAFAFA;
+  transition: all 0.2s;
+}
+
+.chunk-item:hover {
+  background-color: #fff;
+  box-shadow: var(--shadow-sm);
+  border-color: var(--primary-color-light-8);
+}
+
 .chunk-header {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 10px;
-  color: #909399;
-  font-size: 12px;
+  margin-bottom: 12px;
+  align-items: center;
 }
+
+.chunk-id {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: monospace;
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
 .chunk-content {
   font-size: 14px;
   line-height: 1.6;
   white-space: pre-wrap;
-  color: #303133;
+  color: var(--text-primary);
 }
 </style>

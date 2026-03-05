@@ -1,43 +1,69 @@
 <template>
   <div class="department-management">
-    <el-card shadow="never" class="search-card">
-      <div class="header-actions">
-        <el-form :inline="true" :model="searchForm">
-          <el-form-item label="科室名称">
-            <el-input v-model="searchForm.keyword" placeholder="关键词搜索" clearable @keyup.enter="handleSearch" />
-          </el-form-item>
-          <el-form-item>
-            <el-button type="primary" @click="handleSearch">查询</el-button>
-            <el-button @click="resetSearch">重置</el-button>
-          </el-form-item>
-        </el-form>
-        <el-button type="primary" icon="Plus" @click="openDialog()">新增科室</el-button>
-      </div>
-    </el-card>
+    <el-card shadow="hover" class="main-card">
+      <template #header>
+        <div class="card-header">
+          <div class="left-panel">
+            <span class="title">科室管理</span>
+          </div>
+          <div class="right-panel">
+            <el-form :inline="true" :model="searchForm" class="search-form">
+              <el-form-item>
+                <el-input 
+                  v-model="searchForm.keyword" 
+                  placeholder="搜索科室名称" 
+                  clearable 
+                  @keyup.enter="handleSearch"
+                  class="search-input"
+                >
+                  <template #prefix><el-icon><Search /></el-icon></template>
+                </el-input>
+              </el-form-item>
+              <el-form-item>
+                <el-button type="primary" @click="handleSearch">查询</el-button>
+                <el-button @click="resetSearch">重置</el-button>
+              </el-form-item>
+            </el-form>
+            <div class="divider"></div>
+            <el-button type="primary" icon="Plus" @click="openDialog()">新增科室</el-button>
+          </div>
+        </div>
+      </template>
 
-    <el-card shadow="never" class="m-t-20">
-      <el-table :data="departmentList" v-loading="loading" style="width: 100%">
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="name" label="科室名称" min-width="120" />
-        <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
+      <el-table 
+        :data="departmentList" 
+        v-loading="loading" 
+        style="width: 100%"
+        :header-cell-style="{ background: '#F7F8FA', color: '#1F2937', fontWeight: '600' }"
+      >
+        <el-table-column prop="id" label="ID" width="80" align="center" />
+        <el-table-column prop="name" label="科室名称" min-width="150" />
+        <el-table-column prop="description" label="描述" min-width="250" show-overflow-tooltip />
         <el-table-column prop="sortOrder" label="排序" width="80" align="center" />
-        <el-table-column label="状态" width="100">
+        <el-table-column label="状态" width="100" align="center">
           <template #default="{ row }">
             <el-switch
               v-model="row.status"
               :active-value="1"
               :inactive-value="0"
+              inline-prompt
+              active-text="启用"
+              inactive-text="停用"
               @change="(val) => handleStatusChange(row, val)"
             />
           </template>
         </el-table-column>
         <el-table-column prop="createTime" label="创建时间" width="180" />
-        <el-table-column label="操作" width="150" fixed="right">
+        <el-table-column label="操作" width="150" fixed="right" align="center">
           <template #default="{ row }">
-            <el-button type="primary" link @click="openDialog(row)">编辑</el-button>
-            <el-popconfirm title="确定删除该科室吗？" @confirm="handleDelete(row)">
+            <el-button type="primary" link @click="openDialog(row)">
+              <el-icon class="mr-1"><Edit /></el-icon>编辑
+            </el-button>
+            <el-popconfirm title="确定删除该科室吗？" @confirm="handleDelete(row)" width="200px">
               <template #reference>
-                <el-button type="danger" link>删除</el-button>
+                <el-button type="danger" link>
+                  <el-icon class="mr-1"><Delete /></el-icon>删除
+                </el-button>
               </template>
             </el-popconfirm>
           </template>
@@ -50,13 +76,15 @@
       v-model="dialog.visible"
       :title="dialog.isEdit ? '编辑科室' : '新增科室'"
       width="500px"
+      class="custom-dialog"
+      destroy-on-close
     >
-      <el-form :model="dialog.form" :rules="rules" ref="formRef" label-width="80px">
+      <el-form :model="dialog.form" :rules="rules" ref="formRef" label-width="80px" class="department-form">
         <el-form-item label="科室名称" prop="name">
           <el-input v-model="dialog.form.name" placeholder="请输入科室名称" />
         </el-form-item>
         <el-form-item label="排序" prop="sortOrder">
-          <el-input-number v-model="dialog.form.sortOrder" :min="0" />
+          <el-input-number v-model="dialog.form.sortOrder" :min="0" controls-position="right" />
         </el-form-item>
         <el-form-item label="图标" prop="icon">
           <el-input v-model="dialog.form.icon" placeholder="图标类名" />
@@ -71,8 +99,10 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialog.visible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit" :loading="dialog.loading">确定</el-button>
+        <div class="dialog-footer">
+          <el-button @click="dialog.visible = false">取消</el-button>
+          <el-button type="primary" @click="handleSubmit" :loading="dialog.loading">确定</el-button>
+        </div>
       </template>
     </el-dialog>
   </div>
@@ -88,7 +118,7 @@ import {
   deleteDepartment
 } from '@/api/department'
 import { ElMessage } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Search, Edit, Delete } from '@element-plus/icons-vue'
 
 const loading = ref(false)
 const departmentList = ref([])
@@ -202,17 +232,53 @@ onMounted(() => {
 
 <style scoped>
 .department-management {
-  padding: 20px;
 }
-.search-card {
-  margin-bottom: 20px;
+
+.main-card {
+  border: none;
+  border-radius: var(--radius-md);
 }
-.header-actions {
+
+.card-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
 }
-.m-t-20 {
-  margin-top: 20px;
+
+.title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
 }
+
+.search-form {
+  display: flex;
+  gap: 10px;
+}
+
+.search-form .el-form-item {
+  margin-bottom: 0;
+  margin-right: 0;
+}
+
+.search-input {
+  width: 220px;
+}
+
+.right-panel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.divider {
+  width: 1px;
+  height: 20px;
+  background-color: var(--border-color);
+  margin: 0 4px;
+}
+
+/* Custom dialog tweaks */
 </style>

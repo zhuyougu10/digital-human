@@ -1,66 +1,91 @@
 <template>
   <div class="appointment-management">
-    <el-card shadow="never" class="search-card">
-      <el-form :inline="true" :model="searchForm">
-        <el-form-item label="日期范围">
-          <el-date-picker
-            v-model="searchForm.dateRange"
-            type="daterange"
-            range-separator="至"
-            start-placeholder="开始日期"
-            end-placeholder="结束日期"
-            value-format="YYYY-MM-DD"
-            @change="handleSearch"
-          />
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="searchForm.status" placeholder="选择状态" clearable style="width: 150px">
-            <el-option label="待就诊" value="PENDING" />
-            <el-option label="已完成" value="COMPLETED" />
-            <el-option label="已取消" value="CANCELLED" />
-            <el-option label="已过期" value="EXPIRED" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="handleSearch">查询</el-button>
-          <el-button @click="resetSearch">重置</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
+    <el-card shadow="hover" class="main-card">
+      <template #header>
+        <div class="card-header">
+          <div class="left-panel">
+            <span class="title">预约管理</span>
+          </div>
+          <div class="right-panel">
+            <el-form :inline="true" :model="searchForm" class="search-form">
+              <el-form-item>
+                <el-date-picker
+                  v-model="searchForm.dateRange"
+                  type="daterange"
+                  range-separator="至"
+                  start-placeholder="开始日期"
+                  end-placeholder="结束日期"
+                  value-format="YYYY-MM-DD"
+                  @change="handleSearch"
+                  class="date-picker"
+                />
+              </el-form-item>
+              <el-form-item>
+                <el-select v-model="searchForm.status" placeholder="全部状态" clearable class="status-select">
+                  <el-option label="待就诊" value="PENDING" />
+                  <el-option label="已完成" value="COMPLETED" />
+                  <el-option label="已取消" value="CANCELLED" />
+                  <el-option label="已过期" value="EXPIRED" />
+                </el-select>
+              </el-form-item>
+              <el-form-item>
+                <el-button type="primary" @click="handleSearch">查询</el-button>
+                <el-button @click="resetSearch">重置</el-button>
+              </el-form-item>
+            </el-form>
+          </div>
+        </div>
+      </template>
 
-    <el-card shadow="never" class="m-t-20">
-      <el-table :data="appointmentList" v-loading="loading" style="width: 100%">
-        <el-table-column prop="id" label="预约ID" width="100" />
-        <el-table-column label="患者" min-width="120">
+      <el-table 
+        :data="appointmentList" 
+        v-loading="loading" 
+        style="width: 100%"
+        :header-cell-style="{ background: '#F7F8FA', color: '#1F2937', fontWeight: '600' }"
+      >
+        <el-table-column prop="id" label="ID" width="100" align="center" />
+        <el-table-column label="患者信息" min-width="180">
           <template #default="{ row }">
-            {{ row.patientName }} ({{ row.patientPhone }})
+            <div class="patient-info">
+              <span class="name">{{ row.patientName }}</span>
+              <span class="phone">{{ row.patientPhone }}</span>
+            </div>
           </template>
         </el-table-column>
-        <el-table-column label="医生" min-width="120">
+        <el-table-column label="医生" min-width="150">
           <template #default="{ row }">
-            {{ row.doctorName }}
+            <span class="doctor-name">{{ row.doctorName }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="departmentName" label="科室" width="120" />
-        <el-table-column label="预约时间" width="200">
+        <el-table-column label="预约时间" width="220">
           <template #default="{ row }">
-            {{ row.appointmentDate }} {{ row.timeSlot }}
+            <div class="time-info">
+              <el-icon class="mr-1"><Calendar /></el-icon>
+              <span>{{ row.appointmentDate }} {{ row.timeSlot }}</span>
+            </div>
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column prop="status" label="状态" width="100" align="center">
           <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)">{{ getStatusLabel(row.status) }}</el-tag>
+            <el-tag :type="getStatusType(row.status)" effect="light" round>
+              {{ getStatusLabel(row.status) }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="150" fixed="right">
+        <el-table-column label="操作" width="150" fixed="right" align="center">
           <template #default="{ row }">
             <el-button type="primary" link @click="viewDetail(row)">详情</el-button>
-            <el-button
+            <el-popconfirm 
               v-if="row.status === 'PENDING'"
-              type="danger"
-              link
-              @click="handleCancel(row)"
-            >取消</el-button>
+              title="确定要取消该预约吗？" 
+              @confirm="handleCancel(row)"
+              width="200px"
+            >
+              <template #reference>
+                <el-button type="danger" link>取消</el-button>
+              </template>
+            </el-popconfirm>
           </template>
         </el-table-column>
       </el-table>
@@ -73,13 +98,14 @@
           :total="total"
           @size-change="handleSizeChange"
           @current-change="handleCurrentChange"
+          background
         />
       </div>
     </el-card>
 
     <!-- Detail Dialog -->
-    <el-dialog v-model="detailDialog.visible" title="预约详情" width="500px">
-      <el-descriptions :column="1" border v-if="detailDialog.data">
+    <el-dialog v-model="detailDialog.visible" title="预约详情" width="500px" class="custom-dialog">
+      <el-descriptions :column="1" border v-if="detailDialog.data" class="detail-desc">
         <el-descriptions-item label="预约ID">{{ detailDialog.data.id }}</el-descriptions-item>
         <el-descriptions-item label="患者姓名">{{ detailDialog.data.patientName }}</el-descriptions-item>
         <el-descriptions-item label="手机号">{{ detailDialog.data.patientPhone }}</el-descriptions-item>
@@ -104,7 +130,8 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { getAppointmentList, getAppointmentById, cancelAppointment } from '@/api/appointment'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import { Calendar } from '@element-plus/icons-vue'
 
 const loading = ref(false)
 const appointmentList = ref([])
@@ -177,7 +204,6 @@ const viewDetail = async (row) => {
 
 const handleCancel = async (row) => {
   try {
-    await ElMessageBox.confirm('确定要取消该预约吗？', '提示', { type: 'warning' })
     await cancelAppointment(row.id)
     ElMessage.success('取消成功')
     fetchAppointmentList()
@@ -218,17 +244,81 @@ onMounted(() => {
 
 <style scoped>
 .appointment-management {
-  padding: 20px;
 }
-.search-card {
-  margin-bottom: 20px;
+
+.main-card {
+  border: none;
+  border-radius: var(--radius-md);
 }
-.m-t-20 {
-  margin-top: 20px;
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
 }
+
+.title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.search-form {
+  display: flex;
+  gap: 10px;
+}
+
+.search-form .el-form-item {
+  margin-bottom: 0;
+  margin-right: 0;
+}
+
+.date-picker {
+  width: 240px;
+}
+
+.status-select {
+  width: 120px;
+}
+
+.patient-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.patient-info .name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.patient-info .phone {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.doctor-name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.time-info {
+  display: flex;
+  align-items: center;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
 .pagination-container {
-  margin-top: 20px;
+  margin-top: 24px;
   display: flex;
   justify-content: flex-end;
+}
+
+/* Custom dialog styling */
+.detail-desc :deep(.el-descriptions__label) {
+  width: 100px;
+  font-weight: 500;
 }
 </style>

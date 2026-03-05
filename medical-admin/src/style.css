@@ -1,5 +1,173 @@
-/* Reset or empty default styles */
+/* 
+  Design System for AI Medical Assistant 
+  Medical-Grade SaaS UI 
+*/
+
+:root {
+  /* Primary Colors */
+  --primary-color: #1677FF;
+  --primary-hover: #4096FF;
+  --primary-active: #0958D9;
+  --primary-bg: #E6F4FF;
+  --primary-border: #BAE0FF;
+
+  /* Status Colors */
+  --success-color: #52C41A;
+  --warning-color: #FAAD14;
+  --danger-color: #FF4D4F;
+  --info-color: #8C8C8C;
+
+  /* Text Colors */
+  --text-primary: #1F2937;
+  --text-secondary: #6B7280;
+  --text-placeholder: #9CA3AF;
+  --text-disabled: #D1D5DB;
+
+  /* Border & Background */
+  --border-color: #E5E7EB;
+  --border-color-light: #F3F4F6;
+  --bg-page: #F7F8FA;
+  --bg-card: #FFFFFF;
+
+  /* Sidebar Colors (Navy Gradient) */
+  --sidebar-bg-start: #0C2340;
+  --sidebar-bg-end: #1B3A5C;
+  --doctor-sidebar-bg-start: #00474F;
+  --doctor-sidebar-bg-end: #006D75;
+  --sidebar-text: rgba(255, 255, 255, 0.65);
+  --sidebar-text-active: #FFFFFF;
+  --sidebar-item-hover: rgba(255, 255, 255, 0.08);
+  --sidebar-item-active: rgba(22, 119, 255, 0.15);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Transitions */
+  --transition-base: all 0.2s ease;
+
+  /* Element Plus Theme Override */
+  --el-color-primary: #1677FF;
+  --el-color-primary-light-3: #4096FF;
+  --el-color-primary-light-5: #69B1FF;
+  --el-color-primary-light-7: #91CAFF;
+  --el-color-primary-light-8: #BAE0FF;
+  --el-color-primary-light-9: #E6F4FF;
+  --el-color-primary-dark-2: #0958D9;
+  --el-color-success: #52C41A;
+  --el-color-warning: #FAAD14;
+  --el-color-danger: #FF4D4F;
+  --el-border-radius-base: 6px;
+  --el-fill-color-light: #F7F8FA;
+  --el-bg-color-page: #F7F8FA;
+}
+
+/* Global Reset */
 #app {
   width: 100%;
   height: 100vh;
+  color: var(--text-primary);
 }
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D1D5DB;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9CA3AF;
+}
+
+/* NProgress Styling */
+#nprogress .bar {
+  background: var(--primary-color) !important;
+}
+
+#nprogress .peg {
+  box-shadow: 0 0 10px var(--primary-color), 0 0 5px var(--primary-color) !important;
+}
+
+/* Element Plus Global Refinements */
+.el-card {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition-base);
+}
+
+.el-card.is-hover-shadow:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.el-button {
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+}
+
+.el-table {
+  border-radius: var(--radius-md);
+}
+
+.el-table th.el-table__cell {
+  background-color: var(--border-color-light) !important;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.el-dialog {
+  border-radius: var(--radius-lg) !important;
+  overflow: hidden;
+}
+
+.el-dialog__header {
+  margin-right: 0;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-color-light);
+}
+
+/* Global Utility Classes */
+.mt-2 { margin-top: 8px; }
+.mt-4 { margin-top: 16px; }
+.mt-6 { margin-top: 24px; }
+.mb-2 { margin-bottom: 8px; }
+.mb-4 { margin-bottom: 16px; }
+.mb-6 { margin-bottom: 24px; }
+.ml-2 { margin-left: 8px; }
+.mr-2 { margin-right: 8px; }
+
+.p-4 { padding: 16px; }
+.p-6 { padding: 24px; }
+
+.flex { display: flex; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.justify-center { justify-content: center; }
+.flex-1 { flex: 1; }
+.gap-2 { gap: 8px; }
+.gap-4 { gap: 16px; }
+
+.text-primary { color: var(--text-primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-bold { font-weight: 600; }
+.text-sm { font-size: 14px; }
+.text-xs { font-size: 12px; }
+
+.w-full { width: 100%; }
+.h-full { height: 100%; }

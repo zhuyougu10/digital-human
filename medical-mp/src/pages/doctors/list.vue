@@ -43,7 +43,7 @@
 <script setup lang="ts">
 // [Codex 降级接管] 医生列表页在 Gemini 不可用时由 Codex 接管实现。
 import { computed, onMounted, ref } from 'vue'
-import request from '@/api/request'
+import { getDepartmentList, getDoctorList } from '@/api/doctor'
 
 interface Department {
   id: string | number
@@ -87,10 +87,7 @@ const unwrapList = (payload: any): any[] => {
 }
 
 const fetchDepartments = async () => {
-  const res = await request({
-    url: '/doctor/department/list',
-    method: 'GET'
-  })
+  const res = await getDepartmentList()
   const list = unwrapList(res)
   departments.value = list.map((item) => ({
     id: item.id,
@@ -99,11 +96,7 @@ const fetchDepartments = async () => {
 }
 
 const fetchDoctors = async () => {
-  const res = await request({
-    url: '/doctor/doctor/list',
-    method: 'GET',
-    data: {}
-  })
+  const res = await getDoctorList({})
   const list = unwrapList(res)
   doctors.value = list.map((item) => ({
     id: item.id,
