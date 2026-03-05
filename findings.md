@@ -495,6 +495,14 @@ ew Page<>(pageNum, pageSize) explicitly and map to PageResult.of(...).
 - [2026-03-02] AI controller DTOs (`CreateSessionDTO`, `ChatRequestDTO`) currently have no Bean Validation annotations; "invalid" test cases should be modeled via mocked `BusinessException` paths rather than relying on automatic 400 validation.
 - [2026-03-02] `AppointmentController` does not use `SecurityUtil`; it directly calls static `StpUtil.getLoginIdAsLong()`. Controller tests for appointment module require static mocking `StpUtil` even with `addFilters = false`.
 - [2026-03-02] `KnowledgeBaseController` bypasses service for some endpoints (`listDocuments`, `deleteChunk`) and directly calls mappers + `VectorStoreService`; `@WebMvcTest` must `@MockBean` `KnowledgeDocumentMapper/KnowledgeChunkMapper/KnowledgeBaseMapper/VectorStoreService` to load context and cover those branches.
+- [2026-03-05] Real gateway base URL for integration tests in this environment is `http://localhost:9090/api` (not `8080` in earlier docs), so Python E2E tests must target port 9090 for all `/api/*` routes.
+- [2026-03-05] `DoctorController#create` currently returns `R<Void>` and `DoctorProfileServiceImpl#create` sets `userId=null`, so tests that need created doctor IDs must re-query `/doctor/doctor/list`, and `my-profile` behavior depends on pre-seeded doctor-profile/user bindings.
+- [2026-03-05] `AppointmentServiceImpl#createAppointment` enforces non-null `patientId/doctorId/departmentId/slotId`; integration tests must always include `departmentId` when calling `POST /appointment/appointment`.
+- [2026-03-05] **pytest Round 1**: 40 PASSED / 20 FAILED. 4 根因已定位，Codex 正在修复中。
+- [2026-03-05] **DDL 缺失列**（information_schema 确认）: chat_message/conversation_summary 缺 update_time+deleted; knowledge_chunk 缺 update_time+deleted; doctor_department 缺 create_time+update_time+deleted; sys_user_role 缺 create_time+update_time+deleted。
+- [2026-03-05] **RC1 修复**: DoctorProfileDTO 新增 userId 字段, create() 改为 `dto.getUserId() != null ? dto.getUserId() : SecurityUtil.getUserId()`，同时 test_04_doctor.py 传入 state.doctor_user_id。
+- [2026-03-05] **RC3 修复**: KnowledgeBaseServiceImpl uploadPath 默认值改为 /data/uploads，knowledge-service Dockerfile 添加 `RUN mkdir -p /data/uploads`。
+- [2026-03-05] **RC4 说明**: embedding 404 是 DASHSCOPE_API_KEY 占位符问题，test_add_manual_chunk 和 test_search_kb 属于预期失败，不算后端 bug。
 
 ## Phase 10: Admin UI 重构美化 — Design Specification (2026-03-03)
 
@@ -611,3 +619,9 @@ font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', -apple-system
 - **保持所有 API 调用和 store 引用不变**
 - **中文 UI 文案不变**
 - **路由结构不变**
+- [2026-03-05] Python integration tests should prefer `http://localhost:9090/api` but auto-fallback to `http://localhost:8080/api` when running against the Docker Compose gateway mapping, otherwise all tests fail at fixture login with connection-refused.
+- [2026-03-05] In the current dockerized dataset, `admin/admin123` logs in successfully but returns roles `["DOCTOR"]` instead of `ADMIN`; all role-protected admin endpoints return `code=403` and cannot be validated without environment seed/data fix.
+- [2026-03-05] `docker/docker-compose.yml` already passes `DASHSCOPE_API_KEY` into both `ai-service` and `knowledge-service`; embedding failures with code `5003` are caused by placeholder API keys, not missing env propagation.
+- [2026-03-05] `DoctorProfileServiceImpl#create` now uses `dto.userId` first and falls back to `SecurityUtil.getUserId()`, which matches `doctor_profile.user_id NOT NULL` constraints for admin-created doctor profiles.
+- [2026-03-05] Integration sequence dependency: `test_03_department` deletes the created department, so downstream doctor/schedule tests must not reuse cached `state.department_id` without re-validation, or they fail with `DEPARTMENT_NOT_FOUND` and `参数类型错误` cascades.
+- [2026-03-05] `test_09_e2e_flow` on persistent Docker data can hit `appointment code=4003 (重复预约)`; making the test iterate doctor/slot candidates and optionally generate same-day slots avoids false negatives from reused data.

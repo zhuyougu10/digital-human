@@ -6,6 +6,7 @@ import lombok.Data;
 
 @Data
 public class DoctorProfileDTO {
+    private Long userId;
     private String name;
     private String title;
     private String introduction;

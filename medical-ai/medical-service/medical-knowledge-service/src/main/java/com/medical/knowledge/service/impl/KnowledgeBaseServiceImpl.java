@@ -60,7 +60,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     @Autowired
     private KnowledgeBaseService self;
 
-    @Value("${knowledge.upload-path:./uploads}")
+    @Value("${knowledge.upload-path:/data/uploads}")
     private String uploadPath;
 
     @Override

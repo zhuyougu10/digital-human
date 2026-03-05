@@ -42,8 +42,11 @@ CREATE TABLE IF NOT EXISTS `sys_user_role` (
     `id` BIGINT NOT NULL AUTO_INCREMENT,
     `user_id` BIGINT NOT NULL COMMENT '用户ID',
     `role_id` BIGINT NOT NULL COMMENT '角色ID',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
     `create_by` BIGINT DEFAULT NULL,
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     `update_by` BIGINT DEFAULT NULL,
+    `deleted` TINYINT DEFAULT 0,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_user_role` (`user_id`, `role_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户角色关联表';
@@ -120,8 +123,11 @@ CREATE TABLE IF NOT EXISTS doctor_department (
     id BIGINT NOT NULL AUTO_INCREMENT,
     doctor_id BIGINT NOT NULL COMMENT '医生档案ID',
     department_id BIGINT NOT NULL COMMENT '科室ID',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     create_by BIGINT DEFAULT NULL,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     update_by BIGINT DEFAULT NULL,
+    deleted TINYINT DEFAULT 0,
     PRIMARY KEY (id),
     UNIQUE KEY uk_doctor_dept (doctor_id, department_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='医生科室关联表';
@@ -206,7 +212,9 @@ CREATE TABLE IF NOT EXISTS `chat_message` (
     `tts_url` VARCHAR(512) DEFAULT NULL COMMENT 'TTS音频URL',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
     `create_by` BIGINT DEFAULT NULL,
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     `update_by` BIGINT DEFAULT NULL,
+    `deleted` TINYINT DEFAULT 0,
     PRIMARY KEY (`id`),
     KEY `idx_session_id` (`session_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='对话消息表';
@@ -225,7 +233,9 @@ CREATE TABLE IF NOT EXISTS `conversation_summary` (
     `full_summary` TEXT COMMENT '完整摘要文本',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
     `create_by` BIGINT DEFAULT NULL,
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     `update_by` BIGINT DEFAULT NULL,
+    `deleted` TINYINT DEFAULT 0,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_session_id` (`session_id`),
     KEY `idx_user_id` (`user_id`),
@@ -310,7 +320,9 @@ CREATE TABLE IF NOT EXISTS `knowledge_chunk` (
     `milvus_id` VARCHAR(64) DEFAULT NULL COMMENT 'Vector ID in Milvus',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
     `create_by` BIGINT DEFAULT NULL,
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     `update_by` BIGINT DEFAULT NULL,
+    `deleted` TINYINT DEFAULT 0,
     PRIMARY KEY (`id`),
     KEY `idx_doc_id` (`doc_id`),
     KEY `idx_kb_id` (`kb_id`)

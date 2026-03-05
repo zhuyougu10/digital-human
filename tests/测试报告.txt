@@ -1,0 +1,663 @@
+PS D:\project\数字人\tests> pytest -v
+================================================= test session starts =================================================
+platform win32 -- Python 3.14.2, pytest-9.0.2, pluggy-1.6.0 -- D:\Users\猪油骨\AppData\Local\Programs\Python\Python314\python.exe
+cachedir: .pytest_cache
+metadata: {'Python': '3.14.2', 'Platform': 'Windows-11-10.0.26200-SP0', 'Packages': {'pytest': '9.0.2', 'pluggy': '1.6.0'}, 'Plugins': {'anyio': '4.12.1', 'html': '4.2.0', 'metadata': '3.1.1'}, 'JAVA_HOME': 'D:\\jdks\\ms-17.0.17'}
+rootdir: D:\project\数字人\tests
+plugins: anyio-4.12.1, html-4.2.0, metadata-3.1.1
+collected 60 items
+
+test_01_auth.py::test_admin_login PASSED                                                                                                             [  1%]
+test_01_auth.py::test_login_wrong_password PASSED                                                                                                    [  3%]
+test_01_auth.py::test_register_patient PASSED                                                                                                        [  5%]
+test_01_auth.py::test_register_duplicate PASSED                                                                                                      [  6%]
+test_01_auth.py::test_patient_login PASSED                                                                                                           [  8%]
+test_01_auth.py::test_get_current_user_info PASSED                                                                                                   [ 10%]
+test_01_auth.py::test_logout PASSED                                                                                                                  [ 11%]
+test_02_user.py::test_user_list_paginated PASSED                                                                                                     [ 13%]
+test_02_user.py::test_user_list_search PASSED                                                                                                        [ 15%]
+test_02_user.py::test_assign_doctor_role PASSED                                                                                                      [ 16%]
+test_02_user.py::test_disable_user PASSED                                                                                                            [ 18%]
+test_02_user.py::test_enable_user PASSED                                                                                                             [ 20%]
+test_02_user.py::test_remove_role PASSED                                                                                                             [ 21%]
+test_03_department.py::test_list_departments PASSED                                                                                                  [ 23%]
+test_03_department.py::test_create_department PASSED                                                                                                 [ 25%]
+test_03_department.py::test_get_department PASSED                                                                                                    [ 26%]
+test_03_department.py::test_update_department PASSED                                                                                                 [ 28%]
+test_03_department.py::test_disable_department PASSED                                                                                                [ 30%]
+test_03_department.py::test_enable_department PASSED                                                                                                 [ 31%]
+test_03_department.py::test_delete_department PASSED                                                                                                 [ 33%]
+test_04_doctor.py::test_create_doctor FAILED                                                                                                         [ 35%]
+test_04_doctor.py::test_list_doctors PASSED                                                                                                          [ 36%]
+test_04_doctor.py::test_list_by_department PASSED                                                                                                    [ 38%]
+test_04_doctor.py::test_get_doctor FAILED                                                                                                            [ 40%]
+test_04_doctor.py::test_admin_update_doctor FAILED                                                                                                   [ 41%]
+test_04_doctor.py::test_doctor_view_profile FAILED                                                                                                   [ 43%]
+test_04_doctor.py::test_doctor_update_profile FAILED                                                                                                 [ 45%]
+test_04_doctor.py::test_search_by_symptom PASSED                                                                                                     [ 46%]
+test_05_schedule.py::test_create_template FAILED                                                                                                     [ 48%]
+test_05_schedule.py::test_get_templates FAILED                                                                                                       [ 50%]
+test_05_schedule.py::test_generate_slots PASSED                                                                                                      [ 51%]
+test_05_schedule.py::test_get_slots_by_doctor FAILED                                                                                                 [ 53%]
+test_05_schedule.py::test_get_slots_by_department PASSED                                                                                             [ 55%]
+test_05_schedule.py::test_delete_template FAILED                                                                                                     [ 56%]
+test_05_schedule.py::test_template_deleted FAILED                                                                                                    [ 58%]
+test_06_knowledge.py::test_create_kb PASSED                                                                                                          [ 60%]
+test_06_knowledge.py::test_list_kb PASSED                                                                                                            [ 61%]
+test_06_knowledge.py::test_get_kb PASSED                                                                                                             [ 63%]
+test_06_knowledge.py::test_upload_document FAILED                                                                                                    [ 65%]
+test_06_knowledge.py::test_list_documents PASSED                                                                                                     [ 66%]
+test_06_knowledge.py::test_add_manual_chunk FAILED                                                                                                   [ 68%]
+test_06_knowledge.py::test_list_chunks FAILED                                                                                                        [ 70%]
+test_06_knowledge.py::test_search_kb PASSED                                                                                                          [ 71%]
+test_06_knowledge.py::test_delete_chunk FAILED                                                                                                       [ 73%]
+test_06_knowledge.py::test_delete_kb PASSED                                                                                                          [ 75%]
+test_07_appointment.py::test_create_appointment FAILED                                                                                               [ 76%]
+test_07_appointment.py::test_my_appointments PASSED                                                                                                  [ 78%]
+test_07_appointment.py::test_appointment_detail FAILED                                                                                               [ 80%]
+test_07_appointment.py::test_doctor_appointments PASSED                                                                                              [ 81%]
+test_07_appointment.py::test_admin_list PASSED                                                                                                       [ 83%]
+test_07_appointment.py::test_admin_statistics PASSED                                                                                                 [ 85%]
+test_07_appointment.py::test_cancel_appointment FAILED                                                                                               [ 86%]
+test_07_appointment.py::test_verify_cancelled FAILED                                                                                                 [ 88%]
+test_08_chat.py::test_create_session PASSED                                                                                                          [ 90%]
+test_08_chat.py::test_list_sessions PASSED                                                                                                           [ 91%]
+test_08_chat.py::test_sse_send_message PASSED                                                                                                        [ 93%]
+test_08_chat.py::test_message_history FAILED                                                                                                         [ 95%]
+test_08_chat.py::test_end_session PASSED                                                                                                             [ 96%]
+test_08_chat.py::test_delete_session PASSED                                                                                                          [ 98%]
+test_09_e2e_flow.py::test_full_patient_journey FAILED                                                                                                [100%]
+
+======================================================================== FAILURES =========================================================================
+___________________________________________________________________ test_create_doctor ____________________________________________________________________
+
+api = <conftest.ApiClient object at 0x00000191891D86E0>
+state = SharedState(admin_token='59dfeaa2-107a-44c5-bece-26315961b971', admin_user_id=1, patient_username='test_patient_177269...=None, kb_id=None, document_id=None, chunk_id=None, appointment_id=None, chat_session_id=None, run_suffix='1772693895')
+
+    def test_create_doctor(api, state):
+        department_id = _ensure_available_department_id(api, state)
+        doctor_name = f"IT Doctor {state.run_suffix}"
+        response = api.request(
+            "POST",
+            "/doctor/doctor",
+            headers=auth_header(state.admin_token),
+            json={
+                "name": doctor_name,
+                "title": "Chief Physician",
+                "introduction": "Integration test doctor profile",
+                "specialties": "头痛,发热",
+                "treatmentAreas": "内科",
+                "consultationFee": 25.5,
+                "departmentIds": [department_id],
+            },
+        )
+        payload = api.require_http_ok(response)
+>       assert_success(payload)
+
+test_04_doctor.py:34:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+payload = {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+
+    def assert_success(payload: dict[str, Any]) -> None:
+>       assert payload.get("code") == 200, payload
+E       AssertionError: {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+E       assert 500 == 200
+E        +  where 500 = <built-in method get of dict object at 0x000001918965FC00>('code')
+E        +    where <built-in method get of dict object at 0x000001918965FC00> = {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}.get
+
+conftest.py:92: AssertionError
+_____________________________________________________________________ test_get_doctor _____________________________________________________________________
+
+api = <conftest.ApiClient object at 0x00000191891D86E0>
+state = SharedState(admin_token='59dfeaa2-107a-44c5-bece-26315961b971', admin_user_id=1, patient_username='test_patient_177269...=None, kb_id=None, document_id=None, chunk_id=None, appointment_id=None, chat_session_id=None, run_suffix='1772693895')
+
+    def test_get_doctor(api, state):
+        response = api.request("GET", f"/doctor/doctor/{state.doctor_profile_id}")
+        payload = api.require_http_ok(response)
+>       assert_success(payload)
+
+test_04_doctor.py:64:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+payload = {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+
+    def assert_success(payload: dict[str, Any]) -> None:
+>       assert payload.get("code") == 200, payload
+E       AssertionError: {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+E       assert 500 == 200
+E        +  where 500 = <built-in method get of dict object at 0x00000191896BE640>('code')
+E        +    where <built-in method get of dict object at 0x00000191896BE640> = {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}.get
+
+conftest.py:92: AssertionError
+________________________________________________________________ test_admin_update_doctor _________________________________________________________________
+
+api = <conftest.ApiClient object at 0x00000191891D86E0>
+state = SharedState(admin_token='59dfeaa2-107a-44c5-bece-26315961b971', admin_user_id=1, patient_username='test_patient_177269...=None, kb_id=None, document_id=None, chunk_id=None, appointment_id=None, chat_session_id=None, run_suffix='1772693895')
+
+    def test_admin_update_doctor(api, state):
+        response = api.request(
+            "PUT",
+            f"/doctor/doctor/{state.doctor_profile_id}",
+            headers=auth_header(state.admin_token),
+            json={
+                "title": "Attending Physician",
+                "introduction": "Updated by integration test",
+                "consultationFee": 28.0,
+                "departmentIds": [_ensure_available_department_id(api, state)],
+            },
+        )
+        payload = api.require_http_ok(response)
+>       assert_success(payload)
+
+test_04_doctor.py:81:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+payload = {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+
+    def assert_success(payload: dict[str, Any]) -> None:
+>       assert payload.get("code") == 200, payload
+E       AssertionError: {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+E       assert 500 == 200
+E        +  where 500 = <built-in method get of dict object at 0x00000191896EEFC0>('code')
+E        +    where <built-in method get of dict object at 0x00000191896EEFC0> = {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}.get
+
+conftest.py:92: AssertionError
+________________________________________________________________ test_doctor_view_profile _________________________________________________________________
+
+api = <conftest.ApiClient object at 0x00000191891D86E0>
+state = SharedState(admin_token='59dfeaa2-107a-44c5-bece-26315961b971', admin_user_id=1, patient_username='test_patient_177269...=None, kb_id=None, document_id=None, chunk_id=None, appointment_id=None, chat_session_id=None, run_suffix='1772693895')
+
+    def test_doctor_view_profile(api, state):
+        token = ensure_doctor_token(api, state)
+        response = api.request("GET", "/doctor/doctor/my-profile", headers=auth_header(token))
+        payload = api.require_http_ok(response)
+>       assert_success(payload)
+
+test_04_doctor.py:88:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+payload = {'code': 2001, 'data': None, 'msg': '医生不存在', 'success': False}
+
+    def assert_success(payload: dict[str, Any]) -> None:
+>       assert payload.get("code") == 200, payload
+E       AssertionError: {'code': 2001, 'data': None, 'msg': '医生不存在', 'success': False}
+E       assert 2001 == 200
+E        +  where 2001 = <built-in method get of dict object at 0x00000191891E8BC0>('code')
+E        +    where <built-in method get of dict object at 0x00000191891E8BC0> = {'code': 2001, 'data': None, 'msg': '医生不存在', 'success': False}.get
+
+conftest.py:92: AssertionError
+_______________________________________________________________ test_doctor_update_profile ________________________________________________________________
+
+api = <conftest.ApiClient object at 0x00000191891D86E0>
+state = SharedState(admin_token='59dfeaa2-107a-44c5-bece-26315961b971', admin_user_id=1, patient_username='test_patient_177269...=None, kb_id=None, document_id=None, chunk_id=None, appointment_id=None, chat_session_id=None, run_suffix='1772693895')
+
+    def test_doctor_update_profile(api, state):
+        token = ensure_doctor_token(api, state)
+        response = api.request(
+            "PUT",
+            "/doctor/doctor/my-profile",
+            headers=auth_header(token),
+            json={
+                "introduction": "Doctor self-update profile via integration tests",
+                "specialties": "头痛,咳嗽",
+            },
+        )
+        payload = api.require_http_ok(response)
+>       assert_success(payload)
+
+test_04_doctor.py:103:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+payload = {'code': 2001, 'data': None, 'msg': '医生不存在', 'success': False}
+
+    def assert_success(payload: dict[str, Any]) -> None:
+>       assert payload.get("code") == 200, payload
+E       AssertionError: {'code': 2001, 'data': None, 'msg': '医生不存在', 'success': False}
+E       assert 2001 == 200
+E        +  where 2001 = <built-in method get of dict object at 0x000001918970DA80>('code')
+E        +    where <built-in method get of dict object at 0x000001918970DA80> = {'code': 2001, 'data': None, 'msg': '医生不存在', 'success': False}.get
+
+conftest.py:92: AssertionError
+__________________________________________________________________ test_create_template ___________________________________________________________________
+
+api = <conftest.ApiClient object at 0x00000191891D86E0>
+state = SharedState(admin_token='59dfeaa2-107a-44c5-bece-26315961b971', admin_user_id=1, patient_username='test_patient_177269...=None, kb_id=None, document_id=None, chunk_id=None, appointment_id=None, chat_session_id=None, run_suffix='1772693895')
+
+    def test_create_template(api, state):
+        target = _tomorrow()
+        response = api.request(
+            "POST",
+            f"/doctor/schedule/template/{state.doctor_profile_id}",
+            json={
+                "dayOfWeek": target.isoweekday(),
+                "period": "morning",
+                "startTime": "09:00:00",
+                "endTime": "09:30:00",
+                "maxPatients": 5,
+            },
+        )
+        payload = api.require_http_ok(response)
+>       assert_success(payload)
+
+test_05_schedule.py:24:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+payload = {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+
+    def assert_success(payload: dict[str, Any]) -> None:
+>       assert payload.get("code") == 200, payload
+E       AssertionError: {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+E       assert 500 == 200
+E        +  where 500 = <built-in method get of dict object at 0x00000191896EA8C0>('code')
+E        +    where <built-in method get of dict object at 0x00000191896EA8C0> = {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}.get
+
+conftest.py:92: AssertionError
+___________________________________________________________________ test_get_templates ____________________________________________________________________
+
+api = <conftest.ApiClient object at 0x00000191891D86E0>
+state = SharedState(admin_token='59dfeaa2-107a-44c5-bece-26315961b971', admin_user_id=1, patient_username='test_patient_177269...=None, kb_id=None, document_id=None, chunk_id=None, appointment_id=None, chat_session_id=None, run_suffix='1772693895')
+
+    def test_get_templates(api, state):
+        response = api.request("GET", f"/doctor/schedule/template/{state.doctor_profile_id}")
+        payload = api.require_http_ok(response)
+>       assert_success(payload)
+
+test_05_schedule.py:30:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+payload = {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+
+    def assert_success(payload: dict[str, Any]) -> None:
+>       assert payload.get("code") == 200, payload
+E       AssertionError: {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+E       assert 500 == 200
+E        +  where 500 = <built-in method get of dict object at 0x00000191896B0C00>('code')
+E        +    where <built-in method get of dict object at 0x00000191896B0C00> = {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}.get
+
+conftest.py:92: AssertionError
+________________________________________________________________ test_get_slots_by_doctor _________________________________________________________________
+
+api = <conftest.ApiClient object at 0x00000191891D86E0>
+state = SharedState(admin_token='59dfeaa2-107a-44c5-bece-26315961b971', admin_user_id=1, patient_username='test_patient_177269...3-06', kb_id=None, document_id=None, chunk_id=None, appointment_id=None, chat_session_id=None, run_suffix='1772693895')
+
+    def test_get_slots_by_doctor(api, state):
+        target = _tomorrow().isoformat()
+        state.available_slot_date = target
+        response = api.request(
+            "GET",
+            f"/doctor/schedule/slots?doctorId={state.doctor_profile_id}&date={target}",
+        )
+        payload = api.require_http_ok(response)
+>       assert_success(payload)
+
+test_05_schedule.py:56:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+payload = {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+
+    def assert_success(payload: dict[str, Any]) -> None:
+>       assert payload.get("code") == 200, payload
+E       AssertionError: {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+E       assert 500 == 200
+E        +  where 500 = <built-in method get of dict object at 0x0000019189701380>('code')
+E        +    where <built-in method get of dict object at 0x0000019189701380> = {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}.get
+
+conftest.py:92: AssertionError
+__________________________________________________________________ test_delete_template ___________________________________________________________________
+
+api = <conftest.ApiClient object at 0x00000191891D86E0>
+state = SharedState(admin_token='59dfeaa2-107a-44c5-bece-26315961b971', admin_user_id=1, patient_username='test_patient_177269...3-06', kb_id=None, document_id=None, chunk_id=None, appointment_id=None, chat_session_id=None, run_suffix='1772693895')
+
+    def test_delete_template(api, state):
+        response = api.request("DELETE", f"/doctor/schedule/template/{state.schedule_template_id}")
+        payload = api.require_http_ok(response)
+>       assert_success(payload)
+
+test_05_schedule.py:76:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+payload = {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+
+    def assert_success(payload: dict[str, Any]) -> None:
+>       assert payload.get("code") == 200, payload
+E       AssertionError: {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+E       assert 500 == 200
+E        +  where 500 = <built-in method get of dict object at 0x00000191896BE100>('code')
+E        +    where <built-in method get of dict object at 0x00000191896BE100> = {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}.get
+
+conftest.py:92: AssertionError
+__________________________________________________________________ test_template_deleted __________________________________________________________________
+
+api = <conftest.ApiClient object at 0x00000191891D86E0>
+state = SharedState(admin_token='59dfeaa2-107a-44c5-bece-26315961b971', admin_user_id=1, patient_username='test_patient_177269...3-06', kb_id=None, document_id=None, chunk_id=None, appointment_id=None, chat_session_id=None, run_suffix='1772693895')
+
+    def test_template_deleted(api, state):
+        response = api.request("GET", f"/doctor/schedule/template/{state.doctor_profile_id}")
+        payload = api.require_http_ok(response)
+>       assert_success(payload)
+
+test_05_schedule.py:82:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+payload = {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+
+    def assert_success(payload: dict[str, Any]) -> None:
+>       assert payload.get("code") == 200, payload
+E       AssertionError: {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+E       assert 500 == 200
+E        +  where 500 = <built-in method get of dict object at 0x00000191896E96C0>('code')
+E        +    where <built-in method get of dict object at 0x00000191896E96C0> = {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}.get
+
+conftest.py:92: AssertionError
+__________________________________________________________________ test_upload_document ___________________________________________________________________
+
+api = <conftest.ApiClient object at 0x00000191891D86E0>
+state = SharedState(admin_token='59dfeaa2-107a-44c5-bece-26315961b971', admin_user_id=1, patient_username='test_patient_177269...6-03-06', kb_id=2, document_id=None, chunk_id=None, appointment_id=None, chat_session_id=None, run_suffix='1772693895')
+
+    def test_upload_document(api, state):
+        files = {
+            "file": (
+                "test-upload.txt",
+                "Hypertension is a common chronic disease. Lifestyle management is important.",
+                "text/plain",
+            )
+        }
+        response = api.request(
+            "POST",
+            f"/knowledge/kb/{state.kb_id}/document",
+            headers=auth_header(state.admin_token),
+            files=files,
+        )
+        payload = api.require_http_ok(response)
+>       assert_success(payload)
+
+test_06_knowledge.py:53:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+payload = {'code': 500, 'data': None, 'msg': 'Save file failed: java.io.FileNotFoundException: /tmp/tomcat.8085.3279517677875586.../localhost/ROOT/./uploads/kb-2/3de8a21e-3d64-40fa-a3fe-05ad52306e49.txt (No such file or directory)', 'success': False}
+
+    def assert_success(payload: dict[str, Any]) -> None:
+>       assert payload.get("code") == 200, payload
+E       AssertionError: {'code': 500, 'data': None, 'msg': 'Save file failed: java.io.FileNotFoundException: /tmp/tomcat.8085.3279517677875586351/work/Tomcat/localhost/ROOT/./uploads/kb-2/3de8a21e-3d64-40fa-a3fe-05ad52306e49.txt (No such file or directory)', 'success': False}
+E       assert 500 == 200
+E        +  where 500 = <built-in method get of dict object at 0x000001918970FD00>('code')
+E        +    where <built-in method get of dict object at 0x000001918970FD00> = {'code': 500, 'data': None, 'msg': 'Save file failed: java.io.FileNotFoundException: /tmp/tomcat.8085.3279517677875586351/work/Tomcat/localhost/ROOT/./uploads/kb-2/3de8a21e-3d64-40fa-a3fe-05ad52306e49.txt (No such file or directory)', 'success': False}.get
+
+conftest.py:92: AssertionError
+__________________________________________________________________ test_add_manual_chunk __________________________________________________________________
+
+api = <conftest.ApiClient object at 0x00000191891D86E0>
+state = SharedState(admin_token='59dfeaa2-107a-44c5-bece-26315961b971', admin_user_id=1, patient_username='test_patient_177269...6-03-06', kb_id=2, document_id=None, chunk_id=None, appointment_id=None, chat_session_id=None, run_suffix='1772693895')
+
+    def test_add_manual_chunk(api, state):
+        response = api.request(
+            "POST",
+            f"/knowledge/kb/{state.kb_id}/chunk",
+            headers=auth_header(state.admin_token),
+            json={"title": "Hypertension", "content": "Control salt intake and monitor blood pressure."},
+        )
+        payload = api.require_http_ok(response)
+>       assert_success(payload)
+
+test_06_knowledge.py:73:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+payload = {'code': 5003, 'data': None, 'msg': '404 - ', 'success': False}
+
+    def assert_success(payload: dict[str, Any]) -> None:
+>       assert payload.get("code") == 200, payload
+E       AssertionError: {'code': 5003, 'data': None, 'msg': '404 - ', 'success': False}
+E       assert 5003 == 200
+E        +  where 5003 = <built-in method get of dict object at 0x00000191896ADE00>('code')
+E        +    where <built-in method get of dict object at 0x00000191896ADE00> = {'code': 5003, 'data': None, 'msg': '404 - ', 'success': False}.get
+
+conftest.py:92: AssertionError
+____________________________________________________________________ test_list_chunks _____________________________________________________________________
+
+api = <conftest.ApiClient object at 0x00000191891D86E0>
+state = SharedState(admin_token='59dfeaa2-107a-44c5-bece-26315961b971', admin_user_id=1, patient_username='test_patient_177269...6-03-06', kb_id=2, document_id=None, chunk_id=None, appointment_id=None, chat_session_id=None, run_suffix='1772693895')
+
+    def test_list_chunks(api, state):
+        response = api.request("GET", f"/knowledge/kb/document/{state.document_id}/chunks?pageNum=1&pageSize=10")
+        payload = api.require_http_ok(response)
+>       assert_success(payload)
+
+test_06_knowledge.py:81:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+payload = {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+
+    def assert_success(payload: dict[str, Any]) -> None:
+>       assert payload.get("code") == 200, payload
+E       AssertionError: {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+E       assert 500 == 200
+E        +  where 500 = <built-in method get of dict object at 0x00000191897232C0>('code')
+E        +    where <built-in method get of dict object at 0x00000191897232C0> = {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}.get
+
+conftest.py:92: AssertionError
+____________________________________________________________________ test_delete_chunk ____________________________________________________________________
+
+api = <conftest.ApiClient object at 0x00000191891D86E0>
+state = SharedState(admin_token='59dfeaa2-107a-44c5-bece-26315961b971', admin_user_id=1, patient_username='test_patient_177269...6-03-06', kb_id=2, document_id=None, chunk_id=None, appointment_id=None, chat_session_id=None, run_suffix='1772693895')
+
+    def test_delete_chunk(api, state):
+        response = api.request(
+            "DELETE",
+            f"/knowledge/kb/chunk/{state.chunk_id}",
+            headers=auth_header(state.admin_token),
+        )
+        payload = api.require_http_ok(response)
+>       assert_success(payload)
+
+test_06_knowledge.py:101:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+payload = {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+
+    def assert_success(payload: dict[str, Any]) -> None:
+>       assert payload.get("code") == 200, payload
+E       AssertionError: {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+E       assert 500 == 200
+E        +  where 500 = <built-in method get of dict object at 0x00000191896AEE00>('code')
+E        +    where <built-in method get of dict object at 0x00000191896AEE00> = {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}.get
+
+conftest.py:92: AssertionError
+_________________________________________________________________ test_create_appointment _________________________________________________________________
+
+api = <conftest.ApiClient object at 0x00000191891D86E0>
+state = SharedState(admin_token='59dfeaa2-107a-44c5-bece-26315961b971', admin_user_id=1, patient_username='test_patient_177269...6-03-06', kb_id=2, document_id=None, chunk_id=None, appointment_id=None, chat_session_id=None, run_suffix='1772693895')
+
+    def test_create_appointment(api, state):
+        patient_token = ensure_patient_token(api, state)
+>       slot_id = _ensure_slot(api, state)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^
+
+test_07_appointment.py:25:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+test_07_appointment.py:16: in _ensure_slot
+    assert_success(payload)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+payload = {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+
+    def assert_success(payload: dict[str, Any]) -> None:
+>       assert payload.get("code") == 200, payload
+E       AssertionError: {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+E       assert 500 == 200
+E        +  where 500 = <built-in method get of dict object at 0x00000191896BF1C0>('code')
+E        +    where <built-in method get of dict object at 0x00000191896BF1C0> = {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}.get
+
+conftest.py:92: AssertionError
+_________________________________________________________________ test_appointment_detail _________________________________________________________________
+
+api = <conftest.ApiClient object at 0x00000191891D86E0>
+state = SharedState(admin_token='59dfeaa2-107a-44c5-bece-26315961b971', admin_user_id=1, patient_username='test_patient_177269...6-03-06', kb_id=2, document_id=None, chunk_id=None, appointment_id=None, chat_session_id=None, run_suffix='1772693895')
+
+    def test_appointment_detail(api, state):
+        patient_token = ensure_patient_token(api, state)
+        response = api.request(
+            "GET",
+            f"/appointment/appointment/{state.appointment_id}",
+            headers=auth_header(patient_token),
+        )
+        payload = api.require_http_ok(response)
+>       assert_success(payload)
+
+test_07_appointment.py:62:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+payload = {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+
+    def assert_success(payload: dict[str, Any]) -> None:
+>       assert payload.get("code") == 200, payload
+E       AssertionError: {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+E       assert 500 == 200
+E        +  where 500 = <built-in method get of dict object at 0x0000019189741680>('code')
+E        +    where <built-in method get of dict object at 0x0000019189741680> = {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}.get
+
+conftest.py:92: AssertionError
+_________________________________________________________________ test_cancel_appointment _________________________________________________________________
+
+api = <conftest.ApiClient object at 0x00000191891D86E0>
+state = SharedState(admin_token='59dfeaa2-107a-44c5-bece-26315961b971', admin_user_id=1, patient_username='test_patient_177269...6-03-06', kb_id=2, document_id=None, chunk_id=None, appointment_id=None, chat_session_id=None, run_suffix='1772693895')
+
+    def test_cancel_appointment(api, state):
+        patient_token = ensure_patient_token(api, state)
+        response = api.request(
+            "PUT",
+            f"/appointment/appointment/{state.appointment_id}/cancel",
+            headers=auth_header(patient_token),
+        )
+        payload = api.require_http_ok(response)
+>       assert_success(payload)
+
+test_07_appointment.py:107:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+payload = {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+
+    def assert_success(payload: dict[str, Any]) -> None:
+>       assert payload.get("code") == 200, payload
+E       AssertionError: {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+E       assert 500 == 200
+E        +  where 500 = <built-in method get of dict object at 0x000001918966A840>('code')
+E        +    where <built-in method get of dict object at 0x000001918966A840> = {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}.get
+
+conftest.py:92: AssertionError
+__________________________________________________________________ test_verify_cancelled __________________________________________________________________
+
+api = <conftest.ApiClient object at 0x00000191891D86E0>
+state = SharedState(admin_token='59dfeaa2-107a-44c5-bece-26315961b971', admin_user_id=1, patient_username='test_patient_177269...6-03-06', kb_id=2, document_id=None, chunk_id=None, appointment_id=None, chat_session_id=None, run_suffix='1772693895')
+
+    def test_verify_cancelled(api, state):
+        patient_token = ensure_patient_token(api, state)
+        response = api.request(
+            "GET",
+            f"/appointment/appointment/{state.appointment_id}",
+            headers=auth_header(patient_token),
+        )
+        payload = api.require_http_ok(response)
+>       assert_success(payload)
+
+test_07_appointment.py:118:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+payload = {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+
+    def assert_success(payload: dict[str, Any]) -> None:
+>       assert payload.get("code") == 200, payload
+E       AssertionError: {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+E       assert 500 == 200
+E        +  where 500 = <built-in method get of dict object at 0x00000191896B3340>('code')
+E        +    where <built-in method get of dict object at 0x00000191896B3340> = {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}.get
+
+conftest.py:92: AssertionError
+__________________________________________________________________ test_message_history ___________________________________________________________________
+
+api = <conftest.ApiClient object at 0x00000191891D86E0>
+state = SharedState(admin_token='59dfeaa2-107a-44c5-bece-26315961b971', admin_user_id=1, patient_username='test_patient_177269...2026-03-06', kb_id=2, document_id=None, chunk_id=None, appointment_id=None, chat_session_id=8, run_suffix='1772693895')
+
+    def test_message_history(api, state):
+        patient_token = ensure_patient_token(api, state)
+        response = api.request(
+            "GET",
+            f"/ai/chat/session/{state.chat_session_id}/messages",
+            headers=auth_header(patient_token),
+        )
+        payload = api.require_http_ok(response)
+>       assert_success(payload)
+
+test_08_chat.py:68:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+payload = {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+
+    def assert_success(payload: dict[str, Any]) -> None:
+>       assert payload.get("code") == 200, payload
+E       AssertionError: {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+E       assert 500 == 200
+E        +  where 500 = <built-in method get of dict object at 0x0000019189747F00>('code')
+E        +    where <built-in method get of dict object at 0x0000019189747F00> = {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}.get
+
+conftest.py:92: AssertionError
+________________________________________________________________ test_full_patient_journey ________________________________________________________________
+
+api = <conftest.ApiClient object at 0x00000191891D86E0>
+state = SharedState(admin_token='59dfeaa2-107a-44c5-bece-26315961b971', admin_user_id=1, patient_username='test_patient_177269...2026-03-06', kb_id=2, document_id=None, chunk_id=None, appointment_id=None, chat_session_id=8, run_suffix='1772693895')
+
+    def test_full_patient_journey(api, state):
+        patient_token = ensure_patient_token(api, state)
+
+        create_session = api.request(
+            "POST",
+            "/ai/chat/session",
+            headers=auth_header(patient_token),
+            json={"sessionType": "TRIAGE"},
+        )
+        create_payload = api.require_http_ok(create_session)
+        assert_success(create_payload)
+        session_id = create_payload["data"]["id"]
+
+        sse_resp = api.request(
+            "POST",
+            "/ai/chat/send",
+            headers=auth_header(patient_token),
+            json={"sessionId": session_id, "message": "I have persistent headache.", "sessionType": "TRIAGE"},
+            stream=True,
+        )
+        assert sse_resp.status_code == 200
+        sse_content_type = sse_resp.headers.get("Content-Type", "")
+        assert ("text/event-stream" in sse_content_type) or ("application/json" in sse_content_type)
+        sse_resp.close()
+
+        list_doctors = api.request("GET", "/doctor/doctor/list?pageNum=1&pageSize=10")
+        list_payload = api.require_http_ok(list_doctors)
+        assert_success(list_payload)
+        doctor_records = (list_payload.get("data") or {}).get("records") or []
+>       assert doctor_records
+E       assert []
+
+test_09_e2e_flow.py:35: AssertionError
+================================================================= short test summary info =================================================================
+FAILED test_04_doctor.py::test_create_doctor - AssertionError: {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+FAILED test_04_doctor.py::test_get_doctor - AssertionError: {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+FAILED test_04_doctor.py::test_admin_update_doctor - AssertionError: {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+FAILED test_04_doctor.py::test_doctor_view_profile - AssertionError: {'code': 2001, 'data': None, 'msg': '医生不存在', 'success': False}
+FAILED test_04_doctor.py::test_doctor_update_profile - AssertionError: {'code': 2001, 'data': None, 'msg': '医生不存在', 'success': False}
+FAILED test_05_schedule.py::test_create_template - AssertionError: {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+FAILED test_05_schedule.py::test_get_templates - AssertionError: {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+FAILED test_05_schedule.py::test_get_slots_by_doctor - AssertionError: {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+FAILED test_05_schedule.py::test_delete_template - AssertionError: {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+FAILED test_05_schedule.py::test_template_deleted - AssertionError: {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+FAILED test_06_knowledge.py::test_upload_document - AssertionError: {'code': 500, 'data': None, 'msg': 'Save file failed: java.io.FileNotFoundException: /tmp/tomcat.8085.3279517677875586351/work/Tomcat/l...
+FAILED test_06_knowledge.py::test_add_manual_chunk - AssertionError: {'code': 5003, 'data': None, 'msg': '404 - ', 'success': False}
+FAILED test_06_knowledge.py::test_list_chunks - AssertionError: {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+FAILED test_06_knowledge.py::test_delete_chunk - AssertionError: {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+FAILED test_07_appointment.py::test_create_appointment - AssertionError: {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+FAILED test_07_appointment.py::test_appointment_detail - AssertionError: {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+FAILED test_07_appointment.py::test_cancel_appointment - AssertionError: {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+FAILED test_07_appointment.py::test_verify_cancelled - AssertionError: {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+FAILED test_08_chat.py::test_message_history - AssertionError: {'code': 500, 'data': None, 'msg': '系统内部错误', 'success': False}
+FAILED test_09_e2e_flow.py::test_full_patient_journey - assert []
+======================================================= 20 failed, 40 passed in 1464.37s (0:24:24) ========================================================

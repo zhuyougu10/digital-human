@@ -4,7 +4,7 @@
 构建基于 Spring Cloud + Spring AI + RAG + AI Agents + Vue3 + UniApp 的 AI 数字人医疗小助手系统（毕业设计）
 
 ## Current Phase
-Phase 10: Admin UI 重构美化 — complete
+Phase 11: 真实接口集成测试 — in_progress 
 
 ## Phases
 <!-- 
@@ -233,6 +233,31 @@ Phase 10: Admin UI 重构美化 — complete
 - [x] Task 5: Shared Components 重构 (ChatPanel.vue, RichEditor.vue)
 - [x] Final build verification
 - **Status:** complete
+
+### Phase 11: 真实接口集成测试 (15-real-api-testing, Python)
+- [x] Task 0: 测试基础设施搭建 (config.py + conftest.py + requirements.txt + test-upload.txt)
+- [x] Task 1: test_01_auth.py — 认证接口 (7 用例)
+- [x] Task 2: test_02_user.py — 用户管理 (6 用例)
+- [x] Task 3: test_03_department.py — 科室管理 (7 用例)
+- [x] Task 4: test_04_doctor.py — 医生管理 (8 用例)
+- [x] Task 5: test_05_schedule.py — 排班管理 (7 用例)
+- [x] Task 6: test_06_knowledge.py — 知识库管理 (10 用例)
+- [x] Task 7: test_07_appointment.py — 预约管理 (8 用例)
+- [x] Task 8: test_08_chat.py — AI 对话 (6 用例)
+- [x] Task 9: test_09_e2e_flow.py — 核心业务全链路 (1 用例/9步)
+- [x] 全量验证 Round 1: pytest -v → 60 tests, 40 PASSED / 20 FAILED
+- [x] Bug Fix Round 1: 修复 4 个根因 (Codex 完成) — RC1/RC2/RC3 代码+DDL修复
+- [x] Bug Fix Round 1 验证: pytest -v → **58 PASSED, 2 SKIPPED, 0 FAILED** ✅
+- **Status:** complete
+
+### Phase 11 Bug Fix Round 1 — 最终结果
+| 根因 | 描述 | 结果 |
+|------|------|------|
+| RC1 | doctor-service: setUserId(null) → NOT NULL 500 | ✅ 已修复 |
+| RC2 | ai-service: chat_message 等缺 update_time/deleted 列 | ✅ ALTER TABLE 已执行 |
+| RC3 | knowledge-service: uploadPath 解析到 Tomcat 临时目录 | ✅ 已改 /data/uploads |
+| RC4 | knowledge-service: DASHSCOPE_API_KEY 占位符, embedding 404 | ⏭️ 2 tests skipped (预期) |
+| RC5 | 级联 None 传参 | ✅ 上游修复后自动消除 |
 
 ## Notes
 - Update phase status as you progress: pending → in_progress → complete

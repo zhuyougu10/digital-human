@@ -6,6 +6,7 @@ import com.medical.common.core.domain.PageQuery;
 import com.medical.common.core.domain.PageResult;
 import com.medical.common.core.exception.BusinessException;
 import com.medical.common.core.exception.ErrorCode;
+import com.medical.common.security.util.SecurityUtil;
 import com.medical.doctor.domain.dto.DoctorProfileDTO;
 import com.medical.doctor.domain.entity.Department;
 import com.medical.doctor.domain.entity.DoctorDepartment;
@@ -123,7 +124,7 @@ public class DoctorProfileServiceImpl implements DoctorProfileService {
     @Transactional
     public void create(DoctorProfileDTO dto) {
         DoctorProfile profile = new DoctorProfile();
-        profile.setUserId(null);
+        profile.setUserId(dto.getUserId() != null ? dto.getUserId() : SecurityUtil.getUserId());
         profile.setName(dto.getName());
         profile.setTitle(dto.getTitle());
         profile.setIntroduction(dto.getIntroduction());
