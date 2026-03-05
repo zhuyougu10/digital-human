@@ -1,6 +1,8 @@
+SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 -- 创建各服务数据库
 CREATE DATABASE IF NOT EXISTS medical_user DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE medical_user;
+SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 -- 用户表
 CREATE TABLE IF NOT EXISTS `sys_user` (
     `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '用户ID',
@@ -81,6 +83,7 @@ INSERT INTO `sys_user_role` (`user_id`, `role_id`) VALUES (1, 1);
 
 CREATE DATABASE IF NOT EXISTS medical_doctor DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE medical_doctor;
+SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 -- 科室表
 CREATE TABLE IF NOT EXISTS department (
     id BIGINT NOT NULL AUTO_INCREMENT,
@@ -185,6 +188,7 @@ INSERT INTO department (name, description, sort) VALUES
 
 CREATE DATABASE IF NOT EXISTS medical_ai DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE medical_ai;
+SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE TABLE IF NOT EXISTS `chat_session` (
     `id` BIGINT NOT NULL AUTO_INCREMENT,
     `user_id` BIGINT NOT NULL COMMENT '用户ID',
@@ -244,6 +248,7 @@ CREATE TABLE IF NOT EXISTS `conversation_summary` (
 
 CREATE DATABASE IF NOT EXISTS medical_appointment DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE medical_appointment;
+SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE TABLE IF NOT EXISTS `appointment` (
     `id` BIGINT NOT NULL AUTO_INCREMENT,
     `patient_id` BIGINT NOT NULL COMMENT 'patient user id',
@@ -271,6 +276,7 @@ CREATE TABLE IF NOT EXISTS `appointment` (
 
 CREATE DATABASE IF NOT EXISTS medical_knowledge DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE medical_knowledge;
+SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 -- knowledge base table
 CREATE TABLE IF NOT EXISTS `knowledge_base` (
     `id` BIGINT NOT NULL AUTO_INCREMENT,
