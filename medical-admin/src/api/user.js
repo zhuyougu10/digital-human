@@ -13,6 +13,18 @@ export function getUserList(params) {
 }
 
 /**
+ * 创建用户
+ * @param {Object} data { username, password, nickname, phone, roleKey, ... }
+ */
+export function createUser(data) {
+  return service({
+    url: '/api/user/user/add',
+    method: 'post',
+    data
+  })
+}
+
+/**
  * 根据ID获取用户信息 (内部调用/详情)
  * @param {Long} userId 
  */
@@ -55,5 +67,17 @@ export function assignRole(userId, roleKey) {
   return service({
     url: `/api/user/user/${userId}/role/${roleKey}`,
     method: 'post'
+  })
+}
+
+/**
+ * 移除角色
+ * @param {Long} userId
+ * @param {String} roleKey
+ */
+export function removeRole(userId, roleKey) {
+  return service({
+    url: `/api/user/user/${userId}/role/${roleKey}`,
+    method: 'delete'
   })
 }

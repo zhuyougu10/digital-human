@@ -114,6 +114,18 @@
       <el-form :model="dialog.form" :rules="rules" ref="formRef" label-width="90px" class="doctor-form">
         <el-row :gutter="24">
           <el-col :span="12">
+            <el-form-item label="关联用户" prop="userId">
+              <el-select v-model="dialog.form.userId" filterable placeholder="请选择用户" style="width: 100%">
+                <el-option
+                  v-for="user in userOptions"
+                  :key="user.id"
+                  :label="`${user.username}${user.nickname ? ` (${user.nickname})` : ''}`"
+                  :value="user.id"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
             <el-form-item label="姓名" prop="name">
               <el-input v-model="dialog.form.name" placeholder="请输入医生姓名" />
             </el-form-item>
@@ -194,6 +206,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getDoctorList, createDoctor, updateDoctor } from '@/api/doctor'
 import { getDepartmentList } from '@/api/department'
+import { getUserList } from '@/api/user'
 import { ElMessage } from 'element-plus'
 import { Plus, Search, Edit, Calendar, Picture } from '@element-plus/icons-vue'
 
@@ -202,6 +215,7 @@ const loading = ref(false)
 const doctorList = ref([])
 const total = ref(0)
 const departmentOptions = ref([])
+const userOptions = ref([])
 const specialtyOptions = ref(['高血压', '糖尿病', '感冒', '儿科', '外科', '中医', '心理咨询', '康复理疗'])
 
 const searchForm = reactive({
@@ -217,6 +231,7 @@ const dialog = reactive({
   loading: false,
   form: {
     id: null,
+    userId: null,
     name: '',
     title: '',
     departmentIds: [],
@@ -229,6 +244,7 @@ const dialog = reactive({
 const formRef = ref(null)
 
 const rules = {
+  userId: [{ required: true, message: '请选择关联用户', trigger: 'change' }],
   name: [{ required: true, message: '请输入医生姓名', trigger: 'blur' }],
   title: [{ required: true, message: '请选择职称', trigger: 'change' }],
   departmentIds: [{ required: true, message: '请选择科室', trigger: 'change' }],
@@ -239,7 +255,7 @@ const fetchDoctorList = async () => {
   loading.value = true
   try {
     const res = await getDoctorList(searchForm)
-    doctorList.value = res.data.list
+    doctorList.value = res.data.records || res.data.list || []
     total.value = res.data.total
   } catch (error) {
     console.error('Failed to fetch doctors:', error)
@@ -254,6 +270,16 @@ const fetchDepartments = async () => {
     departmentOptions.value = res.data
   } catch (error) {
     console.error('Failed to fetch departments:', error)
+  }
+}
+
+const fetchUsers = async () => {
+  try {
+    const res = await getUserList({ pageNum: 1, pageSize: 200, role: 'DOCTOR' })
+    const users = res.data.records || res.data.list || []
+    userOptions.value = users.filter((user) => Array.isArray(user.roles) ? user.roles.includes('DOCTOR') : true)
+  } catch (error) {
+    console.error('Failed to fetch users:', error)
   }
 }
 
@@ -280,17 +306,25 @@ const handleCurrentChange = (val) => {
 
 const handleAdd = () => {
   dialog.isEdit = false
+  fetchUsers()
   dialog.visible = true
 }
 
 const handleEdit = (row) => {
   dialog.isEdit = true
+  const parseSpecialties = (val) => {
+    if (Array.isArray(val)) return val
+    if (typeof val === 'string') return val.split(/[,，]/).filter(Boolean)
+    return []
+  }
+  
   dialog.form = {
     id: row.id,
+    userId: row.userId || null,
     name: row.name,
     title: row.title,
     departmentIds: row.departments?.map(d => d.id) || [],
-    specialties: row.specialties ? row.specialties.split(',') : [],
+    specialties: parseSpecialties(row.specialties),
     description: row.description,
     avatar: row.avatar
   }
@@ -300,6 +334,7 @@ const handleEdit = (row) => {
 const resetDialog = () => {
   dialog.form = {
     id: null,
+    userId: null,
     name: '',
     title: '',
     departmentIds: [],
@@ -345,6 +380,7 @@ const goToSchedule = () => {
 onMounted(() => {
   fetchDoctorList()
   fetchDepartments()
+  fetchUsers()
 })
 </script>
 

@@ -7,10 +7,12 @@ import com.medical.common.core.domain.PageQuery;
 import com.medical.common.core.domain.PageResult;
 import com.medical.common.core.domain.R;
 import com.medical.common.security.util.SecurityUtil;
+import com.medical.user.domain.dto.UserCreateDTO;
 import com.medical.user.domain.dto.UserUpdateDTO;
 import com.medical.user.domain.vo.UserVO;
 import com.medical.user.service.SysUserService;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -26,6 +28,13 @@ public class SysUserController {
     public R<PageResult<UserVO>> list(PageQuery pageQuery,
                                        @RequestParam(required = false) String keyword) {
         return R.ok(sysUserService.listUsers(pageQuery, keyword));
+    }
+
+    /** 管理员 - 创建用户 */
+    @SaCheckRole(UserConstants.ROLE_ADMIN)
+    @PostMapping("/add")
+    public R<UserVO> add(@RequestBody @Valid UserCreateDTO dto) {
+        return R.ok(sysUserService.createUser(dto));
     }
 
     /** 获取当前登录用户信息 */

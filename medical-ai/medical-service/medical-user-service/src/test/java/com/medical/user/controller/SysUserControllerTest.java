@@ -8,6 +8,7 @@ import com.medical.common.core.exception.BusinessException;
 import com.medical.common.core.exception.ErrorCode;
 import com.medical.common.core.handler.GlobalExceptionHandler;
 import com.medical.common.security.util.SecurityUtil;
+import com.medical.user.domain.dto.UserCreateDTO;
 import com.medical.user.domain.dto.UserUpdateDTO;
 import com.medical.user.domain.vo.UserVO;
 import com.medical.user.service.SysUserService;
@@ -86,6 +87,27 @@ public class SysUserControllerTest {
                 .andExpect(status().isOk());
         
         verify(sysUserService).listUsers(any(PageQuery.class), eq("test"));
+    }
+
+    @Test
+    void addUser_success() throws Exception {
+        UserVO created = new UserVO();
+        created.setId(100L);
+        created.setUsername("doctor_a");
+        when(sysUserService.createUser(any(UserCreateDTO.class))).thenReturn(created);
+
+        UserCreateDTO dto = new UserCreateDTO();
+        dto.setUsername("doctor_a");
+        dto.setPassword("123456");
+        dto.setNickname("张医生");
+        dto.setRoleKey("DOCTOR");
+
+        mockMvc.perform(post("/user/add")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value(100L))
+                .andExpect(jsonPath("$.data.username").value("doctor_a"));
     }
 
     @Test

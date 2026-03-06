@@ -31,6 +31,9 @@
                 <el-button @click="resetSearch">重置</el-button>
               </el-form-item>
             </el-form>
+            <el-button type="primary" @click="openCreateDialog">
+              <el-icon class="mr-1"><Plus /></el-icon>新增用户
+            </el-button>
           </div>
         </div>
       </template>
@@ -97,6 +100,56 @@
       </div>
     </el-card>
 
+    <!-- Create User Dialog -->
+    <el-dialog 
+      v-model="createDialog.visible" 
+      title="新增用户" 
+      width="500px"
+      class="custom-dialog"
+      destroy-on-close
+    >
+      <el-form :model="createDialog.form" :rules="createDialog.rules" ref="createFormRef" label-width="80px">
+        <el-form-item label="用户名" prop="username">
+          <el-input v-model="createDialog.form.username" placeholder="请输入用户名 (3-30位)" />
+        </el-form-item>
+        <el-form-item label="密码" prop="password">
+          <el-input v-model="createDialog.form.password" type="password" show-password placeholder="请输入密码 (6-30位)" />
+        </el-form-item>
+        <el-form-item label="昵称" prop="nickname">
+          <el-input v-model="createDialog.form.nickname" placeholder="请输入昵称" />
+        </el-form-item>
+        <el-form-item label="手机号" prop="phone">
+          <el-input v-model="createDialog.form.phone" placeholder="请输入手机号" />
+        </el-form-item>
+        <el-form-item label="邮箱" prop="email">
+          <el-input v-model="createDialog.form.email" placeholder="请输入邮箱" />
+        </el-form-item>
+        <el-form-item label="性别" prop="gender">
+          <el-radio-group v-model="createDialog.form.gender">
+            <el-radio :label="1">男</el-radio>
+            <el-radio :label="2">女</el-radio>
+            <el-radio :label="0">未知</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="角色" prop="roleKey">
+          <el-select v-model="createDialog.form.roleKey" placeholder="请选择角色">
+            <el-option label="普通用户" value="USER" />
+            <el-option label="医生" value="DOCTOR" />
+            <el-option label="管理员" value="ADMIN" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="状态" prop="status">
+          <el-switch v-model="createDialog.form.status" :active-value="0" :inactive-value="1" active-text="启用" inactive-text="停用" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="createDialog.visible = false">取消</el-button>
+          <el-button type="primary" @click="submitCreateUser" :loading="createDialog.loading">确定</el-button>
+        </div>
+      </template>
+    </el-dialog>
+
     <!-- Role Assignment Dialog -->
     <el-dialog 
       v-model="roleDialog.visible" 
@@ -129,19 +182,49 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { getUserList, toggleUserStatus, assignRole } from '@/api/user'
+import { getUserList, toggleUserStatus, assignRole, removeRole, createUser } from '@/api/user'
+import { createDoctor } from '@/api/doctor'
 import { ElMessage } from 'element-plus'
-import { Search, Edit } from '@element-plus/icons-vue'
+import { Search, Edit, Plus } from '@element-plus/icons-vue'
 
 const loading = ref(false)
 const userList = ref([])
 const total = ref(0)
+const createFormRef = ref(null)
 
 const searchForm = reactive({
   page: 1,
   size: 10,
   keyword: '',
   role: ''
+})
+
+const createDialog = reactive({
+  visible: false,
+  loading: false,
+  form: {
+    username: '',
+    password: '',
+    nickname: '',
+    phone: '',
+    email: '',
+    gender: 0,
+    roleKey: 'USER',
+    status: 0
+  },
+  rules: {
+    username: [
+      { required: true, message: '请输入用户名', trigger: 'blur' },
+      { min: 3, max: 30, message: '长度在 3 到 30 个字符', trigger: 'blur' }
+    ],
+    password: [
+      { required: true, message: '请输入密码', trigger: 'blur' },
+      { min: 6, max: 30, message: '长度在 6 到 30 个字符', trigger: 'blur' }
+    ],
+    roleKey: [
+      { required: true, message: '请选择角色', trigger: 'change' }
+    ]
+  }
 })
 
 const roleDialog = reactive({
@@ -157,7 +240,7 @@ const fetchUserList = async () => {
   loading.value = true
   try {
     const res = await getUserList(searchForm)
-    userList.value = res.data.list
+    userList.value = res.data.records || res.data.list || []
     total.value = res.data.total
   } catch (error) {
     console.error('Failed to fetch users:', error)
@@ -197,18 +280,72 @@ const handleStatusChange = async (row, val) => {
   }
 }
 
+const openCreateDialog = () => {
+  createDialog.visible = true
+  // Reset form
+  createDialog.form = {
+    username: '',
+    password: '',
+    nickname: '',
+    phone: '',
+    email: '',
+    gender: 0,
+    roleKey: 'USER',
+    status: 0
+  }
+  if (createFormRef.value) {
+    createFormRef.value.clearValidate()
+  }
+}
+
+const submitCreateUser = async () => {
+  if (!createFormRef.value) return
+  await createFormRef.value.validate(async (valid) => {
+    if (valid) {
+      createDialog.loading = true
+      try {
+        const res = await createUser(createDialog.form)
+        const createdUser = res?.data
+        if (createDialog.form.roleKey === 'DOCTOR' && createdUser?.id) {
+          await createDoctor({
+            userId: createdUser.id,
+            name: createDialog.form.nickname || createDialog.form.username,
+            title: '住院医师',
+            consultationFee: 0,
+            departmentIds: []
+          })
+        }
+        ElMessage.success('用户创建成功')
+        createDialog.visible = false
+        fetchUserList()
+      } catch (error) {
+        console.error('Failed to create user:', error)
+      } finally {
+        createDialog.loading = false
+      }
+    }
+  })
+}
+
 const openRoleDialog = (row) => {
   roleDialog.currentUser = row
-  roleDialog.form.roles = [...row.roles]
+  roleDialog.form.roles = row.roles ? [...row.roles] : []
   roleDialog.visible = true
 }
 
 const handleAssignRole = async () => {
   roleDialog.loading = true
   try {
-    // Loop through roles to call single role assignment API
-    for (const roleKey of roleDialog.form.roles) {
+    const originalRoles = new Set(roleDialog.currentUser.roles || [])
+    const selectedRoles = new Set(roleDialog.form.roles || [])
+    const rolesToAdd = [...selectedRoles].filter(role => !originalRoles.has(role))
+    const rolesToRemove = [...originalRoles].filter(role => !selectedRoles.has(role))
+
+    for (const roleKey of rolesToAdd) {
       await assignRole(roleDialog.currentUser.id, roleKey)
+    }
+    for (const roleKey of rolesToRemove) {
+      await removeRole(roleDialog.currentUser.id, roleKey)
     }
     ElMessage.success('角色分配成功')
     roleDialog.visible = false
@@ -259,6 +396,12 @@ onMounted(() => {
   align-items: center;
   flex-wrap: wrap;
   gap: 16px;
+}
+
+.right-panel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .title {

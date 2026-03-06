@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.medical.common.core.constant.UserConstants;
 import com.medical.common.core.domain.PageQuery;
 import com.medical.common.core.domain.PageResult;
+import com.medical.user.domain.dto.UserCreateDTO;
 import com.medical.common.core.exception.BusinessException;
 import com.medical.common.core.exception.ErrorCode;
 import com.medical.user.domain.dto.UserUpdateDTO;
@@ -17,6 +18,7 @@ import com.medical.user.mapper.SysUserMapper;
 import com.medical.user.mapper.SysUserRoleMapper;
 import com.medical.user.service.SysUserService;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.crypto.digest.BCrypt;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,6 +58,40 @@ public class SysUserServiceImpl implements SysUserService {
         SysUser user = userMapper.selectById(userId);
         if (user == null) {
             throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+        }
+        return toUserVO(user);
+    }
+
+    @Override
+    @Transactional
+    public UserVO createUser(UserCreateDTO dto) {
+        Long count = userMapper.selectCount(
+                new LambdaQueryWrapper<SysUser>()
+                        .eq(SysUser::getUsername, dto.getUsername()));
+        if (count > 0) {
+            throw new BusinessException(ErrorCode.USER_ALREADY_EXISTS);
+        }
+
+        SysUser user = new SysUser();
+        user.setUsername(dto.getUsername());
+        user.setPassword(BCrypt.hashpw(dto.getPassword()));
+        user.setNickname(dto.getNickname() != null ? dto.getNickname() : dto.getUsername());
+        user.setPhone(dto.getPhone());
+        user.setEmail(dto.getEmail());
+        user.setGender(dto.getGender() != null ? dto.getGender() : 0);
+        user.setStatus(dto.getStatus() != null ? dto.getStatus() : UserConstants.STATUS_NORMAL);
+        userMapper.insert(user);
+
+        if (StrUtil.isNotBlank(dto.getRoleKey())) {
+            SysRole role = roleMapper.selectOne(
+                    new LambdaQueryWrapper<SysRole>()
+                            .eq(SysRole::getRoleKey, dto.getRoleKey()));
+            if (role != null) {
+                SysUserRole userRole = new SysUserRole();
+                userRole.setUserId(user.getId());
+                userRole.setRoleId(role.getId());
+                userRoleMapper.insert(userRole);
+            }
         }
         return toUserVO(user);
     }

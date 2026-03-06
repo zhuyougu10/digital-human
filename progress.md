@@ -145,3 +145,51 @@
 
 ### Commit
 - `a32364a` fix(db): 修复所有预置中文数据乱码 (sys_role/department) + init.sql SET NAMES 位置
+
+## Session: 2026-03-06 (Feature Enhancements - User Management)
+
+### Feature: Add User (Admin)
+- **Status:** in_progress
+- **Started:** 2026-03-06
+- **Completed:** 2026-03-06
+- **Goal:** Allow admins to create new users (Doctor, Admin, User) directly from the User Management interface.
+- **Changes:**
+  - **Backend (`medical-user-service`):**
+    - Added `UserCreateDTO.java`.
+    - Added `createUser` method in `SysUserService` and `SysUserServiceImpl` (with password hashing and role assignment).
+    - Added `@PostMapping("/add")` endpoint in `SysUserController`.
+  - **Frontend (`medical-admin`):**
+    - Added `createUser` API in `src/api/user.js`.
+    - Updated `UserManagement.vue` with "Add User" button and Dialog form.
+- **Verification:**
+  - `mvn package` for `medical-user-service` SUCCESS.
+  - Rebuilt `docker-user-service` image and restarted container.
+  - Frontend dev server started.
+
+## Session: 2026-03-06 (Feature Enhancements - User/Doctor Binding & Role Fix)
+
+### Actions Completed
+- 修复用户管理“分配角色”取消失败：由“仅新增角色”改为“新增/移除差集同步”。
+- `medical-user-service` 新增用户接口改为返回 `UserVO`，前端可获取新建用户 `id`。
+- 用户管理新增 DOCTOR 用户时，自动调用医生创建接口并绑定 `userId`，完成医生画像初始化。
+- 医生管理新增医生弹窗增加“关联用户”字段，`userId` 必填并随创建请求提交。
+- 医生管理“关联用户”下拉改为仅展示 `DOCTOR` 角色用户（接口筛选 + 前端兜底过滤）。
+
+### Files Modified
+- `medical-admin/src/api/user.js`: 新增 `removeRole` API。
+- `medical-admin/src/views/admin/UserManagement.vue`: 角色差集同步、DOCTOR 创建后自动建档。
+- `medical-admin/src/views/admin/DoctorManagement.vue`: 新增“关联用户”字段及 DOCTOR 用户筛选逻辑。
+- `medical-ai/medical-service/medical-user-service/src/main/java/com/medical/user/controller/SysUserController.java`: `/user/add` 返回 `R<UserVO>`。
+- `medical-ai/medical-service/medical-user-service/src/main/java/com/medical/user/service/SysUserService.java`: `createUser` 返回类型改为 `UserVO`。
+- `medical-ai/medical-service/medical-user-service/src/main/java/com/medical/user/service/impl/SysUserServiceImpl.java`: `createUser` 返回新建用户视图对象。
+- `medical-ai/medical-service/medical-user-service/src/test/java/com/medical/user/controller/SysUserControllerTest.java`: 新增 `/user/add` 返回值用例。
+- `medical-ai/medical-service/medical-doctor-service/src/test/java/com/medical/doctor/controller/DoctorControllerTest.java`: 新增 `userId` 透传断言。
+
+### Verification
+- `mvn -Dtest=SysUserControllerTest test` → SUCCESS
+- `mvn -Dtest=DoctorControllerTest test` → SUCCESS
+- `mvn package -DskipTests` (`medical-user-service`) → SUCCESS
+- `npm run build` (`medical-admin`) → SUCCESS
+
+### Notes
+- 本次文档更新采用“只追加不删除”策略，保留所有历史记录。

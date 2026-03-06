@@ -4,7 +4,7 @@
 构建基于 Spring Cloud + Spring AI + RAG + AI Agents + Vue3 + UniApp 的 AI 数字人医疗小助手系统（毕业设计）
 
 ## Current Phase
-Phase 11: 真实接口集成测试 — in_progress 
+Phase 12: Feature Enhancements & Bug Fixes — complete
 
 ## Phases
 <!-- 
@@ -250,6 +250,10 @@ Phase 11: 真实接口集成测试 — in_progress
 - [x] Bug Fix Round 1 验证: pytest -v → **58 PASSED, 2 SKIPPED, 0 FAILED** ✅
 - **Status:** complete
 
+### Phase 12: Feature Enhancements & Bug Fixes
+- [x] **[User Management]** Add "Create User" functionality (Backend API + Frontend Dialog)
+- **Status:** complete
+
 ### Phase 11 Bug Fix Round 1 — 最终结果
 | 根因 | 描述 | 结果 |
 |------|------|------|
@@ -263,3 +267,12 @@ Phase 11: 真实接口集成测试 — in_progress
 - Update phase status as you progress: pending → in_progress → complete
 - Re-read this plan before major decisions (attention manipulation)
 - Log ALL errors - they help avoid repetition
+
+### Phase 12 Update Log (2026-03-06)
+- [x] **[User Management]** 修复分配角色“取消无效”问题（角色差集：assign + remove）
+- [x] **[User Management]** `/user/add` 返回新建用户信息（用于后续绑定链路）
+- [x] **[User Management]** 新增 DOCTOR 用户时自动初始化医生画像并绑定 `userId`
+- [x] **[Doctor Management]** 新增医生弹窗增加“关联用户”字段并设为必填
+- [x] **[Doctor Management]** 关联用户列表仅展示 `DOCTOR` 角色用户（含前端兜底过滤）
+- [x] 验证：`SysUserControllerTest`、`DoctorControllerTest`、`medical-user-service` 打包、`medical-admin` 构建全部通过
+- **Phase 12 实际进度结论:** 上述子项均已完成，后续仅保留体验优化与字段命名统一收尾项

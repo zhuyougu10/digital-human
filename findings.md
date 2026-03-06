@@ -628,3 +628,9 @@ font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', -apple-system
 - [2026-03-05] In PowerShell heredoc commands, absolute paths containing Chinese characters can be mangled for Python `Path(...)`; running scripts with `workdir=D:\\project\\数字人` and relative paths (e.g. `medical-ai/docker/mysql/init.sql`) avoids `OSError: [Errno 22] Invalid argument`.
 - [2026-03-05] Current MySQL in `medical-mysql` rejects `ALTER TABLE ... ADD COLUMN IF NOT EXISTS ...` syntax (ERROR 1064); for compatibility, use plain `ADD COLUMN` after checking existing columns.
 - [2026-03-05] MySQL container init can still mis-handle Chinese seed inserts if connection charset is not forced at connect time; adding `--init-connect='SET NAMES utf8mb4'` to mysql service command in `docker-compose.yml` mitigates this at container initialization.
+- [2026-03-06] 用户管理角色分配弹窗原逻辑仅调用 `assignRole`，未处理取消勾选的角色；需按角色差集分别调用新增与移除接口，才能正确取消已有角色。
+- [2026-03-06] `user-service` 新增用户接口改为返回 `UserVO`（含新用户 `id`）后，前端可在同一事务链路里完成后续绑定动作（如医生画像初始化）。
+- [2026-03-06] 用户管理新增用户选择 `DOCTOR` 角色时，前端联动调用医生创建接口并传入 `userId`，可避免医生首次登录 `my-profile` 因无画像返回 `DOCTOR_NOT_FOUND`。
+- [2026-03-06] 医生管理“新增医生”应显式要求绑定用户（`userId` 必填），否则画像可能绑定到错误主体；新增“关联用户”下拉后可直接绑定账号。
+- [2026-03-06] 医生管理“关联用户”下拉需要仅展示 `DOCTOR` 角色用户（接口参数筛选 + 前端兜底过滤），可避免误绑定管理员/普通用户。
+- [2026-03-06] 当前医生管理表单字段仍存在 `description` 与后端 `introduction` 命名不一致的历史问题，后续应统一字段名以减少编辑回填偏差风险。

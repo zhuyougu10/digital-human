@@ -158,12 +158,16 @@ public class DoctorControllerTest {
         doNothing().when(doctorProfileService).create(any(DoctorProfileDTO.class));
 
         DoctorProfileDTO dto = new DoctorProfileDTO();
+        dto.setUserId(101L);
         dto.setName("Dr. New");
 
         mockMvc.perform(post("/doctor")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isOk());
+
+        verify(doctorProfileService).create(argThat(arg ->
+                arg != null && arg.getUserId() != null && arg.getUserId().equals(101L)));
     }
 
     @Test
