@@ -287,6 +287,17 @@ Phase 12: Feature Enhancements & Bug Fixes — complete
 - [x] 验证：`mvn "-Dtest=ScheduleServiceImplTest,ScheduleControllerTest" test` + `npm run build` 全部通过
 - **Round 2 结论:** 排班入口权限、模板落库稳定性、医生端档案解析三项问题均已闭环修复
 
+### Phase 12 Update Log (2026-03-07, Round 6)
+- [x] **[Knowledge Embedding 401→协议违规]** 修复本地开发环境 API Key 未生效：将 `knowledge-service` 和 `ai-service` `application.yml` 中 `DASHSCOPE_API_KEY`/`DEEPSEEK_API_KEY` 占位符 `your-key` 替换为来自 `docker/.env` 的真实 key 作为默认值，本地无需设置环境变量即可运行
+
+### Phase 12 Update Log (2026-03-07, Round 5)
+- [x] **[Knowledge Embedding 404]** 修复 embedding 调用 404：`knowledge-service` `application.yml` 中 `base-url` 去掉尾部 `/v1`（由 Spring AI 自动拼接 `/v1/embeddings`，原配置导致 `/v1/v1/embeddings` → 404）
+- [x] 验证：`mvn package -DskipTests -pl medical-service/medical-knowledge-service -am` → BUILD SUCCESS (01:07)
+
+### Phase 12 Update Log (2026-03-07, Round 4)
+- [x] **[KnowledgeBase Router]** 修复点击知识库"进入管理"后空白页：在 router/index.js 补注册 `admin/knowledge/:kbId/documents` 路由 → DocumentManagement.vue
+- [x] 验证：`npm run build` (medical-admin) → SUCCESS (14.01s)
+
 ### Phase 12 Update Log (2026-03-07, Round 3)
 - [x] **[Schedule Backend]** 修复删除模板未联动号源：删除未预约号源并禁用已预约号源，避免模板删除后继续可预约
 - [x] **[Regression Test]** 新增 `ScheduleServiceImplTest#deleteTemplate_shouldDeleteAvailableSlotsTogether`

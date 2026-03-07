@@ -27,7 +27,7 @@ spring:
       password: ${REDIS_PASSWORD:}
   ai:
     openai:
-      api-key: ${DEEPSEEK_API_KEY:your-key}
+      api-key: ${DEEPSEEK_API_KEY:your-deepseek-key}
       base-url: https://api.deepseek.com
 
 mybatis-plus:
@@ -37,11 +37,11 @@ mybatis-plus:
 
 ai:
   deepseek:
-    api-key: ${DEEPSEEK_API_KEY:your-key}
+    api-key: ${DEEPSEEK_API_KEY:your-deepseek-key}
     base-url: https://api.deepseek.com
     model: deepseek-chat
   qwen:
-    api-key: ${DASHSCOPE_API_KEY:your-key}
+    api-key: ${DASHSCOPE_API_KEY:your-dashscope-key}
     base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
     model: qwen-plus
 

@@ -242,3 +242,39 @@
 |-------|---------|------------|
 | `deleteTemplate` 新增联动后首次测试失败（未调用 `scheduleSlotMapper.delete`） | 1 | 按测试补齐模板删除前查询与号源联动逻辑 |
 | 使用 `LambdaUpdateWrapper` 在单测环境触发 lambda cache 异常 | 1 | 改为 `UpdateWrapper` + 显式列名更新状态 |
+
+## Session: 2026-03-07 (Admin Knowledge Route Fix - Document Management Blank Page)
+
+### Actions Completed
+- Fixed admin knowledge-to-document navigation route mismatch in frontend router.
+- Updated `DocumentManagement` route path from static `admin/documents` to dynamic `admin/knowledge/:kbId/documents` to match `KnowledgeBase.vue` navigation.
+- Verified `DocumentManagement.vue` parameter consumption remains unchanged (`route.params.kbId`).
+
+### Files Modified
+- `medical-admin/src/router/index.js`: updated `DocumentManagement` route path to `admin/knowledge/:kbId/documents`.
+
+### Verification
+- `npm run build` (`medical-admin`) => SUCCESS (via `npm.cmd run build`).
+
+### Errors Encountered / Resolution
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| PowerShell blocked `npm` script (`npm.ps1` execution policy) | 1 | Switched command to `npm.cmd run build`. |
+| Vite/esbuild `spawn EPERM` under sandbox during build | 1 | Re-ran `npm.cmd run build` with escalated permissions; build succeeded. |
+
+## Session: 2026-03-07 (Knowledge Service Embedding 404 Fix)
+
+### Actions Completed
+- Updated DashScope OpenAI compatible `base-url` in knowledge service config to remove trailing `/v1`.
+- File changed: `medical-ai/medical-service/medical-knowledge-service/src/main/resources/application.yml`
+- Change: `https://dashscope.aliyuncs.com/compatible-mode/v1` -> `https://dashscope.aliyuncs.com/compatible-mode`
+
+### Verification Attempt
+- Intended command: `mvn package -DskipTests` in `medical-ai`.
+- Build verification failed in current shell due missing Maven executable in PATH.
+
+### Errors Encountered / Resolution
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| `mvn` command not found (`CommandNotFoundException`) | 1 | Retried with `mvn.cmd package -DskipTests`. |
+| `mvn.cmd` command not found (`CommandNotFoundException`) | 2 | Confirmed no `mvnw/mvnw.cmd` wrapper in repo; environment lacks callable Maven binary in PATH, so build could not be executed in this session. |

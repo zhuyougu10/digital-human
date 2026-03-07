@@ -28,8 +28,8 @@ spring:
       password: ${REDIS_PASSWORD:}
   ai:
     openai:
-      api-key: ${DASHSCOPE_API_KEY:your-key}
-      base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+      api-key: ${DASHSCOPE_API_KEY:your-dashscope-key}
+      base-url: https://dashscope.aliyuncs.com/compatible-mode
       embedding:
         model: text-embedding-v3
 

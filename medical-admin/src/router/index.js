@@ -46,7 +46,7 @@ const routes = [
         meta: { title: '知识库管理', requiresRole: 'ADMIN' }
       },
       {
-        path: 'admin/documents',
+        path: 'admin/knowledge/:kbId/documents',
         name: 'DocumentManagement',
         component: () => import('@/views/admin/DocumentManagement.vue'),
         meta: { title: '文档管理', requiresRole: 'ADMIN' }
