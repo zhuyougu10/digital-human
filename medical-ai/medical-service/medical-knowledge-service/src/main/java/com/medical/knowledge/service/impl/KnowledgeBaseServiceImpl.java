@@ -134,7 +134,9 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
 
         try {
             Files.createDirectories(dir);
-            file.transferTo(target.toFile());
+            try (var in = file.getInputStream()) {
+                Files.copy(in, target, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.FAIL, "Save file failed: " + e.getMessage());
         }
@@ -362,6 +364,20 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
                 new Page<>(pageNum, pageSize),
                 new LambdaQueryWrapper<KnowledgeChunk>()
                         .eq(KnowledgeChunk::getDocId, docId)
+                        .orderByAsc(KnowledgeChunk::getChunkIndex));
+        List<KnowledgeChunkVO> records = page.getRecords().stream().map(this::toKnowledgeChunkVO).toList();
+        return PageResult.of(records, page.getTotal(), (int) page.getCurrent(), (int) page.getSize());
+    }
+
+    @Override
+    public PageResult<KnowledgeChunkVO> listManualChunks(Long kbId, PageQuery pageQuery) {
+        int pageNum = pageQuery == null || pageQuery.getPageNum() == null ? 1 : pageQuery.getPageNum();
+        int pageSize = pageQuery == null || pageQuery.getPageSize() == null ? 10 : pageQuery.getPageSize();
+        Page<KnowledgeChunk> page = knowledgeChunkMapper.selectPage(
+                new Page<>(pageNum, pageSize),
+                new LambdaQueryWrapper<KnowledgeChunk>()
+                        .eq(KnowledgeChunk::getKbId, kbId)
+                        .eq(KnowledgeChunk::getDocId, 0L)
                         .orderByAsc(KnowledgeChunk::getChunkIndex));
         List<KnowledgeChunkVO> records = page.getRecords().stream().map(this::toKnowledgeChunkVO).toList();
         return PageResult.of(records, page.getTotal(), (int) page.getCurrent(), (int) page.getSize());

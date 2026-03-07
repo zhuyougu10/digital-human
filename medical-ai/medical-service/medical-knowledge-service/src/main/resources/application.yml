@@ -43,6 +43,9 @@ milvus:
   host: ${MILVUS_HOST:localhost}
   port: ${MILVUS_PORT:19530}
 
+knowledge:
+  upload-path: ${UPLOAD_PATH:D:/project/数字人/uploads}
+
 sa-token:
   token-name: Authorization
   token-prefix: Bearer

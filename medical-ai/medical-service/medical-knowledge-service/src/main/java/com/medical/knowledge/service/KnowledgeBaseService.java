@@ -31,4 +31,6 @@ public interface KnowledgeBaseService {
     Long addManualChunk(ChunkManualDTO dto);
 
     PageResult<KnowledgeChunkVO> listChunks(Long docId, PageQuery pageQuery);
+
+    PageResult<KnowledgeChunkVO> listManualChunks(Long kbId, PageQuery pageQuery);
 }

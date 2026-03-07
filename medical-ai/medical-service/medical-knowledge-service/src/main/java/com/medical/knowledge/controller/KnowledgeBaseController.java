@@ -103,6 +103,11 @@ public class KnowledgeBaseController {
         return R.ok(knowledgeBaseService.listChunks(docId, pageQuery));
     }
 
+    @GetMapping("/{kbId}/manual-chunks")
+    public R<PageResult<KnowledgeChunkVO>> listManualChunks(@PathVariable Long kbId, PageQuery pageQuery) {
+        return R.ok(knowledgeBaseService.listManualChunks(kbId, pageQuery));
+    }
+
     @SaCheckRole("ADMIN")
     @PostMapping("/{kbId}/chunk")
     public R<Long> addManualChunk(@PathVariable Long kbId, @RequestBody ChunkManualDTO dto) {

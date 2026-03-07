@@ -12,6 +12,7 @@
           </div>
           <div class="right-panel">
             <el-button type="success" icon="Plus" @click="addChunkDialog.visible = true">添加知识条目</el-button>
+            <el-button @click="openManualChunkDrawer">查看手动条目</el-button>
             <el-button type="primary" icon="Upload" @click="uploadDialog.visible = true">上传文档</el-button>
           </div>
         </div>
@@ -46,7 +47,7 @@
         <el-table-column prop="parseStatus" label="状态" width="120" align="center">
           <template #default="{ row }">
             <el-tag :type="getStatusType(row.parseStatus)" effect="light" round>
-              {{ row.parseStatus }}
+              {{ getStatusLabel(row.parseStatus) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -152,6 +153,23 @@
         <el-empty v-if="!loadingChunks && chunks.length === 0" description="暂无分块信息" />
       </div>
     </el-drawer>
+
+    <el-drawer v-model="manualChunkDrawer.visible" title="手动添加的知识条目" size="60%">
+      <div v-loading="manualChunkDrawer.loading">
+        <el-empty v-if="!manualChunks.length" description="暂无手动添加的知识条目" />
+        <el-card
+          v-for="chunk in manualChunks"
+          :key="chunk.id"
+          style="margin-bottom: 12px;"
+        >
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <span style="font-weight:600; color:var(--text-secondary);">条目 #{{ chunk.chunkIndex + 1 }}</span>
+            <el-button type="danger" size="small" text @click="handleDeleteManualChunk(chunk)">删除</el-button>
+          </div>
+          <div style="white-space: pre-wrap; color: var(--text-primary); font-size: 14px; line-height: 1.6;">{{ chunk.content }}</div>
+        </el-card>
+      </div>
+    </el-drawer>
   </div>
 </template>
 
@@ -164,7 +182,8 @@ import {
   deleteDocument, 
   getChunkList, 
   addManualChunk, 
-  deleteChunk 
+  deleteChunk,
+  getManualChunkList
 } from '@/api/knowledge'
 import { UploadFilled, ArrowLeft, Plus, Upload, View, Delete, Document } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -207,6 +226,8 @@ const chunkDrawer = reactive({
 })
 const loadingChunks = ref(false)
 const chunks = ref([])
+const manualChunkDrawer = reactive({ visible: false, loading: false })
+const manualChunks = ref([])
 
 const fetchDocs = async () => {
   loadingDocs.value = true
@@ -270,6 +291,23 @@ const viewChunks = async (row) => {
   }
 }
 
+const loadManualChunks = async () => {
+  manualChunkDrawer.loading = true
+  try {
+    const res = await getManualChunkList(kbId, { pageNum: 1, pageSize: 100 })
+    manualChunks.value = res.data.records || []
+  } catch (error) {
+    console.error('Failed to fetch manual chunks:', error)
+  } finally {
+    manualChunkDrawer.loading = false
+  }
+}
+
+const openManualChunkDrawer = () => {
+  manualChunkDrawer.visible = true
+  loadManualChunks()
+}
+
 const handleAddChunk = async () => {
   if (!chunkFormRef.value) return
   await chunkFormRef.value.validate(async (valid) => {
@@ -281,6 +319,7 @@ const handleAddChunk = async () => {
         addChunkDialog.visible = false
         addChunkDialog.form = { title: '', content: '' }
         fetchDocs()
+        openManualChunkDrawer()
       } catch (error) {
         console.error('Failed to add chunk:', error)
       } finally {
@@ -297,6 +336,18 @@ const handleDeleteChunk = async (chunk) => {
     ElMessage.success('删除成功')
     const index = chunks.value.findIndex(c => c.id === chunk.id)
     chunks.value.splice(index, 1)
+  } catch (error) {
+    if (error !== 'cancel') console.error('Failed to delete chunk:', error)
+  }
+}
+
+const handleDeleteManualChunk = async (chunk) => {
+  try {
+    await ElMessageBox.confirm('确定要删除这个手动条目吗？', '提示', { type: 'warning' })
+    await deleteChunk(chunk.id)
+    ElMessage.success('删除成功')
+    const index = manualChunks.value.findIndex(c => c.id === chunk.id)
+    manualChunks.value.splice(index, 1)
   } catch (error) {
     if (error !== 'cancel') console.error('Failed to delete chunk:', error)
   }
@@ -322,6 +373,20 @@ const getStatusType = (status) => {
     'FAILED': 'danger'
   }
   return map[status] || 'info'
+}
+
+const getStatusLabel = (status) => {
+  const map = {
+    0: '待解析',
+    1: '解析中',
+    2: '解析成功',
+    3: '解析失败',
+    'PENDING': '待解析',
+    'PARSING': '解析中',
+    'SUCCESS': '解析成功',
+    'FAILED': '解析失败'
+  }
+  return map[status] ?? String(status)
 }
 
 onMounted(() => {

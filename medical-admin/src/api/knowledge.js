@@ -125,3 +125,11 @@ export function searchKnowledge(data) {
     data
   })
 }
+
+export function getManualChunkList(kbId, params) {
+  return service({
+    url: `/api/knowledge/kb/${kbId}/manual-chunks`,
+    method: 'get',
+    params
+  })
+}
