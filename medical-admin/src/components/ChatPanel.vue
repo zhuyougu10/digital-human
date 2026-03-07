@@ -119,8 +119,14 @@ import {
 } from '@/api/chat'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import dayjs from 'dayjs'
+import { marked } from 'marked'
 // Assets
 // import aiAvatarImg from '@/assets/ai-avatar.png' 
+
+marked.setOptions({
+  breaks: true,
+  gfm: true
+})
 
 const props = defineProps({
   sessionType: {
@@ -334,31 +340,15 @@ const scrollToBottom = () => {
 
 const renderMarkdown = (content) => {
   if (!content) return ''
-  // Basic markdown rendering
-  let html = content
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    
-  // Code blocks
-  html = html.replace(/```(\w*)([\s\S]*?)```/g, '<pre><code class="language-$1">$2</code></pre>')
-  
-  // Inline code
-  html = html.replace(/`([^`]+)`/g, '<code>$1</code>')
-  
-  // Bold
-  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-  
-  // Lists
-  html = html.replace(/^\s*-\s+(.*)$/gm, '<li>$1</li>')
-  html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>') // Very naive list wrapping
-  
-  // Line breaks (convert \n to <br> but preserve pre blocks)
-  // This is tricky with regex only. 
-  // Simplified: just replace \n with <br> if not in pre
-  html = html.replace(/\n/g, '<br/>')
-  
-  return html
+  try {
+    return marked.parse(content)
+  } catch (e) {
+    return content
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\n/g, '<br/>')
+  }
 }
 
 onMounted(() => {
@@ -639,27 +629,155 @@ watch(() => props.sessionType, () => {
   color: var(--text-placeholder);
 }
 
-/* Markdown Styles */
+/* ===== Markdown Body 完整样式 ===== */
+.markdown-body {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-primary);
+  word-wrap: break-word;
+}
+
+/* 标题 */
+.markdown-body :deep(h1),
+.markdown-body :deep(h2),
+.markdown-body :deep(h3),
+.markdown-body :deep(h4),
+.markdown-body :deep(h5),
+.markdown-body :deep(h6) {
+  margin: 14px 0 8px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text-primary);
+}
+.markdown-body :deep(h1) { font-size: 1.4em; border-bottom: 1px solid var(--border-color-light); padding-bottom: 6px; }
+.markdown-body :deep(h2) { font-size: 1.2em; border-bottom: 1px solid var(--border-color-light); padding-bottom: 4px; }
+.markdown-body :deep(h3) { font-size: 1.05em; }
+.markdown-body :deep(h4),
+.markdown-body :deep(h5),
+.markdown-body :deep(h6) { font-size: 1em; }
+
+/* 段落 */
 .markdown-body :deep(p) {
-  margin: 0 0 8px;
+  margin: 6px 0;
 }
 .markdown-body :deep(p:last-child) {
-  margin: 0;
+  margin-bottom: 0;
 }
+
+/* 列表 */
+.markdown-body :deep(ul),
+.markdown-body :deep(ol) {
+  margin: 6px 0;
+  padding-left: 20px;
+}
+.markdown-body :deep(li) {
+  margin: 3px 0;
+  line-height: 1.6;
+}
+.markdown-body :deep(ul > li) {
+  list-style-type: disc;
+}
+.markdown-body :deep(ol > li) {
+  list-style-type: decimal;
+}
+.markdown-body :deep(li > ul),
+.markdown-body :deep(li > ol) {
+  margin: 2px 0;
+}
+
+/* 代码块 */
 .markdown-body :deep(pre) {
   background: #f6f8fa;
-  padding: 12px;
+  padding: 12px 16px;
   border-radius: 6px;
   overflow-x: auto;
-  margin: 8px 0;
+  margin: 10px 0;
+  border: 1px solid var(--border-color-light);
 }
+.markdown-body :deep(pre code) {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  font-size: 13px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  color: #24292e;
+}
+
+/* 行内代码 */
 .markdown-body :deep(code) {
-  background: rgba(0, 0, 0, 0.05);
-  padding: 2px 4px;
+  background: rgba(0, 0, 0, 0.06);
+  padding: 2px 5px;
   border-radius: 4px;
-  font-family: monospace;
+  font-size: 13px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  color: #d63384;
 }
+
+/* 引用块 */
+.markdown-body :deep(blockquote) {
+  margin: 8px 0;
+  padding: 8px 14px;
+  border-left: 3px solid #1677ff;
+  background: #f0f7ff;
+  border-radius: 0 6px 6px 0;
+  color: var(--text-secondary);
+}
+.markdown-body :deep(blockquote p) {
+  margin: 0;
+}
+
+/* 分割线 */
+.markdown-body :deep(hr) {
+  border: none;
+  border-top: 1px solid var(--border-color-light);
+  margin: 12px 0;
+}
+
+/* 粗体 / 斜体 */
+.markdown-body :deep(strong) {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.markdown-body :deep(em) {
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+/* 表格 */
+.markdown-body :deep(table) {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 10px 0;
+  font-size: 13px;
+}
+.markdown-body :deep(th),
+.markdown-body :deep(td) {
+  border: 1px solid var(--border-color);
+  padding: 6px 12px;
+  text-align: left;
+}
+.markdown-body :deep(th) {
+  background: #f5f7fa;
+  font-weight: 600;
+}
+.markdown-body :deep(tr:nth-child(even) td) {
+  background: #fafafa;
+}
+
+/* 用户消息气泡内的 markdown 样式适配（白色文字） */
 .user .markdown-body :deep(code) {
   background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+.user .markdown-body :deep(h1),
+.user .markdown-body :deep(h2),
+.user .markdown-body :deep(h3),
+.user .markdown-body :deep(strong) {
+  color: #fff;
+}
+.user .markdown-body :deep(blockquote) {
+  border-left-color: rgba(255,255,255,0.5);
+  background: rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.85);
 }
 </style>
