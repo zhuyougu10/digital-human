@@ -31,8 +31,8 @@ mybatis-plus:
 
 wx:
   miniapp:
-    appid: ${WX_APPID:your-appid}
-    secret: ${WX_SECRET:your-secret}
+    appid: ${WX_APPID:abcdefg}
+    secret: ${WX_SECRET:abcdefg}
 
 sa-token:
   token-name: Authorization
