@@ -10,6 +10,12 @@ const routes = [
     meta: { title: '登录' }
   },
   {
+    path: '/encyclopedia',
+    name: 'Encyclopedia',
+    component: () => import('@/views/doctor/EncyclopediaPage.vue'),
+    meta: { title: '医学百科助手', requiresRole: 'DOCTOR' }
+  },
+  {
     path: '/',
     component: () => import('@/components/Layout/AppLayout.vue'),
     redirect: '/dashboard',
@@ -92,7 +98,7 @@ const routes = [
         path: 'doctor/appointments',
         name: 'DoctorAppointments',
         component: () => import('@/views/doctor/Appointments.vue'),
-        meta: { title: '预约患者', requiresRole: 'DOCTOR' }
+        meta: { title: '我的预约', requiresRole: 'DOCTOR' }
       },
       {
         path: 'doctor/patient-summary/:id?',
@@ -117,7 +123,7 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
   const userStore = useUserStore()
-  
+
   if (to.path === '/login') {
     if (userStore.isLogin) {
       next('/')

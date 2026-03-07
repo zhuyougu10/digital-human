@@ -69,12 +69,17 @@
           </el-menu-item>
           <el-menu-item index="/doctor/appointments">
             <el-icon><List /></el-icon>
-            <span>预约患者</span>
+            <span>我的预约</span>
           </el-menu-item>
-          <el-menu-item index="/doctor/assistant">
+          <li
+            class="custom-menu-item"
+            :class="{ collapsed: appStore.sidebarCollapsed }"
+            :title="appStore.sidebarCollapsed ? '百科助手' : ''"
+            @click="openEncyclopedia"
+          >
             <el-icon><Help /></el-icon>
-            <span>百科助手</span>
-          </el-menu-item>
+            <span v-if="!appStore.sidebarCollapsed">百科助手 ↗</span>
+          </li>
         </template>
       </el-menu>
     </el-scrollbar>
@@ -91,13 +96,27 @@ import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useAppStore } from '@/stores/app'
 import {
-  DataBoard, User, OfficeBuilding, Avatar, Calendar, 
-  Reading, ChatDotRound, Setting, Postcard, Watch, List, Help
+  DataBoard,
+  User,
+  OfficeBuilding,
+  Avatar,
+  Calendar,
+  Reading,
+  ChatDotRound,
+  Setting,
+  Postcard,
+  Watch,
+  List,
+  Help
 } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const userStore = useUserStore()
 const appStore = useAppStore()
+
+const openEncyclopedia = () => {
+  window.open('/encyclopedia', '_blank')
+}
 
 const activeMenu = computed(() => {
   const { path } = route
@@ -180,6 +199,32 @@ const activeMenu = computed(() => {
   font-size: 18px;
 }
 
+.custom-menu-item {
+  height: 50px;
+  line-height: 50px;
+  margin: 4px 12px;
+  border-radius: var(--radius-sm);
+  width: auto;
+  display: flex;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.65);
+  list-style: none;
+  cursor: pointer;
+  padding: 0 20px;
+  box-sizing: border-box;
+  transition: all 0.3s;
+}
+
+.custom-menu-item:hover {
+  background-color: var(--sidebar-item-hover);
+  color: #FFFFFF;
+}
+
+.custom-menu-item .el-icon {
+  margin-right: 12px;
+  font-size: 18px;
+}
+
 /* Collapse behavior */
 .el-menu--collapse :deep(.el-menu-item) {
   margin: 4px 12px;
@@ -189,6 +234,16 @@ const activeMenu = computed(() => {
 }
 
 .el-menu--collapse :deep(.el-menu-item .el-icon) {
+  margin: 0;
+}
+
+.custom-menu-item.collapsed {
+  margin: 4px 12px;
+  padding: 0;
+  justify-content: center;
+}
+
+.custom-menu-item.collapsed .el-icon {
   margin: 0;
 }
 
