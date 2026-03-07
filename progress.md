@@ -325,3 +325,46 @@
 |-------|---------|------------|
 | `mvn.cmd` command not found (`CommandNotFoundException`) | 1 | Tried fallback `mvn package ...` in same directory. |
 | `mvn` command not found (`CommandNotFoundException`) | 2 | Environment has no callable Maven binary in PATH in this session; build verification cannot be executed here. |
+
+## Session: 2026-03-07 (RAG kbId=null Cross-KB Search Fix)
+
+### Actions Completed
+- Updated `KnowledgeBaseServiceImpl.search(Long kbId, String query, Integer topK)` to support `kbId == null` by searching across all knowledge bases.
+- Kept original single-KB behavior for `kbId != null` via extracted `searchSingleKb(...)`.
+- Extracted shared vector-hit to VO mapping logic into `resolveSearchResults(...)`.
+- Ensured cross-KB mode computes embedding only once (`embeddingService.embed(query)`), then reuses query vector for each KB collection search.
+- Added global result merge/sort by `score` descending with null-safe score handling, and returns top `k`.
+- Build verification passed: `mvn package -DskipTests -pl medical-service/medical-knowledge-service -am` => BUILD SUCCESS.
+
+### Errors Encountered / Resolution
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| `Start-Process` failed because stdout/stderr redirected to same file | 1 | Split redirects to separate `knowledge-service-out.log` and `knowledge-service-err.log`. |
+| `/kb/inner/search` still returned `KNOWLEDGE_BASE_NOT_FOUND` after code patch | 1 | Confirmed running process was old IntelliJ-launched `KnowledgeServiceApplication`; restart was required. |
+| New jar startup failed with `Port 8085 was already in use` | 1 | Identified environment conflict; end-to-end API verification requires stopping existing 8085 service instance first, then launching rebuilt jar. |
+
+## Session: 2026-03-07 (百科助手全屏页 + Sidebar 折叠修复 + 中文乱码清理)
+
+### Actions Completed
+- **[百科助手全屏页]** Codex 新建 `EncyclopediaPage.vue`：无 AppLayout 的独立全屏页，蓝色渐变 header + ChatPanel(ENCYCLOPEDIA) + 关闭按钮
+- **[路由]** 新增 `/encyclopedia` 顶层路由（layout children 之外），`requiresAuth: DOCTOR`；新标签页登录态通过 localStorage 持久化正确恢复（已验证）
+- **[Sidebar 折叠修复]** 将 `<div>` 包裹假 `el-menu-item`（pointer-events:none）替换为自定义 `<li class="custom-menu-item">`；折叠时 v-if 隐藏文字、title 提供 native tooltip，CSS 与 el-menu-item 完全对齐
+- **[乱码修复]** router/index.js 14 处 meta.title GBK 乱码 → 正确中文；Sidebar.vue 全部菜单文字乱码修复；"Knowledge Base"→知识库管理，"Appointments"→我的预约；两文件 BOM 移除
+- **[Review 验证]** EncyclopediaPage :deep(.chat-container) selector 命中正确（ChatPanel.vue:2 root class 已确认）；user store token+userInfo 均持久化 localStorage，新标签页角色校验无问题
+
+### Files Modified
+- `medical-admin/src/views/doctor/EncyclopediaPage.vue`（新增）
+- `medical-admin/src/router/index.js`（新增路由 + 乱码修复）
+- `medical-admin/src/components/Layout/Sidebar.vue`（折叠修复 + 乱码修复）
+
+### Verification
+- `npm.cmd run build` (medical-admin) → BUILD SUCCESS
+
+### Commit
+- `5c85520` fix(frontend): 修复Sidebar百科助手折叠菜单行为并清理router/sidebar中文乱码
+
+### Errors Encountered / Resolution
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| CCB_CALLER 未设置导致 ask 命令报错 | 1 | 加 CCB_CALLER=claude 前缀 |
+| ask codex 同步阻塞超时 120s | 1 | 改为后台 & 异步派发 |

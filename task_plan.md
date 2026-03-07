@@ -252,6 +252,9 @@ Phase 12: Feature Enhancements & Bug Fixes — complete
 
 ### Phase 12: Feature Enhancements & Bug Fixes
 - [x] **[User Management]** Add "Create User" functionality (Backend API + Frontend Dialog)
+- [x] **[Encyclopedia]** 百科助手改为新标签页全屏打开（EncyclopediaPage.vue + /encyclopedia 路由）
+- [x] **[Sidebar]** 折叠模式 bug 修复（自定义 li 替换假 el-menu-item）
+- [x] **[Encoding]** router/index.js + Sidebar.vue 中文乱码全量修复 + BOM 移除
 - **Status:** complete
 
 ### Phase 11 Bug Fix Round 1 — 最终结果
@@ -309,6 +312,11 @@ Phase 12: Feature Enhancements & Bug Fixes — complete
   - 修复：`KnowledgeBaseServiceImpl` 改用 `Files.copy(file.getInputStream(), target, REPLACE_EXISTING)` 绕开 Tomcat 路径解析
   - 验证：`mvn package -DskipTests` → BUILD SUCCESS (22s)
 
+### Phase 12 Update Log (2026-03-07, Round 10)
+- [x] **[SSE 乱码修复]** ChatPanel.vue SSE 解析改用 \n\n 事件块缓冲，catch 块仅 warn 跳过不追加原始 JSON 片段；前端构建 SUCCESS
+- [x] **[KB 路由误判修复]** getKbProfileVector() 查询 KB 前10条 chunk 首行主题纳入 profile，路由准确率 6/6 全通过（高血压→内科✅ 脑梗→神经内科✅ 等）
+- [x] 提交：`3310c68` fix(frontend): SSE解析乱码；`6102124` fix(knowledge): KB路由profile增强
+
 ### Phase 12 Update Log (2026-03-07, Round 9)
 - [x] **[Knowledge Manual Chunk]** 修复「添加知识条目」后无法查看问题：
   - 根因1：手动chunk `docId=0L`，而查看接口按真实 docId 过滤，永远查不到
@@ -317,6 +325,15 @@ Phase 12: Feature Enhancements & Bug Fixes — complete
   - 修复：前端 knowledge.js 新增 `getManualChunkList`；DocumentManagement.vue 新增「查看手动条目」按钮 + 抽屉展示 + 添加成功后自动打开
   - 验证：`mvn package -DskipTests` (knowledge-service) → BUILD SUCCESS；`npm.cmd run build` → BUILD SUCCESS (17.48s)
 
+### Phase 12 Update Log (2026-03-07, Round 9)
+- [x] **[KB 智能路由]** 三阶段路由：① embedding余弦相似度匹配科室（路由阈值0.4）→ ② 精确检索（质量阈值0.5）→ ③ 兜底全库；KB profile向量懒加载缓存
+- [x] **[KB 智能路由验证]** 眼科/儿科精确路由（结果全来自对应科室）✅；高血压跨科室问题正确触发兜底 ✅；E2E：AI先检索KB再说明内容局限性，行为符合预期
+- [x] 提交：`05dcd4b` feat(knowledge): 知识库智能路由三阶段策略
+
+### Phase 12 Update Log (2026-03-07, Round 11)
+- [x] **[Markdown 渲染修复]** 引入 marked 库，renderMarkdown() 替换50行残缺手写正则，修复标题 # 号不渲染；新增完整 CSS：h1-h6/ul/ol/code/pre/blockquote/table/用户气泡适配
+- [x] 提交：`1c379a3` fix(frontend): 引入marked库替换手写正则，修复标题#号不渲染及整体排版问题
+
 ### Phase 12 Update Log (2026-03-07, Round 8)
 - [x] **[Knowledge Embedding model_not_found]** 修复 embedding 调用使用错误模型 `text-embedding-ada-002`：`application.yml` 中配置键名错误，`spring.ai.openai.embedding.model` 不被 Spring AI M5 识别，需改为 `spring.ai.openai.embedding.options.model: text-embedding-v3`
 
@@ -324,6 +341,16 @@ Phase 12: Feature Enhancements & Bug Fixes — complete
 - [x] **[Knowledge Embedding Jetty协议违规]** 根因：Tika 2.9.1 → hadoop → jetty-websocket-client → jetty-client 12.0.15，Spring Boot 自动选用 Jetty 作为 RestClient 底层，DashScope 401 响应不带 WWW-Authenticate 头导致 Jetty 协议违规崩溃
 - [x] 修复：在 `knowledge-service/pom.xml` 的 `tika-parsers-standard-package` 和 `milvus-sdk-java` 两处均排除 `org.eclipse.jetty:jetty-client` 和 `org.eclipse.jetty.websocket:websocket-client`
 - [x] 验证：`mvn dependency:tree -Dincludes=org.eclipse.jetty:jetty-client` 输出为空 + `mvn package -DskipTests` → BUILD SUCCESS
+
+### Phase 12 Update Log (2026-03-07, Round 8)
+- [x] **[RAG 验证]** 向量检索层：20 用例命中率 85%（17/20），平均相似度 0.7153，Milvus COSINE 检索正常
+- [x] **[RAG Bug 修复]** 发现并修复根本缺陷：`KnowledgeSearchTool` 无 `kbId` → `search(null,...)` 抛异常 → AI 退回通用知识；委托 Codex 修复 `KnowledgeBaseServiceImpl.search()`：kbId=null 时跨所有 KB 向量搜索并聚合排序
+- [x] **[RAG E2E 验证]** 修复后 AI 回答改为"根据知识库中的信息"，RAG 通路激活（高血压/儿童哮喘均通过）
+- [x] 提交：`b148328` fix(knowledge): kbId=null时跨所有知识库向量搜索，修复RAG空检索Bug
+
+### Phase 12 Update Log (2026-03-07, Round 7)
+- [x] **[Knowledge Seeding]** 委托 Codex 生成 `tests/seed_knowledge.py`：为 10 个科室知识库各导入 20 条结构化医学知识条目（共 200 条），全部 success=200, skipped=0
+- [x] 验证：`python tests/seed_knowledge.py` → `Summary: success=200, skipped=0, total=200`
 
 ### Phase 12 Update Log (2026-03-07, Round 6)
 - [x] **[Knowledge Embedding 401→协议违规]** 修复本地开发环境 API Key 未生效：将 `knowledge-service` 和 `ai-service` `application.yml` 中 `DASHSCOPE_API_KEY`/`DEEPSEEK_API_KEY` 占位符 `your-key` 替换为来自 `docker/.env` 的真实 key 作为默认值，本地无需设置环境变量即可运行
