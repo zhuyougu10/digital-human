@@ -48,6 +48,15 @@ public class EncyclopediaController {
             .map(msg -> ServerSentEvent.<SseMessageVO>builder()
                 .event(msg.getType())
                 .data(msg)
-                .build());
+                .build())
+            .onErrorResume(e -> {
+                SseMessageVO errorMsg = new SseMessageVO();
+                errorMsg.setType("error");
+                errorMsg.setContent("服务暂时不可用，请稍后重试");
+                return Flux.just(ServerSentEvent.<SseMessageVO>builder()
+                    .event("error")
+                    .data(errorMsg)
+                    .build());
+            });
     }
 }
