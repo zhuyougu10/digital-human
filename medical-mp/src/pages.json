@@ -1,16 +1,18 @@
 {
   "pages": [
     {
-      "path": "pages/index/index",
+      "path": "pages/login/login",
       "style": {
-        "navigationBarTitleText": "智能医疗助手"
+        "navigationBarTitleText": "登录",
+        "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/chat/chat",
       "style": {
         "navigationBarTitleText": "AI 问诊",
-        "disableScroll": true
+        "disableScroll": true,
+        "navigationStyle": "custom"
       }
     },
     {
@@ -51,16 +53,15 @@
     "backgroundColor": "#F8F8F8"
   },
   "tabBar": {
-    "color": "#7A7E83",
-    "selectedColor": "#4A90D9",
-    "borderStyle": "black",
+    "color": "#9CA3AF",
+    "selectedColor": "#2563EB",
+    "borderStyle": "white",
     "backgroundColor": "#ffffff",
     "list": [
       {
-        "pagePath": "pages/index/index",
-        "text": "首页"
-      },
-      {
+        "pagePath": "pages/chat/chat",
+        "text": "问诊"
+      },      {
         "pagePath": "pages/appointment/list",
         "text": "预约"
       },

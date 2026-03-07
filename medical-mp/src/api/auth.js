@@ -50,6 +50,6 @@ export const logout = async () => {
   uni.removeStorageSync('token')
   uni.removeStorageSync('userInfo')
   uni.reLaunch({
-    url: '/pages/index/index'
+    url: '/pages/login/login'
   })
 }

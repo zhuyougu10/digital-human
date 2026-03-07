@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_BASE || 'http://localhost:9090/api'
+const BASE_URL = import.meta.env.VITE_API_BASE || 'http://localhost:8080/api'
 
 const request = (options) => {
   return new Promise((resolve, reject) => {
@@ -38,7 +38,7 @@ const request = (options) => {
           })
           setTimeout(() => {
             uni.reLaunch({
-              url: '/pages/index/index'
+              url: '/pages/login/login'
             })
           }, 1500)
           reject(res)

@@ -1,3 +1,68 @@
+<template>
+  <view class="home-page">
+    <view class="home-header">
+      <view class="header-content">
+        <view class="user-info">
+          <image class="avatar" :src="userStore.userInfo.avatar || '/static/logo.png'" mode="aspectFill" />
+          <view class="welcome-text">
+            <text class="greeting">{{ greeting }}，{{ userStore.userInfo.nickname || '用户' }}</text>
+            <text class="subtitle">您的健康，我们时刻守护</text>
+          </view>
+        </view>
+        <view class="notice-bar">
+          <uni-icons type="notification" size="18" color="#FFFFFF"></uni-icons>
+          <text class="notice-text">今日挂号已开放，请及早预约</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="home-content">
+      <view class="main-card" @tap="startChat">
+        <view class="card-info">
+          <text class="card-title">AI 智能问诊</text>
+          <text class="card-desc">24小时在线 · 虚拟数字人 · 快速导诊</text>
+          <view class="card-tag">点击进入</view>
+        </view>
+        <view class="ai-avatar-preview">
+          <view class="avatar-glow"></view>
+          <text class="avatar-text">AI</text>
+        </view>
+      </view>
+
+      <view class="quick-grid">
+        <view v-for="item in quickActions" :key="item.id" class="grid-item" @tap="navigateTo(item.path)">
+          <view class="grid-icon">
+            <uni-icons :type="item.icon" size="28" color="#1E5AA8"></uni-icons>
+          </view>
+          <text class="grid-name">{{ item.name }}</text>
+        </view>
+      </view>
+
+      <view class="health-encyclopedia">
+        <view class="section-header">
+          <text class="section-title">健康科普</text>
+          <text class="section-more" @tap="showMore">更多 <uni-icons type="right" size="12" color="#9CA3AF"></uni-icons></text>
+        </view>
+        <view class="article-list">
+          <view class="article-item" v-for="i in 2" :key="i">
+            <view class="article-img-placeholder">
+              <uni-icons type="image" size="24" color="#D1D5DB"></uni-icons>
+            </view>
+            <view class="article-info">
+              <text class="article-title">春季过敏性鼻炎预防指南</text>
+              <text class="article-desc">春暖花开，过敏性鼻炎患者该如何做好防护措施？</text>
+              <view class="article-footer">
+                <text class="tag">健康防护</text>
+                <text class="time">2026-03-07</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
 <script setup>
 import { ref, onMounted } from 'vue'
 import { wxLogin, getUserInfo } from '@/api/auth'
@@ -6,32 +71,12 @@ import { useUserStore } from '@/stores/user'
 const userStore = useUserStore()
 const greeting = ref('你好')
 
-// 首页快捷入口（固定配置，无需后端动态化）
 const quickActions = [
-  { id: 1, name: '找医生', icon: 'hospital', path: '/pages/doctors/list' },
-  { id: 2, name: '我的预约', icon: 'calendar', path: '/pages/appointment/list' },
-  { id: 3, name: '健康科普', icon: 'book', path: '/pages/chat/chat' }
+  { id: 1, name: '找医生', icon: 'person-filled', path: '/pages/doctors/list' },
+  { id: 2, name: '我的预约', icon: 'calendar-filled', path: '/pages/appointment/list' },
+  { id: 3, name: '就诊助手', icon: 'info-filled', path: '/pages/chat/chat' },
+  { id: 4, name: '检查结果', icon: 'paperclip', path: '/pages/chat/chat' }
 ]
-
-const initAuth = async () => {
-  const token = uni.getStorageSync('token')
-  if (!token) {
-    try {
-      await wxLogin()
-      const info = await getUserInfo()
-      userStore.setUserInfo(info)
-    } catch (e) {
-      console.error('Login failed', e)
-    }
-  } else if (!userStore.userInfo.id) {
-    try {
-      const info = await getUserInfo()
-      userStore.setUserInfo(info)
-    } catch (e) {
-      console.error('Fetch user info failed', e)
-    }
-  }
-}
 
 const startChat = () => {
   uni.navigateTo({
@@ -43,70 +88,51 @@ const navigateTo = (path) => {
   uni.navigateTo({ url: path })
 }
 
+const showMore = () => {
+  uni.showToast({ title: '更多内容即将上线', icon: 'none' })
+}
+
 onMounted(() => {
   const hour = new Date().getHours()
   if (hour < 12) greeting.value = '早上好'
   else if (hour < 18) greeting.value = '下午好'
   else greeting.value = '晚上好'
-  
-  initAuth()
 })
 </script>
 
-<template>
-  <view class="container">
-    <view class="header">
-      <view class="user-info">
-        <image class="avatar" :src="userStore.userInfo.avatar || '/static/logo.png'" mode="aspectFill" />
-        <view class="welcome-text">
-          <text class="greeting">{{ greeting }}，{{ userStore.userInfo.nickname || '新用户' }}</text>
-          <text class="subtitle">今天有什么可以帮您的？</text>
-        </view>
-      </view>
-    </view>
-
-    <view class="main-action">
-      <view class="chat-card" @tap="startChat">
-        <view class="chat-info">
-          <text class="title">AI 智能问诊</text>
-          <text class="desc">专业导诊，为您推荐合适科室和医生</text>
-        </view>
-        <view class="btn-start">开始问诊</view>
-      </view>
-    </view>
-
-    <view class="quick-grid">
-      <view v-for="item in quickActions" :key="item.id" class="grid-item" @tap="navigateTo(item.path)">
-        <view class="icon-placeholder">{{ item.name[0] }}</view>
-        <text class="item-name">{{ item.name }}</text>
-      </view>
-    </view>
-  </view>
-</template>
-
-<style scoped>
-.container {
+<style scoped lang="scss">
+.home-page {
   min-height: 100vh;
-  background-color: #f5f7fa;
-  padding: 30rpx;
+  background: $uni-bg-color-grey;
+  display: flex;
+  flex-direction: column;
 }
 
-.header {
-  margin-top: 40rpx;
-  margin-bottom: 60rpx;
+.home-header {
+  height: 480rpx;
+  background: $bg-gradient;
+  padding: 88rpx 32rpx 32rpx;
+  border-bottom-left-radius: 40rpx;
+  border-bottom-right-radius: 40rpx;
+}
+
+.header-content {
+  display: flex;
+  flex-direction: column;
+  gap: 32rpx;
 }
 
 .user-info {
   display: flex;
   align-items: center;
+  gap: 24rpx;
 }
 
 .avatar {
   width: 100rpx;
   height: 100rpx;
   border-radius: 50%;
-  background-color: #eee;
-  margin-right: 20rpx;
+  border: 4rpx solid rgba(255, 255, 255, 0.4);
 }
 
 .welcome-text {
@@ -116,89 +142,223 @@ onMounted(() => {
 
 .greeting {
   font-size: 36rpx;
-  font-weight: bold;
-  color: #333;
+  font-weight: 700;
+  color: #FFFFFF;
 }
 
 .subtitle {
   font-size: 24rpx;
-  color: #666;
-  margin-top: 8rpx;
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 4rpx;
 }
 
-.main-action {
-  margin-bottom: 40rpx;
+.notice-bar {
+  height: 72rpx;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 36rpx;
+  display: flex;
+  align-items: center;
+  padding: 0 24rpx;
+  gap: 16rpx;
 }
 
-.chat-card {
-  background: linear-gradient(135deg, #4A90D9 0%, #357ABD 100%);
-  border-radius: 20rpx;
+.notice-text {
+  font-size: 26rpx;
+  color: #FFFFFF;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.home-content {
+  margin-top: -80rpx;
+  padding: 0 32rpx 40rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 32rpx;
+}
+
+.main-card {
+  height: 240rpx;
+  background: #FFFFFF;
+  border-radius: 32rpx;
   padding: 40rpx;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  color: white;
-  box-shadow: 0 10rpx 20rpx rgba(74, 144, 217, 0.3);
+  box-shadow: 0 16rpx 32rpx rgba(0, 0, 0, 0.05);
 }
 
-.chat-info {
-  flex: 1;
-}
-
-.title {
-  font-size: 36rpx;
-  font-weight: bold;
-  display: block;
-}
-
-.desc {
-  font-size: 24rpx;
-  opacity: 0.9;
-  margin-top: 10rpx;
-  display: block;
-}
-
-.btn-start {
-  background-color: white;
-  color: #4A90D9;
-  padding: 16rpx 32rpx;
-  border-radius: 40rpx;
-  font-size: 28rpx;
-  font-weight: bold;
-}
-
-.quick-grid {
-  display: flex;
-  justify-content: space-between;
-}
-
-.grid-item {
-  flex: 1;
-  background-color: white;
-  border-radius: 20rpx;
-  padding: 30rpx;
-  margin: 0 10rpx;
+.card-info {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  box-shadow: 0 4rpx 10rpx rgba(0, 0, 0, 0.05);
+  gap: 12rpx;
 }
 
-.icon-placeholder {
-  width: 80rpx;
-  height: 80rpx;
-  background-color: #eef5fd;
+.card-title {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #1E5AA8;
+}
+
+.card-desc {
+  font-size: 24rpx;
+  color: #6B7280;
+}
+
+.card-tag {
+  margin-top: 12rpx;
+  width: fit-content;
+  padding: 8rpx 24rpx;
+  background: #EFF6FF;
+  color: #1E5AA8;
+  font-size: 24rpx;
+  font-weight: 600;
   border-radius: 20rpx;
-  color: #4A90D9;
-  font-size: 36rpx;
+}
+
+.ai-avatar-preview {
+  width: 120rpx;
+  height: 120rpx;
+  background: $bg-gradient;
+  border-radius: 60rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 16rpx;
+  position: relative;
 }
 
-.item-name {
-  font-size: 26rpx;
-  color: #333;
+.avatar-glow {
+  position: absolute;
+  width: 140rpx;
+  height: 140rpx;
+  border: 2rpx solid #3B82F6;
+  border-radius: 70rpx;
+  opacity: 0.3;
+}
+
+.avatar-text {
+  font-size: 48rpx;
+  font-weight: bold;
+  color: #FFFFFF;
+}
+
+.quick-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20rpx;
+}
+
+.grid-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.grid-icon {
+  width: 100rpx;
+  height: 100rpx;
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8rpx 16rpx rgba(0, 0, 0, 0.03);
+}
+
+.grid-name {
+  font-size: 24rpx;
+  color: #4B5563;
+}
+
+.health-encyclopedia {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.section-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #1F2937;
+}
+
+.section-more {
+  font-size: 24rpx;
+  color: #9CA3AF;
+}
+
+.article-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.article-item {
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 24rpx;
+  display: flex;
+  gap: 24rpx;
+}
+
+.article-img-placeholder {
+  width: 180rpx;
+  height: 140rpx;
+  background: #F3F4F6;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.article-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.article-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1F2937;
+}
+
+.article-desc {
+  font-size: 24rpx;
+  color: #6B7280;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.article-footer {
+  margin-top: 8rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tag {
+  font-size: 20rpx;
+  color: #1E5AA8;
+  background: #EFF6FF;
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+}
+
+.time {
+  font-size: 20rpx;
+  color: #9CA3AF;
 }
 </style>

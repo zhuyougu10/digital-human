@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_BASE || 'http://localhost:9090/api'
+const BASE_URL = import.meta.env.VITE_API_BASE || 'http://localhost:8080/api'
 
 export const createSSERequest = (url, data, callbacks) => {
   const { onMessage, onComplete, onError } = callbacks
