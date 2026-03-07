@@ -25,6 +25,7 @@ import com.medical.knowledge.service.VectorStoreService;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -268,15 +269,50 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
 
     @Override
     public List<SearchResultVO> search(Long kbId, String query, Integer topK) {
-        KnowledgeBase kb = getKbEntity(kbId);
         if (query == null || query.isBlank()) {
+            return Collections.emptyList();
+        }
+        int k = topK == null || topK <= 0 ? 5 : topK;
+
+        if (kbId != null) {
+            return searchSingleKb(kbId, query, k);
+        }
+
+        List<KnowledgeBase> allKbs = knowledgeBaseMapper.selectList(new LambdaQueryWrapper<>());
+        if (allKbs.isEmpty()) {
             return Collections.emptyList();
         }
 
         float[] queryVector = embeddingService.embed(query);
-        int k = topK == null || topK <= 0 ? 5 : topK;
-        List<VectorData> vectorResults = vectorStoreService.search(kb.getCollectionName(), queryVector, k);
-        if (vectorResults.isEmpty()) {
+        List<SearchResultVO> allResults = new ArrayList<>();
+        for (KnowledgeBase kb : allKbs) {
+            if (kb == null || kb.getCollectionName() == null || kb.getCollectionName().isBlank()) {
+                continue;
+            }
+            try {
+                List<VectorData> vectorResults = vectorStoreService.search(kb.getCollectionName(), queryVector, k);
+                allResults.addAll(resolveSearchResults(vectorResults));
+            } catch (Exception e) {
+                log.warn("Skip KB[{}] search failed: {}", kb.getId(), e.getMessage());
+            }
+        }
+
+        allResults.sort(Comparator.comparingDouble(result -> {
+            Double score = result.getScore();
+            return score == null ? 0d : -score;
+        }));
+        return allResults.size() > k ? allResults.subList(0, k) : allResults;
+    }
+
+    private List<SearchResultVO> searchSingleKb(Long kbId, String query, int topK) {
+        KnowledgeBase kb = getKbEntity(kbId);
+        float[] queryVector = embeddingService.embed(query);
+        List<VectorData> vectorResults = vectorStoreService.search(kb.getCollectionName(), queryVector, topK);
+        return resolveSearchResults(vectorResults);
+    }
+
+    private List<SearchResultVO> resolveSearchResults(List<VectorData> vectorResults) {
+        if (vectorResults == null || vectorResults.isEmpty()) {
             return Collections.emptyList();
         }
 
