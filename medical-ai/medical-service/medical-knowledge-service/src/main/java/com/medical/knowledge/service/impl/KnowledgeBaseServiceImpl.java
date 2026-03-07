@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,6 +51,8 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
 
     private static final int DEFAULT_CHUNK_SIZE = 500;
     private static final int DEFAULT_CHUNK_OVERLAP = 50;
+    private static final double KB_ROUTE_THRESHOLD = 0.4d;
+    private static final double RESULT_QUALITY_THRESHOLD = 0.5d;
 
     private final KnowledgeBaseMapper knowledgeBaseMapper;
     private final KnowledgeDocumentMapper knowledgeDocumentMapper;
@@ -57,6 +60,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     private final VectorStoreService vectorStoreService;
     private final DocumentParseService documentParseService;
     private final EmbeddingService embeddingService;
+    private final Map<Long, float[]> kbProfileVectorCache = new ConcurrentHashMap<>();
     @Lazy
     @Autowired
     private KnowledgeBaseService self;
@@ -284,6 +288,25 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
         }
 
         float[] queryVector = embeddingService.embed(query);
+        KnowledgeBase matchedKb = findBestKb(allKbs, queryVector);
+        if (matchedKb != null) {
+            try {
+                List<VectorData> vectorResults = vectorStoreService.search(matchedKb.getCollectionName(), queryVector, k);
+                List<SearchResultVO> results = resolveSearchResults(vectorResults);
+                double maxScore = results.stream()
+                        .mapToDouble(result -> result.getScore() == null ? 0d : result.getScore())
+                        .max()
+                        .orElse(0d);
+                if (!results.isEmpty() && maxScore >= RESULT_QUALITY_THRESHOLD) {
+                    log.info("KB routing hit: KB[{}] maxScore={}", matchedKb.getId(), maxScore);
+                    return results;
+                }
+                log.info("KB routing result quality too low (maxScore={}), falling back to all-KB search", maxScore);
+            } catch (Exception e) {
+                log.warn("KB[{}] routed search failed: {}, falling back to all-KB search", matchedKb.getId(), e.getMessage());
+            }
+        }
+
         List<SearchResultVO> allResults = new ArrayList<>();
         for (KnowledgeBase kb : allKbs) {
             if (kb == null || kb.getCollectionName() == null || kb.getCollectionName().isBlank()) {
@@ -296,7 +319,6 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
                 log.warn("Skip KB[{}] search failed: {}", kb.getId(), e.getMessage());
             }
         }
-
         allResults.sort(Comparator.comparingDouble(result -> {
             Double score = result.getScore();
             return score == null ? 0d : -score;
@@ -350,6 +372,57 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
             results.add(vo);
         }
         return results;
+    }
+
+    private KnowledgeBase findBestKb(List<KnowledgeBase> allKbs, float[] queryVector) {
+        KnowledgeBase bestKb = null;
+        double bestScore = -1d;
+        for (KnowledgeBase kb : allKbs) {
+            if (kb == null || kb.getCollectionName() == null || kb.getCollectionName().isBlank()) {
+                continue;
+            }
+            try {
+                float[] profileVector = getKbProfileVector(kb);
+                double routingScore = cosineSimilarity(queryVector, profileVector);
+                log.debug("KB[{}] {} routing score={}", kb.getId(), kb.getName(), routingScore);
+                if (routingScore > bestScore) {
+                    bestScore = routingScore;
+                    bestKb = kb;
+                }
+            } catch (Exception e) {
+                log.warn("KB[{}] profile embedding failed: {}", kb.getId(), e.getMessage());
+            }
+        }
+
+        if (bestKb != null && bestScore >= KB_ROUTE_THRESHOLD) {
+            log.info("KB routing: matched KB[{}] {} score={}", bestKb.getId(), bestKb.getName(), bestScore);
+            return bestKb;
+        }
+        log.info("KB routing: no match (bestScore={} < threshold={}), will use all-KB search", bestScore, KB_ROUTE_THRESHOLD);
+        return null;
+    }
+
+    private float[] getKbProfileVector(KnowledgeBase kb) {
+        return kbProfileVectorCache.computeIfAbsent(kb.getId(), id -> {
+            String profile = kb.getName() + ". " + (kb.getDescription() == null ? "" : kb.getDescription());
+            return embeddingService.embed(profile);
+        });
+    }
+
+    private static double cosineSimilarity(float[] left, float[] right) {
+        if (left == null || right == null || left.length == 0 || right.length == 0 || left.length != right.length) {
+            return 0d;
+        }
+        double dot = 0d;
+        double normLeft = 0d;
+        double normRight = 0d;
+        for (int i = 0; i < left.length; i++) {
+            dot += left[i] * right[i];
+            normLeft += left[i] * left[i];
+            normRight += right[i] * right[i];
+        }
+        double denominator = Math.sqrt(normLeft) * Math.sqrt(normRight);
+        return denominator == 0d ? 0d : dot / denominator;
     }
 
     @Override
