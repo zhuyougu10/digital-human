@@ -185,12 +185,10 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public void deleteSession(Long sessionId) {
-        ChatSession session = sessionMapper.selectById(sessionId);
-        if (session == null) {
-            return;
-        }
-        session.setDeleted(1);
-        sessionMapper.updateById(session);
+        // 使用 MyBatis-Plus deleteById，@TableLogic 会自动将其转换为
+        // UPDATE chat_session SET deleted=1 WHERE id=? AND deleted=0
+        // 直接 setDeleted(1)+updateById 会因 @TableLogic 跳过该字段而无效
+        sessionMapper.deleteById(sessionId);
     }
 
     private List<Message> buildChatMessages(Long sessionId, Agent agent) {
