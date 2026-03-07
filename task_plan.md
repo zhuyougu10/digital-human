@@ -287,6 +287,36 @@ Phase 12: Feature Enhancements & Bug Fixes — complete
 - [x] 验证：`mvn "-Dtest=ScheduleServiceImplTest,ScheduleControllerTest" test` + `npm run build` 全部通过
 - **Round 2 结论:** 排班入口权限、模板落库稳定性、医生端档案解析三项问题均已闭环修复
 
+### Phase 12 Update Log (2026-03-07, Round 12)
+- [x] **[AI Tool Blocking]** 修复 `block()/blockFirst()/blockLast() are blocking in reactor-http-nio thread`：
+  - 根因：Spring AI M5 `handleToolCalls` 在 Reactor Netty I/O 线程上同步执行 tool callback；OpenFeign `BlockingLoadBalancerClient` 内部调用 `Mono.block()`，在 Netty I/O 线程禁止 blocking → `IllegalStateException`
+  - 修复：`ChatServiceImpl.chat()` 中 `chatModel.stream(prompt)` 后紧接 `.publishOn(Schedulers.boundedElastic())`，将整条 SSE 流（含 tool 执行）切换到可 blocking 的弹性线程池
+  - 修改文件：`ChatServiceImpl.java`（新增 `Schedulers` import + `.publishOn` 调用）
+  - 验证：`mvn package -DskipTests -pl medical-service/medical-ai-service -am` → BUILD SUCCESS (17s)
+
+### Phase 12 Update Log (2026-03-07, Round 11)
+- [x] **[AI Function Calling]** 修复 `No function callback found for name: searchKnowledge`：
+  - 根因：`AiModelConfig` 用 `new OpenAiChatModel(api, options)` 手动构造，未传入 `FunctionCallbackResolver`，模型无法感知 Spring 容器中注册的 `@Bean Function<>` callback
+  - Codex 初次修复使用了不存在的类 `FunctionCallbackContext`（M5 已改名为 `FunctionCallbackResolver`）
+  - OpenCode 通过 `javap` 反射实际 jar 确认正确构造器签名，修正为 `FunctionCallbackResolver`
+  - 修改文件：`AiModelConfig.java`（deepSeekChatModel + qwenChatModel 均注入 `FunctionCallbackResolver`）
+  - 验证：`mvn package -DskipTests -pl medical-service/medical-ai-service -am` → BUILD SUCCESS (15.9s)
+
+### Phase 12 Update Log (2026-03-07, Round 10)
+- [x] **[Knowledge Upload Path]** 修复本地运行文件上传报错 `FileNotFoundException ... Tomcat temp dir`：
+  - 根因：`application.yml` 无 `knowledge.upload-path` 配置，默认值 `/data/uploads` 在 Windows 被 Tomcat 解析为临时目录下的子路径
+  - 修复：`application.yml` 新增 `knowledge.upload-path: ${UPLOAD_PATH:D:/project/数字人/uploads}`
+  - 修复：`KnowledgeBaseServiceImpl` 改用 `Files.copy(file.getInputStream(), target, REPLACE_EXISTING)` 绕开 Tomcat 路径解析
+  - 验证：`mvn package -DskipTests` → BUILD SUCCESS (22s)
+
+### Phase 12 Update Log (2026-03-07, Round 9)
+- [x] **[Knowledge Manual Chunk]** 修复「添加知识条目」后无法查看问题：
+  - 根因1：手动chunk `docId=0L`，而查看接口按真实 docId 过滤，永远查不到
+  - 根因2：添加成功后前端无引导路径，没有手动条目的独立查看入口
+  - 修复：后端新增 `GET /kb/{kbId}/manual-chunks` 端点 + `listManualChunks` Service 方法
+  - 修复：前端 knowledge.js 新增 `getManualChunkList`；DocumentManagement.vue 新增「查看手动条目」按钮 + 抽屉展示 + 添加成功后自动打开
+  - 验证：`mvn package -DskipTests` (knowledge-service) → BUILD SUCCESS；`npm.cmd run build` → BUILD SUCCESS (17.48s)
+
 ### Phase 12 Update Log (2026-03-07, Round 8)
 - [x] **[Knowledge Embedding model_not_found]** 修复 embedding 调用使用错误模型 `text-embedding-ada-002`：`application.yml` 中配置键名错误，`spring.ai.openai.embedding.model` 不被 Spring AI M5 识别，需改为 `spring.ai.openai.embedding.options.model: text-embedding-v3`
 

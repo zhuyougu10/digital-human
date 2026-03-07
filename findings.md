@@ -645,3 +645,7 @@ font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', -apple-system
 ## 2026-03-07 Dependency Finding (Knowledge Service)
 - In this codebase, `org.eclipse.jetty:jetty-client` was still present after Tika exclusion because it is also pulled by `io.milvus:milvus-sdk-java -> org.apache.hadoop:hadoop-client -> hadoop-yarn-client -> org.eclipse.jetty.websocket:websocket-client -> jetty-client`.
 - Practical fix required excluding Jetty artifacts from both `tika-parsers-standard-package` and `milvus-sdk-java` in `medical-knowledge-service/pom.xml`.
+
+## 2026-03-07 Dependency Finding (AI Service)
+- `OpenAiChatModel` built with the 2-arg constructor (`new OpenAiChatModel(api, options)`) cannot resolve `withFunctions(...)` names from Spring container callbacks in Spring AI 1.0.0-M5.
+- Fix is to inject `FunctionCallbackContext` and use constructor `new OpenAiChatModel(api, options, functionCallbackContext, RetryTemplate.defaultInstance())` so tool names (e.g. `searchKnowledge`) map to registered callback beans.

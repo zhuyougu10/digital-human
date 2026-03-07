@@ -279,7 +279,26 @@
 | `mvn` command not found (`CommandNotFoundException`) | 1 | Retried with `mvn.cmd package -DskipTests`. |
 | `mvn.cmd` command not found (`CommandNotFoundException`) | 2 | Confirmed no `mvnw/mvnw.cmd` wrapper in repo; environment lacks callable Maven binary in PATH, so build could not be executed in this session. |
 
-## Session: 2026-03-07 (Knowledge Service Jetty Protocol Violation Fix)
+## Session: 2026-03-07 (Knowledge Service Upload Path Fix)
+
+### Actions Completed
+- 修复文件上传报错 `Save file failed: FileNotFoundException ... Tomcat temp dir`
+- 根因1：`application.yml` 缺少 `knowledge.upload-path` 配置，`@Value` 默认值 `/data/uploads` 在 Windows 不是合法绝对路径
+- 根因2：`file.transferTo(target.toFile())` 在 Spring 内嵌 Tomcat 下将相对路径拼到 Tomcat 临时工作目录（`C:\Users\...\AppData\Local\Temp\tomcat.xxx\...`），导致目录不存在报错
+
+### Files Modified
+- `medical-knowledge-service/src/main/resources/application.yml`：新增 `knowledge.upload-path: ${UPLOAD_PATH:D:/project/数字人/uploads}`，本地默认写到项目目录，Docker 通过 `UPLOAD_PATH=/data/uploads` 环境变量覆盖
+- `KnowledgeBaseServiceImpl.java`：`file.transferTo()` 改为 `Files.copy(file.getInputStream(), target, REPLACE_EXISTING)`，彻底绕开 Tomcat 路径解析问题
+
+### Verification
+- `mvn package -DskipTests -pl medical-service/medical-knowledge-service -am` → BUILD SUCCESS (22s)
+
+### Errors Encountered / Resolution
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| `FileNotFoundException: C:\...\Tomcat\...\data\uploads\kb-1\xxx.txt` | 1 | application.yml 配置本地绝对路径 + 改用 Files.copy(InputStream) |
+
+
 
 ### Actions Completed
 - Added Jetty exclusions to `tika-parsers-standard-package` in `medical-knowledge-service/pom.xml`.
@@ -294,3 +313,15 @@
 | Error | Attempt | Resolution |
 |-------|---------|------------|
 | Maven command initially failed: `No plugin found for prefix '.eclipse.jetty'` | 1 | Cause was PowerShell parsing of `-Dincludes=org.eclipse.jetty:jetty-client`; fixed by quoting argument as `"-Dincludes=org.eclipse.jetty:jetty-client"`. |
+
+## Session: 2026-03-07 (AI Service FunctionCallbackContext Wiring)
+
+### Actions Completed
+- Replaced `medical-ai-service/src/main/java/com/medical/ai/config/AiModelConfig.java` to inject `FunctionCallbackContext` into both `deepSeekChatModel` and `qwenChatModel`.
+- Updated model construction to `new OpenAiChatModel(api, options, functionCallbackContext, RetryTemplate.defaultInstance())`.
+
+### Errors Encountered / Resolution
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| `mvn.cmd` command not found (`CommandNotFoundException`) | 1 | Tried fallback `mvn package ...` in same directory. |
+| `mvn` command not found (`CommandNotFoundException`) | 2 | Environment has no callable Maven binary in PATH in this session; build verification cannot be executed here. |
