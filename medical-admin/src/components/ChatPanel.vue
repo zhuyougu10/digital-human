@@ -269,25 +269,36 @@ const handleSend = async () => {
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
     
+    let buffer = ''
     while (true) {
       const { value, done } = await reader.read()
       if (done) break
-      
-      const chunk = decoder.decode(value, { stream: true })
-      const lines = chunk.split('\n')
-      for (const line of lines) {
-        if (line.startsWith('data:')) {
-          const content = line.replace('data:', '').trim()
-          if (content === '[DONE]') break
-          try {
-            const parsed = JSON.parse(content)
-            if (parsed.content) {
-              streamingContent.value += parsed.content
-            }
-          } catch (e) {
-            streamingContent.value += content
+
+      buffer += decoder.decode(value, { stream: true })
+
+      const events = buffer.split('\n\n')
+      buffer = events.pop() ?? ''
+
+      for (const event of events) {
+        let eventType = ''
+        let dataStr = ''
+        for (const line of event.split('\n')) {
+          if (line.startsWith('event:')) {
+            eventType = line.slice(6).trim()
+          } else if (line.startsWith('data:')) {
+            dataStr = line.slice(5).trim()
           }
-          scrollToBottom()
+        }
+        if (!dataStr || dataStr === '[DONE]') continue
+        if (eventType === 'complete') continue
+        try {
+          const parsed = JSON.parse(dataStr)
+          if (parsed.content) {
+            streamingContent.value += parsed.content
+            scrollToBottom()
+          }
+        } catch (e) {
+          console.warn('SSE partial JSON skipped:', dataStr.slice(0, 50))
         }
       }
     }
