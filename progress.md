@@ -278,3 +278,19 @@
 |-------|---------|------------|
 | `mvn` command not found (`CommandNotFoundException`) | 1 | Retried with `mvn.cmd package -DskipTests`. |
 | `mvn.cmd` command not found (`CommandNotFoundException`) | 2 | Confirmed no `mvnw/mvnw.cmd` wrapper in repo; environment lacks callable Maven binary in PATH, so build could not be executed in this session. |
+
+## Session: 2026-03-07 (Knowledge Service Jetty Protocol Violation Fix)
+
+### Actions Completed
+- Added Jetty exclusions to `tika-parsers-standard-package` in `medical-knowledge-service/pom.xml`.
+- Verified dependency tree and found `jetty-client` still present via `milvus-sdk-java -> hadoop-client -> hadoop-yarn-client -> websocket-client`.
+- Added matching Jetty exclusions to `milvus-sdk-java` dependency in the same `pom.xml`.
+
+### Verification
+- `mvn dependency:tree -pl medical-service/medical-knowledge-service "-Dincludes=org.eclipse.jetty:jetty-client"` => BUILD SUCCESS with no `jetty-client` in tree output.
+- `mvn package -DskipTests -pl medical-service/medical-knowledge-service -am` => BUILD SUCCESS.
+
+### Errors Encountered / Resolution
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| Maven command initially failed: `No plugin found for prefix '.eclipse.jetty'` | 1 | Cause was PowerShell parsing of `-Dincludes=org.eclipse.jetty:jetty-client`; fixed by quoting argument as `"-Dincludes=org.eclipse.jetty:jetty-client"`. |

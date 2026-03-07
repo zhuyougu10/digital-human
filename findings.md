@@ -641,3 +641,7 @@ font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', -apple-system
 - [2026-03-07] 删除排班模板若只删 `schedule_template` 不联动 `schedule_slot`，会遗留可预约号源；应同步清理未预约号源，并将已预约号源置为不可用，避免继续对外放号。
 - [2026-03-07] 医生端可用号源“剩余”显示长期为0的根因是字段映射错误：后端返回 `availableSlots`，前端仅读取 `remaining/availableCount`；需补齐 `availableSlots` 并保留 `totalSlots-bookedSlots` 兜底。
 - [2026-03-07] 排班模板头部展示“医生ID”可读性差；在已有 `doctorId` 解析链路中补充姓名解析（路由 doctorId / my-profile / list 匹配）后，展示“医生姓名”更符合业务场景。
+
+## 2026-03-07 Dependency Finding (Knowledge Service)
+- In this codebase, `org.eclipse.jetty:jetty-client` was still present after Tika exclusion because it is also pulled by `io.milvus:milvus-sdk-java -> org.apache.hadoop:hadoop-client -> hadoop-yarn-client -> org.eclipse.jetty.websocket:websocket-client -> jetty-client`.
+- Practical fix required excluding Jetty artifacts from both `tika-parsers-standard-package` and `milvus-sdk-java` in `medical-knowledge-service/pom.xml`.

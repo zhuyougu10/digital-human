@@ -287,6 +287,11 @@ Phase 12: Feature Enhancements & Bug Fixes — complete
 - [x] 验证：`mvn "-Dtest=ScheduleServiceImplTest,ScheduleControllerTest" test` + `npm run build` 全部通过
 - **Round 2 结论:** 排班入口权限、模板落库稳定性、医生端档案解析三项问题均已闭环修复
 
+### Phase 12 Update Log (2026-03-07, Round 7)
+- [x] **[Knowledge Embedding Jetty协议违规]** 根因：Tika 2.9.1 → hadoop → jetty-websocket-client → jetty-client 12.0.15，Spring Boot 自动选用 Jetty 作为 RestClient 底层，DashScope 401 响应不带 WWW-Authenticate 头导致 Jetty 协议违规崩溃
+- [x] 修复：在 `knowledge-service/pom.xml` 的 `tika-parsers-standard-package` 和 `milvus-sdk-java` 两处均排除 `org.eclipse.jetty:jetty-client` 和 `org.eclipse.jetty.websocket:websocket-client`
+- [x] 验证：`mvn dependency:tree -Dincludes=org.eclipse.jetty:jetty-client` 输出为空 + `mvn package -DskipTests` → BUILD SUCCESS
+
 ### Phase 12 Update Log (2026-03-07, Round 6)
 - [x] **[Knowledge Embedding 401→协议违规]** 修复本地开发环境 API Key 未生效：将 `knowledge-service` 和 `ai-service` `application.yml` 中 `DASHSCOPE_API_KEY`/`DEEPSEEK_API_KEY` 占位符 `your-key` 替换为来自 `docker/.env` 的真实 key 作为默认值，本地无需设置环境变量即可运行
 
