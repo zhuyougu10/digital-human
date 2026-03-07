@@ -95,6 +95,17 @@ export function createScheduleTemplate(doctorId, data) {
 }
 
 /**
+ * 删除排班模板
+ * @param {Long} templateId
+ */
+export function deleteScheduleTemplate(templateId) {
+  return service({
+    url: `/api/doctor/schedule/template/${templateId}`,
+    method: 'delete'
+  })
+}
+
+/**
  * 生成排班号源
  * @param {Object} params { startDate, endDate }
  */

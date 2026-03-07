@@ -634,3 +634,10 @@ font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', -apple-system
 - [2026-03-06] 医生管理“新增医生”应显式要求绑定用户（`userId` 必填），否则画像可能绑定到错误主体；新增“关联用户”下拉后可直接绑定账号。
 - [2026-03-06] 医生管理“关联用户”下拉需要仅展示 `DOCTOR` 角色用户（接口参数筛选 + 前端兜底过滤），可避免误绑定管理员/普通用户。
 - [2026-03-06] 当前医生管理表单字段仍存在 `description` 与后端 `introduction` 命名不一致的历史问题，后续应统一字段名以减少编辑回填偏差风险。
+- [2026-03-06] 管理员从“医生管理”点击“排班”若跳转 `'/doctor/schedule'` 会被 `requiresRole: DOCTOR` 路由守卫拦截；应改为管理员专用路由并带 `doctorId` 参数进入同一排班页组件。
+- [2026-03-06] `schedule_template.period` 在数据库是 `NOT NULL` 且无默认值；若前端不传、后端不兜底会触发 `Field 'period' doesn't have a default value`，需前后端双保险（前端显式传 + 后端按 startTime 推断）。
+- [2026-03-06] 医生端排班 `doctorId` 解析不能只依赖列表接口 `list` 字段；后端分页常返回 `records`，应优先使用 `my-profile` 的 `id`，并兼容 `records/list` 两种结构。
+- [2026-03-06] `ScheduleServiceImpl.saveTemplate` 以 `(doctorId, dayOfWeek, period)` 查重更新，`period` 空值会同时导致新增失败和查重失效；服务层统一 `resolvePeriod` 可稳定模板写入与后续号源生成。
+- [2026-03-07] 删除排班模板若只删 `schedule_template` 不联动 `schedule_slot`，会遗留可预约号源；应同步清理未预约号源，并将已预约号源置为不可用，避免继续对外放号。
+- [2026-03-07] 医生端可用号源“剩余”显示长期为0的根因是字段映射错误：后端返回 `availableSlots`，前端仅读取 `remaining/availableCount`；需补齐 `availableSlots` 并保留 `totalSlots-bookedSlots` 兜底。
+- [2026-03-07] 排班模板头部展示“医生ID”可读性差；在已有 `doctorId` 解析链路中补充姓名解析（路由 doctorId / my-profile / list 匹配）后，展示“医生姓名”更符合业务场景。

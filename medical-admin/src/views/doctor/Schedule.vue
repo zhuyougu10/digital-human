@@ -8,7 +8,7 @@
           </el-form-item>
           <el-form-item><el-button type="primary" @click="fetchAvailableSlots">查询号源</el-button></el-form-item>
         </el-form>
-        <div class="toolbar-actions">
+        <div v-if="canManageTemplates" class="toolbar-actions">
           <el-button type="success" @click="templateDialog.visible = true">新增排班模板</el-button>
           <el-button type="primary" @click="openGenerateDialog">生成号源</el-button>
         </div>
@@ -21,7 +21,7 @@
           <template #header>
             <div class="card-header">
               <span>排班模板（周视图）</span>
-              <el-tag type="info">医生ID: {{ doctorId || '-' }}</el-tag>
+              <el-tag type="info">医生姓名: {{ doctorName || '-' }}</el-tag>
             </div>
           </template>
           <el-table :data="weeklyRows" border>
@@ -33,6 +33,12 @@
                     <el-tag size="small">{{ item.startTime }} - {{ item.endTime }}</el-tag>
                     <span class="slot-capacity">容量: {{ item.maxPatients || '-' }}</span>
                     <el-tag :type="item.enabled ? 'success' : 'info'" size="small">{{ item.enabled ? '启用' : '停用' }}</el-tag>
+                    <template v-if="canManageTemplates">
+                      <el-button link type="primary" @click="toggleTemplateStatus(item)">
+                        {{ item.enabled ? '停用' : '启用' }}
+                      </el-button>
+                      <el-button link type="danger" @click="removeTemplate(item)">删除</el-button>
+                    </template>
                   </div>
                 </template>
                 <span v-else class="empty-text">未配置</span>
@@ -111,12 +117,17 @@
 
 <script setup>
 import { computed, reactive, ref, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
-import { getScheduleTemplates, createScheduleTemplate, generateSlots, getAvailableSlots, getDoctorList } from '@/api/doctor'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { getScheduleTemplates, createScheduleTemplate, deleteScheduleTemplate, generateSlots, getAvailableSlots, getDoctorList, getMyProfile, getDoctorById } from '@/api/doctor'
 import { useUserStore } from '@/stores/user'
+import { useRoute } from 'vue-router'
 
 const userStore = useUserStore()
+const route = useRoute()
+const isAdmin = computed(() => userStore.roles.includes('ADMIN'))
+const canManageTemplates = computed(() => isAdmin.value)
 const doctorId = ref(null)
+const doctorName = ref('')
 const templateLoading = ref(false)
 const slotLoading = ref(false)
 const scheduleTemplates = ref([])
@@ -144,7 +155,7 @@ const normalizeTemplate = (item = {}) => ({
   startTime: (item.startTime || '').slice(0, 8),
   endTime: (item.endTime || '').slice(0, 8),
   maxPatients: item.maxPatients || item.maxAppointments || 0,
-  enabled: typeof item.enabled === 'boolean' ? item.enabled : item.status !== 0
+  enabled: typeof item.enabled === 'boolean' ? item.enabled : item.status === 0
 })
 
 const weeklyRows = computed(() => {
@@ -157,11 +168,33 @@ const weeklyRows = computed(() => {
 })
 
 const resolveDoctorId = async () => {
+  const routeDoctorId = Number(route.params.doctorId || route.query.doctorId)
+  if (routeDoctorId) {
+    try {
+      const doctorRes = await getDoctorById(routeDoctorId)
+      doctorName.value = doctorRes.data?.name || ''
+    } catch (error) {
+    }
+    return routeDoctorId
+  }
   const info = userStore.userInfo || {}
-  if (info.doctorId) return info.doctorId
-  const res = await getDoctorList({ pageNum: 1, pageSize: 100, keyword: info.username || info.nickname || '' })
-  const list = res.data?.list || []
-  const match = list.find(item => item.userId === info.id) || list.find(item => item.name === info.nickname) || list[0]
+  if (info.doctorId) {
+    doctorName.value = info.nickname || info.username || ''
+    return info.doctorId
+  }
+  try {
+    const profileRes = await getMyProfile()
+    if (profileRes.data?.id) {
+      doctorName.value = profileRes.data?.name || doctorName.value
+      return profileRes.data.id
+    }
+  } catch (error) {
+  }
+  const userId = info.id || info.userId
+  const res = await getDoctorList({ pageNum: 1, pageSize: 200, keyword: info.username || info.nickname || '' })
+  const list = res.data?.records || res.data?.list || []
+  const match = list.find(item => item.userId === userId) || list.find(item => item.name === info.nickname) || list.find(item => item.name === info.username) || list[0]
+  doctorName.value = match?.name || doctorName.value
   return match?.id || null
 }
 
@@ -189,7 +222,7 @@ const fetchAvailableSlots = async () => {
       ...item,
       startTime: (item.startTime || '').slice(0, 8),
       endTime: (item.endTime || '').slice(0, 8),
-      remaining: item.remaining ?? item.availableCount ?? 0
+      remaining: item.remaining ?? item.availableSlots ?? item.availableCount ?? Math.max((item.totalSlots || 0) - (item.bookedSlots || 0), 0)
     }))
   } catch (error) {
     console.error('Failed to fetch available slots:', error)
@@ -200,8 +233,14 @@ const fetchAvailableSlots = async () => {
 
 const resetTemplateDialog = () => { templateDialog.form = { weekday: 1, startTime: '', endTime: '', maxPatients: 20, enabled: true } }
 const openGenerateDialog = () => { generateDialog.form.dateRange = []; generateDialog.visible = true }
+const resolvePeriod = (startTime) => {
+  const hour = Number(String(startTime || '').slice(0, 2))
+  if (Number.isNaN(hour)) return 'morning'
+  return hour < 12 ? 'morning' : 'afternoon'
+}
 
 const saveTemplate = async () => {
+  if (!canManageTemplates.value) return ElMessage.warning('医生端仅支持查看排班')
   if (!templateFormRef.value || !doctorId.value) return
   if (!templateDialog.form.startTime || !templateDialog.form.endTime) return ElMessage.warning('请选择完整时间段')
   await templateFormRef.value.validate(async valid => {
@@ -210,9 +249,10 @@ const saveTemplate = async () => {
     try {
       const payload = {
         weekday: templateDialog.form.weekday, dayOfWeek: templateDialog.form.weekday,
+        period: resolvePeriod(templateDialog.form.startTime),
         startTime: templateDialog.form.startTime, endTime: templateDialog.form.endTime,
         maxPatients: templateDialog.form.maxPatients, maxAppointments: templateDialog.form.maxPatients,
-        status: templateDialog.form.enabled ? 1 : 0, enabled: templateDialog.form.enabled
+        status: templateDialog.form.enabled ? 0 : 1, enabled: templateDialog.form.enabled
       }
       await createScheduleTemplate(doctorId.value, payload)
       ElMessage.success('排班模板已保存')
@@ -224,6 +264,41 @@ const saveTemplate = async () => {
       templateDialog.loading = false
     }
   })
+}
+
+const buildTemplatePayload = (item, status) => ({
+  weekday: item.weekday || item.dayOfWeek,
+  dayOfWeek: item.weekday || item.dayOfWeek,
+  period: item.period || resolvePeriod(item.startTime),
+  startTime: item.startTime,
+  endTime: item.endTime,
+  maxPatients: item.maxPatients,
+  maxAppointments: item.maxPatients,
+  status
+})
+
+const toggleTemplateStatus = async (item) => {
+  if (!canManageTemplates.value || !doctorId.value) return
+  const nextEnabled = !item.enabled
+  try {
+    await createScheduleTemplate(doctorId.value, buildTemplatePayload(item, nextEnabled ? 0 : 1))
+    ElMessage.success(`模板已${nextEnabled ? '启用' : '停用'}`)
+    await fetchTemplates()
+  } catch (error) {
+    console.error('Failed to toggle template status:', error)
+  }
+}
+
+const removeTemplate = async (item) => {
+  if (!canManageTemplates.value || !item.id) return
+  try {
+    await ElMessageBox.confirm('删除后不可恢复，是否继续？', '删除模板', { type: 'warning' })
+    await deleteScheduleTemplate(item.id)
+    ElMessage.success('模板已删除')
+    await fetchTemplates()
+  } catch (error) {
+    if (error !== 'cancel') console.error('Failed to delete template:', error)
+  }
 }
 
 const handleGenerateSlots = async () => {

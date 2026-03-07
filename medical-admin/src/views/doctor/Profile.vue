@@ -68,21 +68,35 @@
         </el-form-item>
 
         <el-form-item label="擅长" prop="specialties">
-          <div class="tag-input">
-            <el-tag v-for="item in form.specialties" :key="`es-${item}`" closable class="m-r-5 m-b-5" @close="removeTag('specialties', item)">
-              {{ item }}
-            </el-tag>
-            <el-input v-model="tagInput.specialties" placeholder="输入后回车添加" @keyup.enter="addTag('specialties')" @blur="addTag('specialties')" />
-          </div>
+          <el-select
+            v-model="form.specialties"
+            multiple
+            filterable
+            allow-create
+            default-first-option
+            placeholder="请选择或输入擅长领域"
+            style="width: 100%"
+            collapse-tags
+            collapse-tags-tooltip
+          >
+            <el-option v-for="item in specialtyOptions" :key="item" :label="item" :value="item" />
+          </el-select>
         </el-form-item>
 
         <el-form-item label="主治方向" prop="focus">
-          <div class="tag-input">
-            <el-tag v-for="item in form.focus" :key="`ef-${item}`" type="success" closable class="m-r-5 m-b-5" @close="removeTag('focus', item)">
-              {{ item }}
-            </el-tag>
-            <el-input v-model="tagInput.focus" placeholder="输入后回车添加" @keyup.enter="addTag('focus')" @blur="addTag('focus')" />
-          </div>
+          <el-select
+            v-model="form.focus"
+            multiple
+            filterable
+            allow-create
+            default-first-option
+            placeholder="请选择或输入主治方向"
+            style="width: 100%"
+            collapse-tags
+            collapse-tags-tooltip
+          >
+            <el-option v-for="item in treatmentAreaOptions" :key="item" :label="item" :value="item" />
+          </el-select>
         </el-form-item>
 
         <el-form-item label="简介" prop="introduction">
@@ -105,9 +119,10 @@ const isEditing = ref(false)
 const formRef = ref(null)
 
 const titleOptions = ['主任医师', '副主任医师', '主治医师', '住院医师']
+const specialtyOptions = ['高血压', '糖尿病', '感冒', '儿科', '外科', '中医', '心理咨询', '康复理疗']
+const treatmentAreaOptions = ['呼吸系统疾病', '消化系统疾病', '心血管疾病', '内分泌疾病', '慢性病管理', '健康咨询', '常见病诊疗', '疑难病会诊']
 const profile = reactive({ name: '', title: '', avatar: '', specialties: [], focus: [], introduction: '', departmentIds: [] })
 const form = reactive({ name: '', title: '', avatar: '', specialties: [], focus: [], introduction: '', departmentIds: [] })
-const tagInput = reactive({ specialties: '', focus: '' })
 
 const rules = {
   name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
@@ -157,19 +172,8 @@ const startEdit = () => {
 
 const cancelEdit = () => {
   isEditing.value = false
-  tagInput.specialties = ''
-  tagInput.focus = ''
   Object.assign(form, JSON.parse(JSON.stringify(profile)))
 }
-
-const addTag = (field) => {
-  const value = tagInput[field].trim()
-  if (!value) return
-  if (!form[field].includes(value)) form[field].push(value)
-  tagInput[field] = ''
-}
-
-const removeTag = (field, value) => { form[field] = form[field].filter(item => item !== value) }
 
 const handleAvatarChange = (uploadFile) => {
   const file = uploadFile.raw

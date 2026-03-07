@@ -276,3 +276,21 @@ Phase 12: Feature Enhancements & Bug Fixes — complete
 - [x] **[Doctor Management]** 关联用户列表仅展示 `DOCTOR` 角色用户（含前端兜底过滤）
 - [x] 验证：`SysUserControllerTest`、`DoctorControllerTest`、`medical-user-service` 打包、`medical-admin` 构建全部通过
 - **Phase 12 实际进度结论:** 上述子项均已完成，后续仅保留体验优化与字段命名统一收尾项
+
+### Phase 12 Update Log (2026-03-06, Round 2)
+- [x] **[Admin Routing]** 修复管理员从医生管理进入排班触发权限不足（新增 ADMIN 排班路由）
+- [x] **[Doctor Management]** 排班入口改为按医生维度跳转并携带 `doctorId`
+- [x] **[Schedule Backend]** 修复 `schedule_template.period` 非空约束失败（`saveTemplate` 增加 `resolvePeriod` 兜底）
+- [x] **[Schedule Frontend]** 保存模板时显式提交 `period`，与后端字段约束对齐
+- [x] **[Doctor Schedule]** 修复医生端“未找到医生档案”问题（优先 `my-profile` + 兼容 `records/list`）
+- [x] **[Regression Test]** 新增 `ScheduleServiceImplTest#saveTemplate_infersPeriodWhenMissing`
+- [x] 验证：`mvn "-Dtest=ScheduleServiceImplTest,ScheduleControllerTest" test` + `npm run build` 全部通过
+- **Round 2 结论:** 排班入口权限、模板落库稳定性、医生端档案解析三项问题均已闭环修复
+
+### Phase 12 Update Log (2026-03-07, Round 3)
+- [x] **[Schedule Backend]** 修复删除模板未联动号源：删除未预约号源并禁用已预约号源，避免模板删除后继续可预约
+- [x] **[Regression Test]** 新增 `ScheduleServiceImplTest#deleteTemplate_shouldDeleteAvailableSlotsTogether`
+- [x] **[Doctor Schedule UI]** 修复“可用号源剩余显示为0”：补充 `availableSlots` 映射并增加计算兜底
+- [x] **[Doctor Schedule UI]** 排班模板头部由“医生ID”改为“医生姓名”（补充姓名解析链路）
+- [x] 验证：`mvn "-Dtest=ScheduleServiceImplTest,ScheduleControllerTest" test` + `npm run build` 全部通过
+- **Round 3 结论:** 模板删除与号源数据一致性、剩余号源显示准确性、排班展示可读性已完成闭环修复

@@ -176,9 +176,25 @@
           </el-select>
         </el-form-item>
 
-        <el-form-item label="简介" prop="description">
+        <el-form-item label="主治方向" prop="treatmentAreas">
+          <el-select
+            v-model="dialog.form.treatmentAreas"
+            multiple
+            filterable
+            allow-create
+            default-first-option
+            placeholder="输入主治方向并按回车"
+            style="width: 100%"
+            collapse-tags
+            collapse-tags-tooltip
+          >
+            <el-option v-for="item in treatmentAreaOptions" :key="item" :label="item" :value="item" />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="简介" prop="introduction">
           <el-input
-            v-model="dialog.form.description"
+            v-model="dialog.form.introduction"
             type="textarea"
             :rows="4"
             placeholder="请输入医生个人简介..."
@@ -217,6 +233,7 @@ const total = ref(0)
 const departmentOptions = ref([])
 const userOptions = ref([])
 const specialtyOptions = ref(['高血压', '糖尿病', '感冒', '儿科', '外科', '中医', '心理咨询', '康复理疗'])
+const treatmentAreaOptions = ref(['呼吸系统疾病', '消化系统疾病', '心血管疾病', '内分泌疾病', '慢性病管理', '健康咨询', '常见病诊疗', '疑难病会诊'])
 
 const searchForm = reactive({
   pageNum: 1,
@@ -236,7 +253,8 @@ const dialog = reactive({
     title: '',
     departmentIds: [],
     specialties: [],
-    description: '',
+    treatmentAreas: [],
+    introduction: '',
     avatar: ''
   }
 })
@@ -248,7 +266,8 @@ const rules = {
   name: [{ required: true, message: '请输入医生姓名', trigger: 'blur' }],
   title: [{ required: true, message: '请选择职称', trigger: 'change' }],
   departmentIds: [{ required: true, message: '请选择科室', trigger: 'change' }],
-  specialties: [{ required: true, message: '请输入擅长领域', trigger: 'change' }]
+  specialties: [{ required: true, message: '请输入擅长领域', trigger: 'change' }],
+  treatmentAreas: [{ required: true, message: '请输入主治方向', trigger: 'change' }]
 }
 
 const fetchDoctorList = async () => {
@@ -312,7 +331,7 @@ const handleAdd = () => {
 
 const handleEdit = (row) => {
   dialog.isEdit = true
-  const parseSpecialties = (val) => {
+  const parseTags = (val) => {
     if (Array.isArray(val)) return val
     if (typeof val === 'string') return val.split(/[,，]/).filter(Boolean)
     return []
@@ -324,8 +343,9 @@ const handleEdit = (row) => {
     name: row.name,
     title: row.title,
     departmentIds: row.departments?.map(d => d.id) || [],
-    specialties: parseSpecialties(row.specialties),
-    description: row.description,
+    specialties: parseTags(row.specialties),
+    treatmentAreas: parseTags(row.treatmentAreas),
+    introduction: row.introduction || row.description || '',
     avatar: row.avatar
   }
   dialog.visible = true
@@ -339,7 +359,8 @@ const resetDialog = () => {
     title: '',
     departmentIds: [],
     specialties: [],
-    description: '',
+    treatmentAreas: [],
+    introduction: '',
     avatar: ''
   }
   if (formRef.value) formRef.value.resetFields()
@@ -353,7 +374,8 @@ const handleSubmit = async () => {
       try {
         const payload = {
           ...dialog.form,
-          specialties: dialog.form.specialties.join(',')
+          specialties: dialog.form.specialties.join(','),
+          treatmentAreas: dialog.form.treatmentAreas.join(',')
         }
         if (dialog.isEdit) {
           await updateDoctor(dialog.form.id, payload)
@@ -373,8 +395,8 @@ const handleSubmit = async () => {
   })
 }
 
-const goToSchedule = () => {
-  router.push('/doctor/schedule')
+const goToSchedule = (row) => {
+  router.push({ name: 'AdminDoctorSchedule', params: { doctorId: row.id } })
 }
 
 onMounted(() => {

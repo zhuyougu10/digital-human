@@ -10,4 +10,5 @@ public class ScheduleTemplateDTO {
     private LocalTime startTime;
     private LocalTime endTime;
     private Integer maxPatients;
+    private Integer status;
 }

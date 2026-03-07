@@ -193,3 +193,52 @@
 
 ### Notes
 - 本次文档更新采用“只追加不删除”策略，保留所有历史记录。
+
+## Session: 2026-03-06 (Schedule Access & Template Stability Fixes)
+
+### Actions Completed
+- 修复管理员在“医生管理”点击排班提示“权限不足”：新增管理员排班路由并复用排班页面组件。
+- 调整医生管理页排班跳转：携带目标医生 `doctorId` 到管理员排班路由。
+- 修复排班模板保存 `period` 缺失导致 SQL 约束失败：前端保存模板显式提交 `period`，后端在缺失时按 `startTime` 自动推断。
+- 修复医生端“我的排班”提示“未找到医生档案”：`doctorId` 解析改为优先 `my-profile`，并兼容医生列表 `records/list`。
+- 新增服务层回归测试，验证 `period` 缺失场景可被自动推断后正常入库。
+
+### Files Modified
+- `medical-admin/src/router/index.js`: 新增 `admin/doctor-schedule/:doctorId?` 路由（ADMIN）。
+- `medical-admin/src/views/admin/DoctorManagement.vue`: 排班按钮改为跳转管理员排班路由并传 `doctorId`。
+- `medical-admin/src/views/doctor/Schedule.vue`: 增加 route 参数解析、`my-profile` 兜底、`records/list` 兼容、模板保存时 `period` 赋值。
+- `medical-ai/medical-service/medical-doctor-service/src/main/java/com/medical/doctor/service/impl/ScheduleServiceImpl.java`: 新增 `resolvePeriod` 并用于模板查重与写入。
+- `medical-ai/medical-service/medical-doctor-service/src/test/java/com/medical/doctor/service/ScheduleServiceImplTest.java`: 新增 `saveTemplate_infersPeriodWhenMissing`。
+
+### Verification
+- `mvn "-Dtest=ScheduleServiceImplTest,ScheduleControllerTest" test` (`medical-doctor-service`) → SUCCESS
+- `npm run build` (`medical-admin`) → SUCCESS
+
+### Errors Encountered / Resolution
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| PowerShell 将 `-Dtest=A,B` 解析为参数列表错误 | 1 | 将参数整体加引号：`"-Dtest=A,B"` |
+| 新增测试首次编译失败（缺少 `argThat` 静态导入） | 1 | 增加 `ArgumentMatchers.argThat` 静态导入后通过 |
+
+## Session: 2026-03-07 (Schedule Template Cascade & Display Fixes)
+
+### Actions Completed
+- 修复“删除模板后号源未同步处理”：删除模板时同步删除同医生同周期的未预约号源，并将已预约号源状态置为不可用。
+- 新增服务层回归测试，覆盖“删除模板联动处理号源”行为，确保后续不回归。
+- 修复医生端“可用号源剩余始终为0”：前端映射补充后端字段 `availableSlots`，并加入 `totalSlots-bookedSlots` 兜底计算。
+- 排班模板卡片头部由“医生ID”改为“医生姓名”，并在 `doctorId` 解析链路补充姓名填充逻辑。
+
+### Files Modified
+- `medical-ai/medical-service/medical-doctor-service/src/main/java/com/medical/doctor/service/impl/ScheduleServiceImpl.java`: 删除模板联动处理号源。
+- `medical-ai/medical-service/medical-doctor-service/src/test/java/com/medical/doctor/service/ScheduleServiceImplTest.java`: 新增删除模板联动测试。
+- `medical-admin/src/views/doctor/Schedule.vue`: 修复剩余号源字段映射、头部展示医生姓名、补充姓名解析链路。
+
+### Verification
+- `mvn "-Dtest=ScheduleServiceImplTest,ScheduleControllerTest" test` (`medical-doctor-service`) → SUCCESS
+- `npm run build` (`medical-admin`) → SUCCESS
+
+### Errors Encountered / Resolution
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| `deleteTemplate` 新增联动后首次测试失败（未调用 `scheduleSlotMapper.delete`） | 1 | 按测试补齐模板删除前查询与号源联动逻辑 |
+| 使用 `LambdaUpdateWrapper` 在单测环境触发 lambda cache 异常 | 1 | 改为 `UpdateWrapper` + 显式列名更新状态 |

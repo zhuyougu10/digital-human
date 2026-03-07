@@ -2,6 +2,7 @@ package com.medical.doctor.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.medical.common.core.exception.BusinessException;
 import com.medical.common.core.exception.ErrorCode;
 import com.medical.doctor.domain.dto.ScheduleTemplateDTO;
@@ -17,6 +18,7 @@ import com.medical.doctor.mapper.ScheduleTemplateMapper;
 import com.medical.doctor.service.ScheduleService;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -52,32 +54,59 @@ public class ScheduleServiceImpl implements ScheduleService {
         if (doctor == null) {
             throw new BusinessException(ErrorCode.DOCTOR_NOT_FOUND);
         }
+        String period = resolvePeriod(dto);
         ScheduleTemplate template = scheduleTemplateMapper.selectOne(
                 new LambdaQueryWrapper<ScheduleTemplate>()
                         .eq(ScheduleTemplate::getDoctorId, doctorId)
                         .eq(ScheduleTemplate::getDayOfWeek, dto.getDayOfWeek())
-                        .eq(ScheduleTemplate::getPeriod, dto.getPeriod())
+                        .eq(ScheduleTemplate::getPeriod, period)
                         .last("limit 1"));
         if (template == null) {
             template = new ScheduleTemplate();
             template.setDoctorId(doctorId);
             template.setDayOfWeek(dto.getDayOfWeek());
-            template.setPeriod(dto.getPeriod());
+            template.setPeriod(period);
             template.setStartTime(dto.getStartTime());
             template.setEndTime(dto.getEndTime());
             template.setMaxPatients(dto.getMaxPatients());
-            template.setStatus(0);
+            template.setStatus(dto.getStatus() == null ? 0 : dto.getStatus());
             scheduleTemplateMapper.insert(template);
             return;
         }
         template.setStartTime(dto.getStartTime());
         template.setEndTime(dto.getEndTime());
         template.setMaxPatients(dto.getMaxPatients());
+        template.setStatus(dto.getStatus() == null ? template.getStatus() : dto.getStatus());
         scheduleTemplateMapper.updateById(template);
     }
 
+    private String resolvePeriod(ScheduleTemplateDTO dto) {
+        if (dto.getPeriod() != null && !dto.getPeriod().trim().isEmpty()) {
+            return dto.getPeriod().trim();
+        }
+        LocalTime startTime = dto.getStartTime();
+        if (startTime == null) {
+            return "morning";
+        }
+        return startTime.getHour() < 12 ? "morning" : "afternoon";
+    }
+
     @Override
+    @Transactional
     public void deleteTemplate(Long templateId) {
+        ScheduleTemplate template = scheduleTemplateMapper.selectById(templateId);
+        if (template == null) {
+            return;
+        }
+        scheduleSlotMapper.delete(new LambdaQueryWrapper<ScheduleSlot>()
+                .eq(ScheduleSlot::getDoctorId, template.getDoctorId())
+                .eq(ScheduleSlot::getPeriod, template.getPeriod())
+                .eq(ScheduleSlot::getBookedSlots, 0));
+        scheduleSlotMapper.update(null, new UpdateWrapper<ScheduleSlot>()
+                .set("status", 1)
+                .eq("doctor_id", template.getDoctorId())
+                .eq("period", template.getPeriod())
+                .gt("booked_slots", 0));
         scheduleTemplateMapper.deleteById(templateId);
     }
 

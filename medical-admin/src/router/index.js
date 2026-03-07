@@ -58,6 +58,12 @@ const routes = [
         meta: { title: '预约管理', requiresRole: 'ADMIN' }
       },
       {
+        path: 'admin/doctor-schedule/:doctorId?',
+        name: 'AdminDoctorSchedule',
+        component: () => import('@/views/doctor/Schedule.vue'),
+        meta: { title: '医生排班', requiresRole: 'ADMIN' }
+      },
+      {
         path: 'admin/conversations',
         name: 'ConversationManagement',
         component: () => import('@/views/admin/ConversationManagement.vue'),
