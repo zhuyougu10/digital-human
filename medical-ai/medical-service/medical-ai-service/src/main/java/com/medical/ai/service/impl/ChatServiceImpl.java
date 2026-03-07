@@ -28,6 +28,7 @@ import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -117,6 +118,7 @@ public class ChatServiceImpl implements ChatService {
         StringBuilder fullResponse = new StringBuilder();
 
         return chatModel.stream(prompt)
+            .publishOn(Schedulers.boundedElastic())
             .map(chatResponse -> {
                 String token = "";
                 if (chatResponse.getResult() != null && chatResponse.getResult().getOutput() != null) {
