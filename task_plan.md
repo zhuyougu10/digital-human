@@ -287,6 +287,9 @@ Phase 12: Feature Enhancements & Bug Fixes — complete
 - [x] 验证：`mvn "-Dtest=ScheduleServiceImplTest,ScheduleControllerTest" test` + `npm run build` 全部通过
 - **Round 2 结论:** 排班入口权限、模板落库稳定性、医生端档案解析三项问题均已闭环修复
 
+### Phase 12 Update Log (2026-03-07, Round 8)
+- [x] **[Knowledge Embedding model_not_found]** 修复 embedding 调用使用错误模型 `text-embedding-ada-002`：`application.yml` 中配置键名错误，`spring.ai.openai.embedding.model` 不被 Spring AI M5 识别，需改为 `spring.ai.openai.embedding.options.model: text-embedding-v3`
+
 ### Phase 12 Update Log (2026-03-07, Round 7)
 - [x] **[Knowledge Embedding Jetty协议违规]** 根因：Tika 2.9.1 → hadoop → jetty-websocket-client → jetty-client 12.0.15，Spring Boot 自动选用 Jetty 作为 RestClient 底层，DashScope 401 响应不带 WWW-Authenticate 头导致 Jetty 协议违规崩溃
 - [x] 修复：在 `knowledge-service/pom.xml` 的 `tika-parsers-standard-package` 和 `milvus-sdk-java` 两处均排除 `org.eclipse.jetty:jetty-client` 和 `org.eclipse.jetty.websocket:websocket-client`
