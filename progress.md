@@ -343,6 +343,31 @@
 | `/kb/inner/search` still returned `KNOWLEDGE_BASE_NOT_FOUND` after code patch | 1 | Confirmed running process was old IntelliJ-launched `KnowledgeServiceApplication`; restart was required. |
 | New jar startup failed with `Port 8085 was already in use` | 1 | Identified environment conflict; end-to-end API verification requires stopping existing 8085 service instance first, then launching rebuilt jar. |
 
+## Session: 2026-03-07 (Phase 12 — MP UI Redesign & Live2D Integration)
+
+### Phase 12: 小程序 UI 重构与数字人集成 (16-mp-redesign)
+- **Status:** complete
+- **Started:** 2026-03-07
+- **Completed:** 2026-03-07
+- **Actions taken:**
+  - **[UI Redesign]** 基于原型图全面重构 `medical-mp` 7 个核心页面（登录、问诊、推荐、号源、结果、列表、个人中心）。
+  - **[Architecture]** 实施“方案 A：全量 H5 UI”，将聊天列表与输入框移至 `live2d-h5` 项目，解决小程序 `web-view` 遮挡问题。
+  - **[Live2D Fix]** 强制降级 PixiJS 至 6.5.9，解决 `manager.on` 报错；注册 Ticker 驱动 Idle 动画。
+  - **[Lip-Sync]** 实现基于 URL 参数的口型同步逻辑，由 UniApp 语音播放触发 H5 数字人动嘴。
+  - **[UX]** 优化数字人位姿为“近景站立”，并锁定物理高度（450px）以保证跨设备视觉稳定性。
+  - **[Flow]** 优化登录流程，实现“登录即进入问诊”的极简路径，移除多余引导页。
+- **Files Modified/Created:**
+  - `medical-mp/src/pages/chat/chat.vue` (WebView 桥接器)
+  - `medical-mp/src/pages/login/login.vue` (新登录页)
+  - `live2d-h5/index.html` (全量聊天布局)
+  - `live2d-h5/src/main.js` (H5 逻辑中心)
+  - `live2d-h5/src/live2d-manager.js` (位姿与缩放逻辑)
+  - `live2d-h5/src/tts-lip-sync.js` (Ticker 驱动口型)
+- **Verification:**
+  - `live2d-h5 npm run build` -> SUCCESS
+  - `medical-mp` 页面流转测试 -> 正常
+  - 数字人口型与位姿 -> 符合预期
+
 ## Session: 2026-03-07 (百科助手全屏页 + Sidebar 折叠修复 + 中文乱码清理)
 
 ### Actions Completed
@@ -368,3 +393,27 @@
 |-------|---------|------------|
 | CCB_CALLER 未设置导致 ask 命令报错 | 1 | 加 CCB_CALLER=claude 前缀 |
 | ask codex 同步阻塞超时 120s | 1 | 改为后台 & 异步派发 |
+
+## Session: 2026-03-08 (Phase 13 — Live2D UI Refinement)
+
+### Actions Completed
+- **[Live2D Positioning]** Refined model scaling and positioning:
+  - **Scale:** Increased from `sh * 2.8` to `sh * 3.0` for a closer shot.
+  - **Centering:** Implemented "Chest Centering" logic. Calculated `chestCenterY` (approx 75% of model height) and aligned it to `screenVisualCenter` (35% of screen height) to ensure the chest area is always the focal point regardless of screen aspect ratio.
+- **[Visuals]** Replaced pure black background with **Medical Blue Radial Gradient** (`#1e3c72` to `#2a5298`) to match the app theme.
+- **[Bug Fix]** Fixed PixiJS `TypeError: Cannot set property clearBeforeRender` by wrapping renderer config in try-catch (compatibility issue with PixiJS v6/v7 hybrid usage).
+- **[Bug Fix]** Fixed Live2D black background issue by enforcing `backgroundAlpha: 0` in Pixi Application config and adding `canvas { background: transparent }` CSS.
+- **[UI Polish]** Redesigned H5 Chat Interface:
+  - **Glassmorphism:** Added backdrop-filter blur and semi-transparent white backgrounds to chat bubbles and input bar.
+  - **Doctor Info:** Moved to top-right absolute position with white text and black `text-shadow` outline for contrast against the complex background.
+  - **Input Bar:** Compacted height to `36px` and reduced bottom padding to `12px` to balance accessibility with screen real estate.
+
+### Files Modified
+- `medical-mp/live2d-h5/src/live2d-manager.js` (Centering logic)
+- `medical-mp/live2d-h5/src/main.js` (Pixi config & error handling)
+- `medical-mp/live2d-h5/index.html` (CSS styles & layout)
+
+### Verification
+- **Visual Check:** Live2D model is correctly zoomed and centered on chest. Background is transparent/gradient.
+- **Console Check:** No more `clearBeforeRender` errors.
+- **Layout Check:** Input bar is close to bottom but not flush (12px gap). Doctor info is clear in top-right.

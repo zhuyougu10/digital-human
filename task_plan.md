@@ -251,13 +251,22 @@ Phase 12: Feature Enhancements & Bug Fixes — complete
 - **Status:** complete
 
 ### Phase 12: Feature Enhancements & Bug Fixes
-- [x] **[User Management]** Add "Create User" functionality (Backend API + Frontend Dialog)
-- [x] **[Encyclopedia]** 百科助手改为新标签页全屏打开（EncyclopediaPage.vue + /encyclopedia 路由）
-- [x] **[Sidebar]** 折叠模式 bug 修复（自定义 li 替换假 el-menu-item）
-- [x] **[Encoding]** router/index.js + Sidebar.vue 中文乱码全量修复 + BOM 移除
+- [x] **[User Management]** 新增用户接口与角色同步修复
+- [x] **[Schedule]** 排班模板稳定性与号源联动清理
+- [x] **[Knowledge]** 知识库智能路由与 RAG 空检索修复
+- [x] **[Admin UI]** 百科助手全屏页与 Sidebar 行为优化
 - **Status:** complete
 
-### Phase 11 Bug Fix Round 1 — 最终结果
+### Phase 13: 小程序 UI 重构与数字人集成 (16-mp-redesign)
+- [x] Task 1: 基于原型图重构 MP 7 大核心页面 (Login/Chat/Doctor/Appt)
+- [x] Task 2: 实施“方案 A：全量 H5 聊天 UI”解决 Webview 遮挡问题
+- [x] Task 3: 修复 Live2D PixiJS 兼容性与 Ticker 静态问题
+- [x] Task 4: 实现 URL 驱动的毫秒级口型同步 (Lip-Sync)
+- [x] Task 5: 优化数字人位姿对齐与固定物理尺寸缩放
+- [x] Task 6: 极简登录流优化 (登录直达问诊)
+- **Status:** complete
+
+## Phase 8: Final Review & Polishing
 | 根因 | 描述 | 结果 |
 |------|------|------|
 | RC1 | doctor-service: setUserId(null) → NOT NULL 500 | ✅ 已修复 |
@@ -370,3 +379,9 @@ Phase 12: Feature Enhancements & Bug Fixes — complete
 - [x] **[Doctor Schedule UI]** 排班模板头部由“医生ID”改为“医生姓名”（补充姓名解析链路）
 - [x] 验证：`mvn "-Dtest=ScheduleServiceImplTest,ScheduleControllerTest" test` + `npm run build` 全部通过
 - **Round 3 结论:** 模板删除与号源数据一致性、剩余号源显示准确性、排班展示可读性已完成闭环修复
+
+### Phase 13 Update Log (2026-03-08)
+- [x] **[Live2D Polish]** 优化数字人构图：缩放倍率提升至 3.0，实现基于胸部锚点的动态居中算法（对齐屏幕 35% 高度）。
+- [x] **[UI Refinement]** H5 聊天页视觉升级：去除黑色背景，应用医疗蓝径向渐变；气泡与输入框增加毛玻璃效果。
+- [x] **[Bug Fix]** 修复 PixiJS `clearBeforeRender` 只读属性报错与背景不透明问题。
+- [x] **[Layout]** 调整输入框布局（高度压缩至 36px，底部留白 12px）与医生信息气泡位置（右上角+描边）。

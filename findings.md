@@ -20,8 +20,11 @@
 - 架构方案对比后选定 **方案A：5微服务架构**（user/doctor/ai/appointment/knowledge），平衡了毕设规模与微服务实践
 - Spring AI 1.0.0-M5 需要 Spring Milestones 仓库（`https://repo.spring.io/milestone`）
 - Sa-Token 在 Gateway（WebFlux）和 Service（WebMVC）中使用不同 starter：Gateway 用 `sa-token-reactor-spring-boot3-starter`，Service 用 `sa-token-spring-boot3-starter`
-- Live2D 在小程序中需通过 `<web-view>` 内嵌 H5 实现（pixi.js + pixi-live2d-display），H5 与小程序通过 postMessage 双向通信
-- TTS 方案：阿里云智能语音 API 返回音频 URL → H5 播放音频 + 解析音量 → 驱动 Live2D mouth 参数
+- Live2D 在小程序中需通过 `<web-view>` 内嵌 H5 实现。由于小程序原生 `web-view` 组件强制全屏且层级最高，已选定 **方案 A：全量 H5 化**，即聊天气泡、输入框等 UI 全部迁移至 H5 项目，UniApp 仅作为 SSE 逻辑中转站。
+- PixiJS 版本兼容性：`pixi-live2d-display@0.4.0` 强依赖 **PixiJS v6**。使用 v7 会导致 `manager.on` 报错及 `isInteractive` 缺失。已强制降级至 `6.5.9` 并通过 polyfill 修复。
+- 口型同步 (Lip-Sync)：通过小程序监听到语音播放事件，实时修改 `web-view` URL 参数（如 `speaking=1`）触发 H5 侧 `LipSyncManager` 基于正弦波驱动 `ParamMouthOpenY` 参数。
+- 数字人位姿优化：针对跪坐模型，通过 `anchor(0.5, 1.0)` + `y = sh` + 固定 450px 高度缩放，实现了稳定的“半身/全身站立”视觉效果，且不随屏幕尺寸缩放。
+- TTS 方案：阿里云智能语音 API 返回音频 URL → UniApp TtsPlayer 播放 → 发送 START_LIPSYNC 指令至 H5。
 - Milvus 向量数据库需要 etcd + minio 作为依赖服务
 - 每个微服务独立数据库：medical_user / medical_doctor / medical_ai / medical_appointment / medical_knowledge
 
@@ -43,6 +46,9 @@
 | MapStruct 对象映射 | 编译期生成映射代码，零反射开销，类型安全 |
 | Docker Compose 部署 | 毕设场景足够，一键启动全部基础设施+服务 |
 | Live2D via web-view 内嵌 H5 | 小程序原生不支持 WebGL Live2D，H5 桥接是唯一可行方案 |
+| 方案 A：全量 H5 聊天 UI | 彻底解决小程序 `web-view` 遮挡原生 UI 的层级问题，保证输入框和气泡在最顶层 |
+| PixiJS v6 + Ticker 注册 | 解决 Live2D 静态不动的问题，确保插件兼容性并开启自动 Idle 动画 |
+| URL 参数驱动 H5 状态 | 绕过小程序 `postMessage` 实时性差的限制，实现毫秒级口型同步 |
 | SSE 流式对话 | 相比 WebSocket 更简单，单向推送适合 LLM 流式输出场景 |
 
 ## Architecture Overview
@@ -649,3 +655,26 @@ font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', -apple-system
 ## 2026-03-07 Dependency Finding (AI Service)
 - `OpenAiChatModel` built with the 2-arg constructor (`new OpenAiChatModel(api, options)`) cannot resolve `withFunctions(...)` names from Spring container callbacks in Spring AI 1.0.0-M5.
 - Fix is to inject `FunctionCallbackContext` and use constructor `new OpenAiChatModel(api, options, functionCallbackContext, RetryTemplate.defaultInstance())` so tool names (e.g. `searchKnowledge`) map to registered callback beans.
+
+- [2026-03-07] New seeding task requires base URL priority http://localhost:9090/api with fallback to http://localhost:8080/api, which is opposite of current 	ests/config.py defaults (8080 primary).
+
+- [2026-03-07] KnowledgeBaseServiceImpl.search(Long kbId, ...) had a RAG blocker: it called getKbEntity(kbId) before handling kbId=null, causing KNOWLEDGE_BASE_NOT_FOUND and empty Feign results for /kb/inner/search without kbId; fix requires a cross-KB branch with single-query embedding reuse and global topK merge by score.
+
+- [2026-03-07] Implemented KB intelligent routing in knowledge-service search(null,...): route by cosine(queryEmbedding, kbProfileEmbedding(name+description)), then targeted KB search, and fallback to all-KB search when routing score < 0.4 or top result score < 0.5; use SLF4J '{}' placeholders (not '{:.4f}').
+
+- [2026-03-07] ChatPanel SSE streaming in admin must parse by complete SSE event blocks (split by '\n\n') instead of per-chunk '\n' lines; otherwise partial JSON across network chunks can be appended as raw text and pollute assistant output.
+- [2026-03-07] KB routing quality improved by embedding KB profile with sampled chunk topics (first line/title from up to 10 chunks) in addition to name/description, avoiding misrouting when KB descriptions are template-similar.
+
+- [2026-03-07] ChatPanel markdown rendering should use a real parser (marked) instead of regex transforms; regex-based \n��<br/> and ad-hoc list wrapping breaks heading/list/code semantics and causes visible '#'/formatting defects in AI answers.
+
+- [2026-03-07] In medical-admin, some route/meta titles and sidebar labels can contain malformed quote/tag text after encoding-heavy edits (e.g., missing closing quote in meta.title, malformed <span>...</span>), which causes Vite import-analysis parse failures; run 
+pm.cmd run build after router/sidebar edits to catch this immediately.
+
+- [2026-03-07] In Sidebar.vue under el-menu router mode, wrapping el-menu-item with external <div> and disabling pointer events breaks collapsed icon-only behavior/tooltips; use a sibling custom <li> styled to match menu items for external-link actions.
+
+- [2026-03-07] For router/index.js and Sidebar.vue, partial in-place fixes are brittle after encoding corruption; full-file UTF-8 rewrite is safer to remove broken quotes/tags and restore stable build parsing.
+- [2026-03-08] **Live2D Centering Strategy**: To maintain a consistent "Close-up Portrait" look across different aspect ratios, align the model's "Chest Center" (approx 75% of model height from feet) to the screen's "Visual Center" (35% from top), rather than centering the whole model or head.
+- [2026-03-08] **PixiJS Transparency**: When using `pixi-live2d-display` with PixiJS v6+, simply setting `transparent: true` is not enough; `backgroundAlpha: 0` must be explicitly set in `Application` config, and CSS `canvas { background: transparent }` is recommended to override default browser stylesheets.
+- [2026-03-08] **PixiJS Compatibility**: `renderer.clearBeforeRender` is read-only in some PixiJS v6 sub-versions bundled with UniApp/Vite; wrapping property assignments in `try-catch` prevents app crash during initialization.
+
+- [2026-03-08] medical-user-service ΢�ŵ�¼ invalid appid (40013) �ĸ����Ǳ���ֱ��ʱδע�� WX_APPID/WX_SECRET�����û��˵�ռλֵ your-appid/your-secret���޸���ʽ�ǽ� pplication.yml Ĭ��ֵ���� docker/.env��ȷ���޻�������ʱҲʹ�ÿ��� miniapp ƾ�ݡ�
