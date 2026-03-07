@@ -172,7 +172,7 @@ const fetchSessions = async () => {
     // Sort by createTime desc
     const allSessions = res.data || []
     sessions.value = allSessions
-      .filter(s => s.type === props.sessionType)
+      .filter(s => s.sessionType === props.sessionType)
       .sort((a, b) => new Date(b.createTime) - new Date(a.createTime))
       
     if (sessions.value.length > 0 && !currentSession.value) {
