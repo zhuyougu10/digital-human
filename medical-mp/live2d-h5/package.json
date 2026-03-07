@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "pixi.js": "^7.3.0",
+    "pixi.js": "^6.5.9",
     "pixi-live2d-display": "^0.4.0"
   },
   "devDependencies": {

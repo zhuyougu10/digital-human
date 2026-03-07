@@ -1,48 +1,49 @@
 // [Codex 降级接管] TTS lip-sync simulator for Live2D mouth parameter.
+// Improved to use model's update cycle for better reliability.
 export class LipSyncManager {
   constructor(modelProvider) {
     this.modelProvider = modelProvider
-    this.animationId = null
     this.isPlaying = false
+    this.autoStopTimer = null
   }
 
-  start() {
-    if (this.isPlaying) {
-      return
-    }
+  start(duration = 0) {
     this.isPlaying = true
-    this.animate()
+    
+    if (duration > 0) {
+      if (this.autoStopTimer) clearTimeout(this.autoStopTimer)
+      this.autoStopTimer = setTimeout(() => this.stop(), duration)
+    }
   }
 
   stop() {
     this.isPlaying = false
-
-    if (this.animationId !== null) {
-      cancelAnimationFrame(this.animationId)
-      this.animationId = null
+    if (this.autoStopTimer) {
+      clearTimeout(this.autoStopTimer)
+      this.autoStopTimer = null
     }
-
     this.setMouthValue(0)
   }
 
-  animate() {
+  // This should be called every frame from the external Ticker or model update
+  update() {
     if (!this.isPlaying) {
       return
     }
 
-    const value = Math.sin(Date.now() / 100) * 0.5 + 0.5
-    this.setMouthValue(value)
-
-    this.animationId = requestAnimationFrame(() => this.animate())
+    // Generate a natural-looking mouth movement using multiple sine waves
+    const now = Date.now()
+    const value = (Math.sin(now / 80) * 0.3 + Math.sin(now / 150) * 0.2 + 0.5)
+    this.setMouthValue(Math.max(0, Math.min(1, value)))
   }
 
   setMouthValue(value) {
     const model = this.modelProvider?.()
-    const coreModel = model?.internalModel?.coreModel
-    if (!coreModel?.setParameterValueById) {
+    if (!model || !model.internalModel || !model.internalModel.coreModel) {
       return
     }
 
-    coreModel.setParameterValueById('ParamMouthOpenY', value)
+    // Use setParameterValueById which is the standard Cubism way
+    model.internalModel.coreModel.setParameterValueById('ParamMouthOpenY', value)
   }
 }
