@@ -404,7 +404,28 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
 
     private float[] getKbProfileVector(KnowledgeBase kb) {
         return kbProfileVectorCache.computeIfAbsent(kb.getId(), id -> {
-            String profile = kb.getName() + ". " + (kb.getDescription() == null ? "" : kb.getDescription());
+            List<KnowledgeChunk> samples = knowledgeChunkMapper.selectList(new LambdaQueryWrapper<KnowledgeChunk>()
+                    .eq(KnowledgeChunk::getKbId, kb.getId())
+                    .last("LIMIT 10"));
+            String topics = samples.stream()
+                    .map(chunk -> {
+                        String content = chunk.getContent();
+                        if (content == null || content.isBlank()) {
+                            return "";
+                        }
+                        int newLineIndex = content.indexOf('\n');
+                        if (newLineIndex > 0) {
+                            return content.substring(0, newLineIndex).trim();
+                        }
+                        return content.substring(0, Math.min(20, content.length())).trim();
+                    })
+                    .filter(topic -> !topic.isEmpty())
+                    .collect(Collectors.joining("、"));
+
+            String profile = kb.getName() + "。"
+                    + (kb.getDescription() == null ? "" : kb.getDescription())
+                    + (topics.isEmpty() ? "" : "。该知识库主要疾病：" + topics);
+            log.debug("KB[{}] profile for routing: {}", kb.getId(), profile.substring(0, Math.min(100, profile.length())));
             return embeddingService.embed(profile);
         });
     }
