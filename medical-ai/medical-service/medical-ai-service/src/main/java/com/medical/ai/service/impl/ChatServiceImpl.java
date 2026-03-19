@@ -58,7 +58,7 @@ public class ChatServiceImpl implements ChatService {
         ChatSession session = new ChatSession();
         session.setUserId(userId);
         session.setSessionType(sessionType);
-        session.setTitle("新对话");
+        session.setTitle("\u65b0\u5bf9\u8bdd");
 
         String agentType = switch (sessionType) {
             case "TRIAGE" -> "TRIAGE";
@@ -96,7 +96,7 @@ public class ChatServiceImpl implements ChatService {
     public Flux<SseMessageVO> chat(Long sessionId, Long userId, String message) {
         ChatSession session = sessionMapper.selectById(sessionId);
         if (session == null || !Objects.equals(session.getUserId(), userId)) {
-            throw new BusinessException("会话不存在或无权访问");
+            throw new BusinessException("\u4f1a\u8bdd\u4e0d\u5b58\u5728\u6216\u65e0\u6743\u8bbf\u95ee");
         }
 
         ChatMessage userMsg = new ChatMessage();
@@ -106,7 +106,7 @@ public class ChatServiceImpl implements ChatService {
         messageMapper.insert(userMsg);
 
         Agent agent = agentFactory.getAgent(session.getAgentType());
-        List<Message> chatMessages = buildChatMessages(sessionId, agent);
+        List<Message> chatMessages = buildChatMessages(sessionId, agent, userId);
 
         List<String> toolNames = agent.getToolNames();
         OpenAiChatOptions.Builder optionsBuilder = OpenAiChatOptions.builder();
@@ -141,7 +141,7 @@ public class ChatServiceImpl implements ChatService {
                 assistantMsg.setContent(fullText);
                 messageMapper.insert(assistantMsg);
 
-                if ("新对话".equals(session.getTitle()) && message != null && !message.isEmpty()) {
+                if ("\u65b0\u5bf9\u8bdd".equals(session.getTitle()) && message != null && !message.isEmpty()) {
                     session.setTitle(message.length() > 20 ? message.substring(0, 20) + "..." : message);
                     sessionMapper.updateById(session);
                 }
@@ -153,7 +153,7 @@ public class ChatServiceImpl implements ChatService {
                         messageMapper.updateById(assistantMsg);
                     }
                 } catch (Exception e) {
-                    log.warn("TTS 合成失败: {}", e.getMessage());
+                    log.warn("TTS \u5408\u6210\u5931\u8d25: {}", e.getMessage());
                 }
             })
             .doOnError(e -> log.error("Chat stream error for session {}: {}", sessionId, e.getMessage(), e))
@@ -178,22 +178,31 @@ public class ChatServiceImpl implements ChatService {
             try {
                 summaryService.generateSummary(sessionId, null);
             } catch (Exception e) {
-                log.warn("摘要生成失败: {}", e.getMessage());
+                log.warn("\u6458\u8981\u751f\u6210\u5931\u8d25: {}", e.getMessage());
             }
         }
     }
 
     @Override
     public void deleteSession(Long sessionId) {
-        // 使用 MyBatis-Plus deleteById，@TableLogic 会自动将其转换为
+        // 浣跨敤 MyBatis-Plus deleteById锛孈TableLogic 浼氳嚜鍔ㄥ皢鍏惰浆鎹负
         // UPDATE chat_session SET deleted=1 WHERE id=? AND deleted=0
-        // 直接 setDeleted(1)+updateById 会因 @TableLogic 跳过该字段而无效
+        // 鐩存帴 setDeleted(1)+updateById 浼氬洜 @TableLogic 璺宠繃璇ュ瓧娈佃€屾棤鏁?
         sessionMapper.deleteById(sessionId);
     }
 
     private List<Message> buildChatMessages(Long sessionId, Agent agent) {
+        return buildChatMessages(sessionId, agent, null);
+    }
+
+    private List<Message> buildChatMessages(Long sessionId, Agent agent, Long userId) {
         List<Message> messages = new ArrayList<>();
-        messages.add(new SystemMessage(agent.getSystemPrompt()));
+        String systemPrompt = agent.getSystemPrompt();
+        if ("TRIAGE".equals(agent.getAgentType()) && userId != null) {
+            systemPrompt += "\n\n\u5f53\u524d\u60a3\u8005\u4fe1\u606f\uff1a\n- patientId = " + userId
+                + "\n\u5728\u8c03\u7528 createAppointment \u5de5\u5177\u65f6\uff0c\u8bf7\u52a1\u5fc5\u4f7f\u7528\u4e0a\u9762\u7684 patientId\u3002";
+        }
+        messages.add(new SystemMessage(systemPrompt));
 
         List<ChatMessage> history = messageMapper.selectList(
             new LambdaQueryWrapper<ChatMessage>()
@@ -248,4 +257,3 @@ public class ChatServiceImpl implements ChatService {
         return vo;
     }
 }
-
