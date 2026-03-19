@@ -34,21 +34,23 @@ export const createSSERequest = (url, data, callbacks) => {
     const lines = buffer.split('\n\n')
     buffer = lines.pop() // Last one might be incomplete
     
-    for (const line of lines) {
-      if (line.startsWith('data:')) {
-        const content = line.substring(5).trim()
-        if (content === '[DONE]') {
-          onComplete && onComplete()
-          return
+    for (const block of lines) {
+      if (!block.trim()) continue
+      let eventType = 'message'
+      let dataContent = ''
+      for (const line of block.split('\n')) {
+        if (line.startsWith('event:')) {
+          eventType = line.substring(6).trim()
+        } else if (line.startsWith('data:')) {
+          dataContent = line.substring(5).trim()
         }
-        
-        try {
-          // Some SSE events might be raw strings, others JSON
-          // We'll pass the whole thing and let the component decide
-          onMessage && onMessage('message', content)
-        } catch (e) {
-          console.error('Failed to parse SSE line', e)
-        }
+      }
+      if (dataContent === '[DONE]') {
+        onComplete && onComplete()
+        return
+      }
+      if (dataContent) {
+        onMessage && onMessage(eventType, dataContent)
       }
     }
   })

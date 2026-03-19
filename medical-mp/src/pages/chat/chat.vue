@@ -61,13 +61,18 @@ const sendMessage = async (text) => {
       onMessage: async (_type, raw) => {
         try {
           const payload = JSON.parse(raw)
-          if (payload.type === 'text') {
+          if (payload.type === 'token') {
             postToH5('AI_TOKEN', payload.content || '')
-          } else if (payload.type === 'tts') {
-            currentTtsUrl.value = payload.metadata || payload.url || ''
+          } else if (payload.type === 'complete') {
+            // 完成事件，可用于获取 ttsUrl
+            if (payload.ttsUrl) {
+              currentTtsUrl.value = payload.ttsUrl
+            }
+          } else if (payload.type === 'error') {
+            postToH5('AI_TOKEN', payload.content || '服务暂时不可用')
           }
         } catch (e) {
-          // Fallback if not JSON
+          // 非 JSON 数据，当作纯文本 token 处理
           postToH5('AI_TOKEN', raw)
         }
       },
