@@ -18,3 +18,14 @@ Thumbs.db
 .env
 *.env.local
 uploads/
+
+# AI agent workspaces
+.mcp/
+.codex/
+.gemini/
+.opencode/
+
+# Temp files
+_req.json
+nul
+triage_*.txt

@@ -417,3 +417,103 @@
 - **Visual Check:** Live2D model is correctly zoomed and centered on chest. Background is transparent/gradient.
 - **Console Check:** No more `clearBeforeRender` errors.
 - **Layout Check:** Input bar is close to bottom but not flush (12px gap). Doctor info is clear in top-right.
+
+## Session: 2026-03-20 (Phase 14 — 智能导诊功能修复)
+
+### 问题分析
+审计导诊 Agent 全链路后发现 3 个严重问题阻断智能导诊功能：
+
+| 编号 | 问题 | 根因 |
+|------|------|------|
+| P0 | 预约必定失败 | `createAppointment` 工具需要 `patientId`，但 LLM 无法得知当前用户 ID |
+| P1 | 多轮工具结果丢失 | Function Calling 的 tool 消息未持久化到 DB（降优，assistant 回复已含结果文本） |
+| P2 | AI 回复完全不显示 | `sse.js` 无法解析含 `event:` 行的 SSE 块 + `chat.vue` 类型判断 `'text'` ≠ 后端 `'token'` |
+
+### 修复内容
+
+**P0 — patientId 自动注入** (Codex → cherry-pick 合并)
+- 文件: `ChatServiceImpl.java`
+- 方案: 在 `buildChatMessages()` 中为 TRIAGE Agent 动态注入 `patientId = {userId}` 到 system prompt
+- 新增 `buildChatMessages(sessionId, agent, userId)` 重载，原方法保留兼容
+- 线程安全：无需跨线程传递上下文，LLM 从 prompt 自然获取 patientId
+
+**P2a — SSE 解析器修复** (Gemini → cherry-pick 合并)
+- 文件: `medical-mp/src/utils/sse.js`
+- 根因: 后端 SSE 格式为 `event:token\ndata:{...}\n\n`，解析器按 `\n\n` 分割后用 `startsWith('data:')` 过滤，但块以 `event:` 开头，全部被跳过
+- 修复: 事件块内按 `\n` 分行，分别提取 `event:` 和 `data:` 行
+
+**P2b — 消息类型判断修复** (Gemini → 同上)
+- 文件: `medical-mp/src/pages/chat/chat.vue`
+- `payload.type === 'text'` → `'token'`
+- 新增 `'complete'` 和 `'error'` 类型处理
+
+### 编码损伤修复
+- Codex PowerShell 导致中文字符串被转为 Unicode 转义 + 注释变 GBK 乱码
+- 手动恢复所有中文字符串和注释为正确 UTF-8
+
+### 验证结果
+- `mvn compile -pl medical-ai-service -am -q` → **BUILD SUCCESS**
+- `npm run build:mp-weixin` → **Build complete**
+
+### Errors Encountered / Resolution
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| Codex idle terminated (mvn 不可用) | 1 | 触发 Gemini fallback；Codex diff 正确，手动 cherry-pick |
+| Gemini fallback 也因缺少 node_modules 无法构建 | 1 | 代码逻辑正确，合并后在主工作区验证 |
+| Codex 中文编码损伤 (Unicode 转义 + GBK 乱码注释) | 1 | Python 脚本 + Edit 工具手动恢复 |
+| MP npm install ERESOLVE 冲突 | 1 | 加 `--legacy-peer-deps` 成功安装 |
+
+### 端到端导诊验证 (Gateway 8080)
+- **环境**: Docker Compose 14/14 UP, ai-service 含 P0 修复
+- **测试流程**: 患者登录 → 创建 TRIAGE 会话 → 3 轮 SSE 流式对话
+- **Round 1** (症状描述): AI 正确收集症状，询问部位/感觉/伴随症状 ✅
+- **Round 2** (症状细节): AI 继续追问严重程度/持续模式/既往史 ✅
+- **Round 3** (请求推荐): AI 分析为"偏头痛"，推荐"神经内科"，触发 Function Calling ✅
+- **P0 验证**: system prompt 中成功注入 `patientId = 5`（当前患者 userId）
+- **P2 验证**: SSE 格式 `event:token\ndata:{...}\n\n` 正确解析
+- **已知限制**: `searchDoctorBySymptom` 返回空列表（数据库无神经内科医生档案），AI 给出兜底建议
+
+## Session: 2026-03-20 (Phase 15 — 医生数据补充)
+
+### Actions Completed
+- **[数据补充]** Codex 生成 `medical-ai/docker/seed_doctors.sql`（123 行），覆盖：
+  - 7 个新 DOCTOR 用户（id 6-12）+ 角色绑定
+  - 7 个医生档案（神经内科/儿科/妇产科/眼科/耳鼻喉科/皮肤科/中医科）
+  - 现有 3 名医生（张三/李四/王五）specialties + treatment_areas 更新
+  - 10 名医生 × 周一至周五 × 上午下午 = 100 条排班模板
+  - 10 名医生 × 6 天（03-20~03-25）× 2 时段 = 120 条号源（每时段 20 号）
+- **[执行]** Docker MySQL 导入成功，无错误
+
+### Verification
+| 检查项 | 预期 | 实际 | 状态 |
+|--------|------|------|------|
+| doctor_profile 总数 | 10 | 10 | ✅ |
+| doctor_department 映射 | 9 科室（口腔科除外） | 10 条（含内科 2 人） | ✅ |
+| schedule_template 总数 | 100 | 100 | ✅ |
+| schedule_slot 总数 (>=03-20) | 120 | 120 | ✅ |
+| 神经内科赵六 specialties | 头疼,偏头痛,头晕,失眠,癫痫 | 匹配 | ✅ |
+
+## Session: 2026-03-20 (Phase 15 Task 3 — 端到端导诊闭环验证)
+
+### 验证结果 — 全链路 5 轮 SSE 对话 PASS
+
+| Round | 用户输入 | AI 行为 | Function Calling | 状态 |
+|-------|---------|---------|-----------------|------|
+| 1 | "hello" | 收集症状（询问主诉/持续时间/严重度） | 无 | ✅ |
+| 2 | 头疼+太阳穴跳痛+恶心+请推荐 | 继续追问伴随症状/既往史/加重因素 | 无 | ✅ |
+| 3 | 畏光+偏头痛史+光线声音加重+请挂号 | **搜索神经内科医生** → 推荐赵六医生 | `searchDoctorBySymptom` ✅ | ✅ |
+| 4 | 预约明天2026-03-21上午号 | **查询号源** → 上午08:00-12:00 slotId=33 剩余20个 | `getAvailableSlots` ✅ | ✅ |
+| 5 | 确认预约 | **创建预约** → 预约ID=1, patientId=5, doctorId=3 | `createAppointment` ✅ | ✅ |
+
+### 数据库验证
+| 检查项 | 结果 |
+|--------|------|
+| appointment 表记录 | id=1, patient_id=5, doctor_id=3, slot_id=33, status=0 ✅ |
+| schedule_slot 号源扣减 | id=33, total_slots=20, booked_slots=1 (从0增至1) ✅ |
+| P0 patientId 注入 | system prompt 含 `patientId=5`，AI 正确传递 ✅ |
+
+### 关键发现
+- SSE 端点为 POST (非 GET)，body 需 `{"sessionId":N,"message":"..."}`
+- curl 中文 body 直接传送会被 Gateway 拒绝 (400)，需用 `--data-binary @file` + `charset=utf-8`
+- AI 分诊保守：即便用户明确要求"直接挂号"，仍会先追问2轮再触发工具
+- `department_id=0` 在预约记录中 — AI 未传递 departmentId (非必填字段，不影响功能)

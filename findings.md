@@ -676,5 +676,33 @@ pm.cmd run build after router/sidebar edits to catch this immediately.
 - [2026-03-08] **Live2D Centering Strategy**: To maintain a consistent "Close-up Portrait" look across different aspect ratios, align the model's "Chest Center" (approx 75% of model height from feet) to the screen's "Visual Center" (35% from top), rather than centering the whole model or head.
 - [2026-03-08] **PixiJS Transparency**: When using `pixi-live2d-display` with PixiJS v6+, simply setting `transparent: true` is not enough; `backgroundAlpha: 0` must be explicitly set in `Application` config, and CSS `canvas { background: transparent }` is recommended to override default browser stylesheets.
 - [2026-03-08] **PixiJS Compatibility**: `renderer.clearBeforeRender` is read-only in some PixiJS v6 sub-versions bundled with UniApp/Vite; wrapping property assignments in `try-catch` prevents app crash during initialization.
+- [2026-03-08] medical-user-service 微信登录 invalid appid (40013) 根因是本地运行时未注入 WX_APPID/WX_SECRET 环境变量，默认占位值 your-appid/your-secret 导致请求失败。
 
-- [2026-03-08] medical-user-service ΢�ŵ�¼ invalid appid (40013) �ĸ����Ǳ���ֱ��ʱδע�� WX_APPID/WX_SECRET�����û��˵�ռλֵ your-appid/your-secret���޸���ʽ�ǽ� pplication.yml Ĭ��ֵ���� docker/.env��ȷ���޻�������ʱҲʹ�ÿ��� miniapp ƾ�ݡ�
+## 2026-03-20 智能导诊功能审计
+
+### 导诊 Agent 架构
+- **TriageAgent** 绑定 3 个工具：`searchDoctorBySymptom`、`getAvailableSlots`、`createAppointment`
+- 系统提示词要求多轮问诊(2-3轮) → 推荐科室+医生 → 查号源 → 创建预约
+- 工具通过 `@Bean` + `@Description` 注册到 Spring AI `FunctionCallbackResolver`
+- 远程调用链：DoctorSearchTool → Feign → doctor-service；AppointmentTool → Feign → appointment-service
+
+### 发现的 3 个严重问题
+
+| 编号 | 问题 | 影响 | 修复方案 |
+|------|------|------|----------|
+| **P0** | `createAppointment` 要求 LLM 提供 `patientId`，但 LLM 无从得知当前登录用户 ID | 预约必定失败或 LLM 瞎编 ID | 在 `ChatServiceImpl.buildChatMessages()` 中将 userId 注入 system prompt，LLM 调用工具时自动使用 |
+| **P1** | Function Calling 的 tool 消息（tool_call / tool_result）未持久化到 DB | 多轮对话中 LLM 丢失之前工具调用结果，可能重复调用 | 降低优先级——assistant 最终回复已含工具结果文本，LLM 可通过上文推断 |
+| **P2** | 小程序 `sse.js` SSE 解析器无法处理含 `event:` 行的 SSE 块 + `chat.vue` 类型判断 `'text'` 与后端 `'token'` 不匹配 | **所有 AI 回复 token 被静默丢弃**，H5 聊天页无 AI 消息 | 修复 sse.js 按 `\n` 拆分块内行并提取 `event:`/`data:`；chat.vue 中 `'text'` → `'token'` |
+
+### 线程上下文分析（P0 方案选择依据）
+- Sa-Token 使用 ThreadLocal 存储登录态，`publishOn(Schedulers.boundedElastic())` 后切换线程，ThreadLocal 失效
+- Spring AI M5 的 Function Calling 在 stream 内部执行，工具回调线程不可控
+- **选定方案**：在 system prompt 中动态注入 `patientId = {userId}`，无需跨线程传递上下文，LLM 自然使用
+
+### SSE 数据流详细分析（P2 修复依据）
+- 后端 `ChatController.chat()` 使用 `ServerSentEvent.builder().event(msg.getType()).data(msg).build()`
+- 输出格式：`event:token\ndata:{"type":"token","content":"你",...}\n\n`
+- `sse.js` 按 `\n\n` 分割得到事件块，检查 `startsWith('data:')` → **块以 `event:` 开头，全部被跳过**
+- 修复：在事件块内按 `\n` 分割各行，分别提取 `event:` 和 `data:`
+- `chat.vue` 中 `payload.type === 'text'` 永远不匹配后端的 `'token'`，需改为 `'token'`
+

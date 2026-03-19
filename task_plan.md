@@ -4,7 +4,7 @@
 构建基于 Spring Cloud + Spring AI + RAG + AI Agents + Vue3 + UniApp 的 AI 数字人医疗小助手系统（毕业设计）
 
 ## Current Phase
-Phase 12: Feature Enhancements & Bug Fixes — complete
+Phase 15: 医生数据补充与导诊闭环 — complete
 
 ## Phases
 <!-- 
@@ -266,6 +266,13 @@ Phase 12: Feature Enhancements & Bug Fixes — complete
 - [x] Task 6: 极简登录流优化 (登录直达问诊)
 - **Status:** complete
 
+### Phase 14: 智能导诊功能修复 (17-triage-fix)
+- [x] **Task 1 [P0]**: ChatServiceImpl — 为 TRIAGE Agent 动态注入 patientId 到 system prompt (Codex)
+- [x] **Task 2 [P2a]**: sse.js — 修复 SSE 事件块解析器，正确处理 event: + data: 多行格式 (Gemini)
+- [x] **Task 3 [P2b]**: chat.vue — SSE 消息类型判断 'text' → 'token'，新增 complete 处理 (Gemini)
+- [x] **Task 4**: 编译验证 (Maven BUILD SUCCESS + MP Build complete)
+- **Status:** complete
+
 ## Phase 8: Final Review & Polishing
 | 根因 | 描述 | 结果 |
 |------|------|------|
@@ -385,3 +392,10 @@ Phase 12: Feature Enhancements & Bug Fixes — complete
 - [x] **[UI Refinement]** H5 聊天页视觉升级：去除黑色背景，应用医疗蓝径向渐变；气泡与输入框增加毛玻璃效果。
 - [x] **[Bug Fix]** 修复 PixiJS `clearBeforeRender` 只读属性报错与背景不透明问题。
 - [x] **[Layout]** 调整输入框布局（高度压缩至 36px，底部留白 12px）与医生信息气泡位置（右上角+描边）。
+
+### Phase 15: 医生数据补充与导诊闭环 (18-seed-doctors)
+- [x] **Task 1**: 生成 seed_doctors.sql — 7 个新 DOCTOR 用户 + 7 个医生档案 + 科室绑定 + 现有 3 名医生 specialties 更新 (Codex)
+- [x] **Task 2**: 在 Docker MySQL 中执行 SQL — 10 名医生 / 9 个科室 / 100 条排班模板 / 120 条号源全部导入成功
+- [x] **Task 3**: 端到端导诊闭环验证 — 5 轮 SSE 对话全通 (症状收集→追问→searchDoctor→getSlots→createAppointment)
+- [x] **Task 4**: 提交 Phase 14+15 修复 commit
+- **Status:** complete
