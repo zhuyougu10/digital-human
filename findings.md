@@ -2,7 +2,7 @@
 
 > 项目：AI 数字人医疗小助手系统（毕业设计）
 > 创建日期：2026-02-27
-> 最后更新：2026-02-27
+> 最后更新：2026-03-20
 
 ## Requirements
 
@@ -27,6 +27,8 @@
 - TTS 方案：阿里云智能语音 API 返回音频 URL → UniApp TtsPlayer 播放 → 发送 START_LIPSYNC 指令至 H5。
 - Milvus 向量数据库需要 etcd + minio 作为依赖服务
 - 每个微服务独立数据库：medical_user / medical_doctor / medical_ai / medical_appointment / medical_knowledge
+- 本轮会话衔接检查后确认工作区仍有未提交改动，重点集中在 H5 TTS 播放链路排障：`medical-mp/live2d-h5/src/main.js`、新增 `medical-mp/live2d-h5/src/audio-player.js`、`medical-mp/src/pages/chat/chat.vue`，以及调试依赖 `vconsole`。
+- 当前未提交变更同时包含 `medical-ai-service/pom.xml` 中恢复 DashScope `okhttp` 传递依赖的修复，以及 `tts-audio/` 下 9 个本地语音样本文件，说明上轮排障已走到“生成真实音频并在前端侧复测”的阶段。
 
 ## Technical Decisions
 
@@ -50,6 +52,7 @@
 | PixiJS v6 + Ticker 注册 | 解决 Live2D 静态不动的问题，确保插件兼容性并开启自动 Idle 动画 |
 | URL 参数驱动 H5 状态 | 绕过小程序 `postMessage` 实时性差的限制，实现毫秒级口型同步 |
 | SSE 流式对话 | 相比 WebSocket 更简单，单向推送适合 LLM 流式输出场景 |
+| 会话衔接优先以项目根目录规划文件 + `git diff --stat` 为准 | 当前 catchup 脚本无输出，但工作区存在未提交排障上下文，需以规划文件和 Git 实际差异同步状态 |
 
 ## Architecture Overview
 
@@ -148,6 +151,8 @@ medical-ai/
 | Codex PowerShell \`r\`n 转义失败变字面量 | 对多行文本内容优先由 OpenCode 用 Write 工具直接写入 |
 | MyBatis-Plus 3.5.9 PaginationInnerInterceptor 找不到 | 需额外依赖 `mybatis-plus-jsqlparser`，Codex 自动修复 |
 | CCB ask 命令需要 CCB_CALLER 环境变量 | `export CCB_CALLER=claude` 后调用 `ask codex` |
+| 直接套用 planning-with-files 文档中的 PowerShell catchup 命令会在当前 Bash shell 报 `syntax error near unexpected token '('` | 当前环境默认通过 Bash 执行命令，需改用 Bash 形式或直接调用仓库内脚本绝对路径 |
+| 当前用户目录下不存在 `~/.opencode/skills/planning-with-files/scripts/session-catchup.py` | 改用仓库内 `.opencode/skills/planning-with-files/scripts/session-catchup.py` 可正常执行 |
 
 ## Resources
 
@@ -626,6 +631,25 @@ font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', -apple-system
 - **中文 UI 文案不变**
 - **路由结构不变**
 - [2026-03-05] Python integration tests should prefer `http://localhost:9090/api` but auto-fallback to `http://localhost:8080/api` when running against the Docker Compose gateway mapping, otherwise all tests fail at fixture login with connection-refused.
+- [2026-03-20] 会话补全脚本本次未报告未同步上下文；项目根目录已存在 `task_plan.md`、`findings.md`、`progress.md`，当前活动阶段仍为 Phase 21（CosyVoice TTS 集成）。
+- [2026-03-20] TTS 新故障定位到 `medical-ai-service` 依赖裁剪：`TtsServiceImpl` 使用 DashScope `SpeechSynthesizer` 走 WebSocket，全栈报错 `NoClassDefFoundError: okhttp3/WebSocketListener`，而 `medical-ai-service/pom.xml` 当前对 `spring-ai-openai-spring-boot-starter` 与 `dashscope-sdk-java` 都显式排除了 `com.squareup.okhttp3:okhttp`，导致 DashScope 运行时缺少 WebSocket 客户端类。
+- [2026-03-20] `medical-ai-service` 本身不直接依赖 Milvus，修复 TTS 缺类时无需恢复整套历史冲突链；最小修复是仅恢复 `dashscope-sdk-java` 的 OkHttp 传递依赖，同时继续保留 `spring-ai-openai-spring-boot-starter` 上的 OkHttp 排除。`mvn -pl medical-service/medical-ai-service -am -DskipTests compile -f medical-ai/pom.xml` 已在当前环境验证通过。
+- [2026-03-20] `mvn -pl medical-service/medical-ai-service -am dependency:tree -Dincludes=com.squareup.okhttp3:okhttp -f medical-ai/pom.xml` 已确认 `medical-ai-service -> dashscope-sdk-java:2.19.2 -> okhttp:4.12.0`，说明 DashScope 所需 WebSocket 运行时已恢复到 AI 服务模块。
+- [2026-03-20] 新一轮排障发现：后端已能生成 `ttsUrl`，前端 H5 播放链路位于 `medical-mp/live2d-h5/src/main.js`。当前实现仅在 `Audio.onloadedmetadata` 中调用 `audio.play()`；若浏览器/小程序 WebView 对自动播放有限制，元数据加载成功但 `play()` 被策略拦截时会表现为“有 URL 但无声音”。同时需要继续核对 `/ai/chat/tts/*` 端点返回头、相对路径拼接和音频请求可达性。
+- [2026-03-20] 继续排查发现 H5 当前使用浏览器 `new Audio(audioUrl)` 直接拉取 `ttsUrl`；该请求不会自动带 `Authorization` 头。若 Gateway 仍对 `/api/ai/chat/tts/*` 走鉴权，表现将是“后端已生成音频但前端无声”。另一个可疑点是微信 WebView 自动播放策略，但应先验证音频 GET 请求是否被网关 401 拦截。
+- [2026-03-20] 代码链路已坐实上述根因：`AuthFilter` 对 `/**` 统一鉴权，白名单不含 `/api/ai/chat/tts/**`；H5 `main.js` 却用 `new Audio(audioUrl)` 直接取资源，无法附带 `Authorization`。最小修复是在 H5 侧先用 `fetch(audioUrl, { Authorization: Bearer token })` 拉音频 blob，再用 `URL.createObjectURL` 交给 `Audio` 播放，而不是放开网关匿名访问。
+- [2026-03-20] 为便于微信小程序内嵌 H5 调试，`medical-mp/live2d-h5` 已接入 `vconsole`，在 `src/main.js` 启动时创建单例调试面板，可直接在小程序 WebView 中查看日志与网络请求。
+- [2026-03-20] `vconsole` 已收敛为仅开发环境启用：`medical-mp/live2d-h5/src/main.js` 使用 `import.meta.env.DEV` 判定，避免生产包常驻调试面板。
+- [2026-03-20] 新日志 `[H5] 播放音频失败: {}` 说明请求鉴权问题已大概率绕过，当前更像 WebView 自动播放策略拦截：`audio.play()` 抛出的 DOMException 在 console 中被序列化成空对象。下一步应在用户点击发送时先执行一次音频解锁（warm-up），并把错误日志展开为 `name/message/stack` 便于继续判断是否为 `NotAllowedError`。
+- [2026-03-20] 已在 `medical-mp/live2d-h5/src/audio-player.js` 增加共享 `Audio` 实例与 `unlockAudioPlayback()` 预解锁逻辑，并在 `main.js` 的发送按钮点击链路里先执行 warm-up；同时将播放失败日志展开为 `name/message/stack/audioUrl`，便于区分自动播放限制与资源错误。
+- [2026-03-20] 继续排查确认新的主根因是跨域 fetch 选项：`audio-player.js` 给音频 GET 设置了 `credentials: 'include'`，而后端 `/chat/tts/*` 响应头是 `Access-Control-Allow-Origin: *`。浏览器对“携带凭证 + 通配符 Origin”组合会直接拦截，表现为 `TypeError: Failed to fetch`。该请求本身依赖 `Authorization` 头鉴权，不需要 cookies/credentials。
+- [2026-03-20] 用户最新反馈表明后端实际使用 8080，不应机械切到 9090。当前更合理的根因是“小程序内嵌 H5 中 `localhost` 指向 WebView 自身环境而不是开发机/网关地址”，因此若 `apiBase` 仍是 `http://localhost:8080/api`，H5 fetch 会直接 `TypeError: Failed to fetch`。修复方向应保留 8080 端口，但把 `localhost/127.0.0.1` 解析为当前 H5 页面可访问的宿主机地址。 
+- [2026-03-20] 已按上述结论落地：`medical-mp/live2d-h5/src/main.js` 现在会把 `apiBase` 中的 `localhost/127.0.0.1` 自动替换为 `window.location.hostname`，这样在 H5 页面是通过局域网 IP / 域名打开时，TTS 音频请求会落到同一宿主机的 8080 端口，而不是错误地打到 WebView 自身的 localhost。
+- [2026-03-20] 若 `vConsole` 只剩 `音频解锁失败 NotSupportedError: Failed to load because no supported source was found.`，说明 warm-up 使用的 data URL 在当前微信 WebView 不被支持；这条日志本身不等于真实 TTS 播放失败，应降级为静默忽略，避免干扰后续判断真实音频链路。
+- [2026-03-20] 在当前小程序架构里，最稳妥的 TTS 播放方式不是 H5 `Audio`，而是 UniApp 原生 `InnerAudioContext`：`chat.vue` 已有隐藏 `TtsPlayer` 与 lip-sync 事件桥，因此可让 H5 只负责 UI 和口型指令，真实音频播放回退到 UniApp 原生层，以绕开 WebView 对 `localhost`/跨域/自动播放的多重限制。
+- [2026-03-20] **[TTS 无声 — 系统化排障结论]** 定位到 2 个独立根因组成完整无声链：
+  - **BUG 1 (CRITICAL — 后端竞态)**: `ChatServiceImpl.java:137-168` 中 `doOnComplete` 调用阻塞的 `ttsService.synthesize()`（DashScope WebSocket 数秒级），但 `concatWith(Mono.fromCallable)` 不等待 `doOnComplete` 完成就求值 → 前端收到的 `complete.ttsUrl` 永远是 `null`。修复：将 TTS 合成移入 `concatWith` 的 Mono 内部，保证因果顺序。
+  - **BUG 2 (HIGH — 前端 audioMode 逻辑矛盾)**: `chat.vue:30` 设置 `audioMode='native'` → H5 `main.js:158` 对 `native` 模式 `continue` 跳过播放 → 但 UniApp 的 `sendMessage()` 从未被调用（H5 直连后端后 SSE 不经过 UniApp），`TtsPlayer` 永远不收到 `ttsUrl` → 两端都不播放。修复：删除 `audioMode=native`，让 H5 用已有的 `audio-player.js`（带 Bearer 鉴权 fetch + blob 播放 + unlock warm-up）直接播放。
 - [2026-03-05] In the current dockerized dataset, `admin/admin123` logs in successfully but returns roles `["DOCTOR"]` instead of `ADMIN`; all role-protected admin endpoints return `code=403` and cannot be validated without environment seed/data fix.
 - [2026-03-05] `docker/docker-compose.yml` already passes `DASHSCOPE_API_KEY` into both `ai-service` and `knowledge-service`; embedding failures with code `5003` are caused by placeholder API keys, not missing env propagation.
 - [2026-03-05] `DoctorProfileServiceImpl#create` now uses `dto.userId` first and falls back to `SecurityUtil.getUserId()`, which matches `doctor_profile.user_id NOT NULL` constraints for admin-created doctor profiles.

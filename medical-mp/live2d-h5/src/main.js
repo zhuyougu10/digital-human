@@ -1,5 +1,11 @@
 import * as PIXI from 'pixi.js'
 window.PIXI = PIXI
+import { playAuthenticatedAudio, unlockAudioPlayback } from './audio-player'
+import VConsole from 'vconsole'
+
+if (import.meta.env.DEV && !window.__H5_VCONSOLE__) {
+  window.__H5_VCONSOLE__ = new VConsole()
+}
 
 // [Codex 降级接管] Solution A: Full H5 Chat UI with Live2D.
 async function bootstrap() {
@@ -57,9 +63,22 @@ async function bootstrap() {
   const urlParams = new URLSearchParams(window.location.search)
   const token = urlParams.get('token')
   const sessionId = urlParams.get('sessionId')
-  const apiBase = urlParams.get('apiBase') || 'http://localhost:8080/api'
+  const rawApiBase = urlParams.get('apiBase') || 'http://localhost:8080/api'
+  const resolveApiBase = (baseUrl) => {
+    try {
+      const parsed = new URL(baseUrl)
+      if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') {
+        parsed.hostname = window.location.hostname
+      }
+      return parsed.toString().replace(/\/$/, '')
+    } catch (error) {
+      console.warn('[H5] apiBase 解析失败，使用原始值:', { baseUrl, error })
+      return baseUrl
+    }
+  }
+  const apiBase = resolveApiBase(rawApiBase)
   if (token && sessionId) {
-    console.log('[H5] 接收到鉴权信息:', { sessionId, apiBase })
+    console.log('[H5] 接收到鉴权信息:', { sessionId, rawApiBase, apiBase })
   }
 
   let currentAiBubble = null
@@ -137,14 +156,20 @@ async function bootstrap() {
               if (payload.ttsUrl) {
                 // 如果 ttsUrl 是相对路径，拼接 apiBase 构建完整 URL
                 const audioUrl = payload.ttsUrl.startsWith('http') ? payload.ttsUrl : (apiBase + payload.ttsUrl)
-                const audio = new Audio(audioUrl)
-                audio.onloadedmetadata = () => {
-                  if (lipSyncManager) lipSyncManager.start(audio.duration * 1000)
-                  audio.play().catch(err => console.error('[H5] 播放音频失败:', err))
-                }
-                audio.onerror = (e) => {
-                  console.error('[H5] 音频加载失败:', e)
-                }
+                playAuthenticatedAudio({
+                  audioUrl,
+                  token,
+                  onLoadedMetadata: (audio) => {
+                    if (lipSyncManager) lipSyncManager.start(audio.duration * 1000)
+                  }
+                }).catch(err => {
+                  console.error('[H5] 播放音频失败:', {
+                    name: err?.name,
+                    message: err?.message,
+                    stack: err?.stack,
+                    audioUrl
+                  })
+                })
               }
             } else if (payload.type === 'error' && currentAiBubble) {
               currentAiBubble.innerText += payload.content || '服务暂时不可用'
@@ -173,6 +198,16 @@ async function bootstrap() {
   const handleSend = () => {
     const text = chatInput.value.trim()
     if (!text) return
+
+    unlockAudioPlayback().catch(err => {
+      if (err?.name !== 'NotSupportedError') {
+        console.warn('[H5] 音频解锁失败:', {
+          name: err?.name,
+          message: err?.message,
+          stack: err?.stack
+        })
+      }
+    })
     
     appendMessage('user', text)
     chatInput.value = ''

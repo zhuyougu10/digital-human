@@ -4,7 +4,7 @@
 构建基于 Spring Cloud + Spring AI + RAG + AI Agents + Vue3 + UniApp 的 AI 数字人医疗小助手系统（毕业设计）
 
 ## Current Phase
-Phase 21: CosyVoice TTS 集成 — in_progress
+会话衔接与规划文件同步 — complete
 
 ## Phases
 <!-- 
@@ -94,88 +94,16 @@ Phase 21: CosyVoice TTS 集成 — in_progress
 - [x] Task 3: Clean up any remaining temporary files or comments.
 - **Status:** complete
 
-## Phase 8: Final Review & Polishing
-- [x] Final E2E Check
-- [x] Documentation Audit
-- [x] Final Cleanup
-
-
-### Phase 2: Planning & Task Decomposition
-- [x] 创建 00-overview.md 总览计划
-- [x] 创建 01-project-init.md 项目初始化（12 Tasks）
-- [x] 创建 02-common-modules.md 公共模块（10 Tasks）
-- [x] 创建 03-user-service.md 用户服务（12 Tasks）
-- [x] 创建 04-doctor-service.md 医生服务（10 Tasks）
-- [x] 创建 05-knowledge-service.md 知识库服务（12 Tasks）
-- [x] 创建 06-ai-service.md AI服务（13 Tasks）
-- [x] 创建 07-appointment-service.md 预约服务（6 Tasks）
-- [x] 创建 08-gateway.md 网关服务（5 Tasks）
-- [x] 创建 09-frontend-admin.md 管理端+医生端前端（18 Tasks）
-- [x] 创建 10-frontend-mp.md 小程序端+Live2D（14 Tasks）
-- [x] 创建 11-docker-deploy.md 部署+联调（9 Tasks）
-- **Status:** complete
-
-### Phase 3: Implementation (TDD)
-- [x] 01-project-init (12 Tasks) — COMPLETE
-- [x] 02-common-modules (10 Tasks) — COMPLETE
-- [x] 03-user-service (12 Tasks) — COMPLETE
-- [x] 04-doctor-service (10 Tasks) — COMPLETE
-    - [x] 05-knowledge-service (12 Tasks) — COMPLETE
-    - [x] 06-ai-service (13 Tasks) — COMPLETE
-    - [x] 07-appointment-service (6 Tasks) — COMPLETE
-- [x] 08-gateway (5 Tasks) — COMPLETE
-- [x] 09-frontend-admin (18 Tasks) — COMPLETE
-- [x] 10-frontend-mp (14 Tasks) — COMPLETE
-- [x] 11-docker-deploy (9 Tasks) — COMPLETE
-- **Status:** complete
-
-### 11-docker-deploy 详细进度
-- [x] Task 1: 6 个 Dockerfile (gateway + 5 services)
-- [x] Task 2: admin Nginx + Dockerfile
-- [x] Task 3: Live2D H5 Dockerfile + nginx.conf
-- [x] Task 4: 完整 docker-compose.yml (14 containers, healthcheck, depends_on)
-- [x] Task 5: .env.example (27 行)
-- [x] Task 6: Maven 全量打包 BUILD SUCCESS (18/18, 36s)
-- [x] Task 7: Docker Compose 启动 14/14 UP
-- [x] Task 8: 端到端联调验证 — 12/12 PASS (Session 4 全通)
-- [x] Task 9: Commit — feat(deploy): 0b72f91
-
-### Phase 4: Testing & Verification
-- [x] 端到端联调 (11-docker-deploy Task 8 完成)
-- [x] 12 项联调验证全部通过 (Session 4)
-- **Status:** complete
-
-### Phase 5: Delivery (12-delivery)
-- [x] Task 1: 项目 README.md (项目概述/技术栈/架构/快速启动) — Codex
-- [x] Task 2: docs/deployment-guide.md (Docker 部署手册) — Codex
-- [x] Task 3: docs/database-design.md (数据库设计文档) — Codex
-- [x] Task 4: docs/api-reference.md (API 接口文档) — Codex
-- [x] Task 5: docs/user-guide.md (用户使用指南: 管理端/医生端/患者端) — Gemini
-- [x] Task 6: Final commit + 清理
-- **Status:** complete
-
 ## Key Questions
-<!-- 
-  WHAT: Important questions you need to answer during the task.
-  WHY: These guide your research and decision-making. Answer them as you go.
-  EXAMPLE: 
-    1. Should tasks persist between sessions? (Yes - need file storage)
-    2. What format for storing tasks? (JSON file)
--->
-1. [Question to answer]
-2. [Question to answer]
+1. 是否已经形成“患者问诊 -> 导诊 -> 挂号 -> 医生接诊”的完整演示闭环？（是，已多轮验证通过）
+2. 当前规划文件是否只保留唯一任务轨迹与有效状态？（本次已清洗重复区块与占位内容）
 
 ## Decisions Made
-<!-- 
-  WHAT: Technical and design decisions you've made, with the reasoning behind them.
-  WHY: You'll forget why you made choices. This table helps you remember and justify decisions.
-  WHEN: Update whenever you make a significant choice (technology, approach, structure).
-  EXAMPLE:
-    | Use JSON for storage | Simple, human-readable, built-in Python support |
--->
 | Decision | Rationale |
 |----------|-----------|
-|          |           |
+| 保留单一主 `task_plan.md` 作为项目执行总览 | 避免重复阶段和冲突状态，便于后续续跑与审计 |
+| Phase 21 标记为 complete | 根据用户确认，TTS 集成已完成，无需继续保留进行中状态 |
+| 本轮续跑使用仓库内 `.opencode/skills/planning-with-files/scripts/session-catchup.py` | 当前 shell 环境下用户目录脚本路径不可用，改用项目内同版脚本可稳定完成会话衔接 |
 
 ## Errors Encountered
 | Error | Attempt | Resolution |
@@ -189,6 +117,9 @@ Phase 21: CosyVoice TTS 集成 — in_progress
 | DDL 缺少 BaseEntity 审计列 create_by/update_by | 1 | Codex 更新 init.sql + ALTER TABLE 补齐 13 张表 |
 | 非 user 服务缺 StpInterfaceImpl 致 @SaCheckRole 403 | 1 | Codex 在 common-security 添加基于 Feign 的通用 StpInterfaceImpl |
 | doctor/knowledge 服务缺 @EnableFeignClients | 1 | OpenCode 手动添加 @EnableFeignClients + loadbalancer 依赖 |
+| DashScope TTS `NoClassDefFoundError: okhttp3/WebSocketListener` | 1 | 根因已定位：`medical-ai-service` 为 `spring-ai-openai-spring-boot-starter` 与 `dashscope-sdk-java` 都排除了 `okhttp`，导致 DashScope WebSocket 运行时缺类；待补齐兼容依赖并验证 |
+| `session-catchup.py` 按 PowerShell 示例直接在 Bash 执行失败 | 1 | 改为 Bash 兼容调用方式，不再混用 `(Get-Location)` 语法 |
+| 用户目录 `.opencode` 路径不存在，catchup 脚本无法打开 | 2 | 改用仓库内 `D:/project/数字人/.opencode/.../session-catchup.py` 成功完成会话检查 |
 
 ### Phase 6: API 联调审查与修复
 - [x] 5 批并行审查 (user/doctor/knowledge/ai/appointment)
@@ -457,9 +388,25 @@ Phase 21: CosyVoice TTS 集成 — in_progress
 - **Status:** complete
 
 ### Phase 21: CosyVoice TTS 集成 (24-tts-cosyvoice)
-- [ ] **Task 1 [Backend]**: 替换 NLS SDK 为 DashScope SDK + 重写 TtsServiceImpl + 修复 ChatServiceImpl complete 事件 + 新增音频服务端点 (Codex)
+- [x] **Task 1 [Backend]**: 替换 NLS SDK 为 DashScope SDK + 重写 TtsServiceImpl + 修复 ChatServiceImpl complete 事件 + 新增音频服务端点 (Codex)
   - files_scope: `pom.xml(root+ai-service)`, `application.yml`, `TtsServiceImpl.java`, `ChatServiceImpl.java`, `ChatController.java`
-- [ ] **Task 2 [Frontend]**: H5 main.js ttsUrl 路径拼接修复 (Gemini)
+- [x] **Task 2 [Frontend]**: H5 main.js ttsUrl 路径拼接修复 (Gemini)
   - files_scope: `medical-mp/live2d-h5/src/main.js`
-- [ ] **Task 3**: 编译验证 (Maven compile + MP build)
-- **Status:** in_progress
+- [x] **Task 3**: 编译验证 (Maven compile + MP build)
+- **Status:** complete
+
+### Phase 22: DashScope TTS WebSocket 依赖修复 (25-tts-okhttp-fix)
+- [x] **Task 1 [Diagnosis]**: 确认 DashScope TTS 运行时缺失 `okhttp3.WebSocketListener` 的根因与受影响依赖范围
+  - files_scope: `medical-ai/medical-service/medical-ai-service/pom.xml`, `medical-ai/pom.xml`
+- [x] **Task 2 [Fix]**: 调整 `medical-ai-service` 依赖，补齐 DashScope TTS 所需 WebSocket 运行时且不重新引入旧的 Milvus 冲突
+  - files_scope: `medical-ai/medical-service/medical-ai-service/pom.xml`
+- [x] **Task 3 [Verify]**: 执行 AI service 编译或等效验证，确认 TTS 不再因缺少 OkHttp WebSocket 类崩溃
+- **Status:** complete
+
+### Phase 23: H5 TTS 无声修复 (26-h5-tts-no-audio)
+- [x] **Task 1 [Diagnosis]**: 确认前端无声发生在音频请求鉴权、资源可达性还是 WebView 自动播放阶段
+  - files_scope: `medical-mp/live2d-h5/src/main.js`, `medical-ai/medical-gateway/src/main/java/com/medical/gateway/filter/AuthFilter.java`, `medical-ai/medical-service/medical-ai-service/src/main/java/com/medical/ai/controller/ChatController.java`
+- [x] **Task 2 [Fix]**: 采用最小改动修复 H5 语音播放链路，确保音频请求可带鉴权并能正常播放
+  - files_scope: `medical-mp/live2d-h5/src/main.js`
+- [x] **Task 3 [Verify]**: 完成构建或等效验证，并给出运行态复测建议
+- **Status:** complete

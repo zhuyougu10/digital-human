@@ -62,7 +62,7 @@ const sendMessage = async (text) => {
           } else if (payload.type === 'complete') {
             // 完成事件，可用于获取 ttsUrl
             if (payload.ttsUrl) {
-              currentTtsUrl.value = payload.ttsUrl
+              currentTtsUrl.value = payload.ttsUrl.startsWith('http') ? payload.ttsUrl : `${apiBase}${payload.ttsUrl}`
             }
           } else if (payload.type === 'error') {
             postToH5('AI_TOKEN', payload.content || '服务暂时不可用')

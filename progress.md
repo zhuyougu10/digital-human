@@ -740,3 +740,135 @@ H5 handleSend()
 | Error | Attempt | Resolution |
 |-------|---------|------------|
 | Batch C idle_terminated (标记 failed) | 1 | 代码已完整提交 (commit 78b8fe5)，diff 有效，直接 cherry-pick 合并 |
+
+## Session: 2026-03-20 (规划文件清洗)
+
+### Actions Completed
+- 根据用户确认，将 `task_plan.md` 中 Phase 21「CosyVoice TTS 集成」整体标记为完成。
+- 清理 `task_plan.md` 中重复的 Phase 2/3/4/5 区块与重复的 Phase 8 标题。
+- 将模板残留的占位问题与空白决策表替换为当前项目实际状态，保留单一、可续跑的规划主线。
+
+### Files Modified
+- `task_plan.md`
+
+### Notes
+- 本次为规划层清理，未触碰业务代码与构建产物。
+
+## Session: 2026-03-20 (Phase 22 — DashScope TTS WebSocket 依赖修复)
+
+### 问题现象
+- `TtsServiceImpl.synthesize()` 调用 `SpeechSynthesizer` 时抛出 `NoClassDefFoundError: okhttp3/WebSocketListener`。
+- 异常链路落在 `com.alibaba.dashscope.protocol.ClientProviders.getFullDuplexClient()`，说明 DashScope TTS 运行时需要 OkHttp WebSocket 客户端类。
+
+### 根因分析
+- `medical-ai-service/pom.xml` 当前对 `spring-ai-openai-spring-boot-starter` 与 `dashscope-sdk-java` 都显式排除了 `com.squareup.okhttp3:okhttp`。
+- 之前排除 OkHttp 是为绕开 Milvus 引入的旧冲突，但 Phase 21 已改为 DashScope CosyVoice TTS，新的 TTS 实现真实依赖 OkHttp WebSocket。
+- 因此当前问题不是代码逻辑错误，而是依赖裁剪过度导致 DashScope SDK 运行时缺类。
+
+### 下一步
+- 委派 Codex 仅修复 `medical-ai-service` 依赖声明，并做最小范围验证，确保既恢复 DashScope TTS 所需类，又不重新引入旧的 Milvus 兼容性问题。
+
+### 实际修复
+- `medical-ai/medical-service/medical-ai-service/pom.xml`：移除 `dashscope-sdk-java` 上对 `com.squareup.okhttp3:okhttp` 的排除，恢复 DashScope TTS 所需的 OkHttp/WebSocket 传递依赖。
+- 保留 `spring-ai-openai-spring-boot-starter` 上的 OkHttp 排除不变，避免把历史冲突面扩大。
+
+### Verification
+- `mvn -pl medical-service/medical-ai-service -am -DskipTests compile -f medical-ai/pom.xml` → **BUILD SUCCESS**
+- `mvn -pl medical-service/medical-ai-service -am dependency:tree -Dincludes=com.squareup.okhttp3:okhttp -f medical-ai/pom.xml` → **BUILD SUCCESS**，输出确认 `medical-ai-service -> dashscope-sdk-java:2.19.2 -> okhttp:4.12.0`
+
+## Session: 2026-03-20 (前端 TTS 无声排障)
+
+### 当前证据
+- 用户确认后端语音已生成，说明 TTS 合成与 `complete.ttsUrl` 主链路大概率已经打通。
+- H5 播放逻辑在 `medical-mp/live2d-h5/src/main.js`：收到 `payload.type === 'complete'` 后构建 `new Audio(audioUrl)`，仅在 `onloadedmetadata` 回调里触发 `audio.play()`。
+- 继续分析后新增一个高优先级怀疑点：`new Audio(audioUrl)` 不会携带 `Authorization` 头，需优先确认 `/api/ai/chat/tts/*` 是否在 Gateway 被 401 拦截；其次再看 WebView 自动播放策略。
+
+### 实际修复
+- 新增 `medical-mp/live2d-h5/src/audio-player.js`：封装带 `Bearer token` 的音频拉取与 blob 播放逻辑，并在播放结束/失败后释放对象 URL。
+- 更新 `medical-mp/live2d-h5/src/main.js`：收到 `ttsUrl` 后不再直接 `new Audio(audioUrl)`，改为先鉴权 `fetch` 音频，再用对象 URL 播放，同时保留原有口型同步逻辑。
+
+### Verification
+- `npm run build --prefix medical-mp/live2d-h5` → **BUILD SUCCESS**
+
+## Session: 2026-03-20 (H5 音频自动播放限制排障)
+
+### 当前证据
+- `vConsole` 中出现 `[H5] 播放音频失败: {}`，说明异常对象被直接打印时信息丢失。
+- 结合前一轮鉴权修复，当前更接近 WebView 自动播放策略拦截 `audio.play()` 的场景，而不是音频 URL 不可达。
+
+### 实际修复
+- `medical-mp/live2d-h5/src/audio-player.js`：新增共享 `Audio` 实例与 `unlockAudioPlayback()`，在用户点击发送时先做一次静音 warm-up，降低 WebView 自动播放拦截概率。
+- `medical-mp/live2d-h5/src/main.js`：发送消息前调用 `unlockAudioPlayback()`，并将播放失败日志展开输出为结构化字段。
+
+### Verification
+- `npm run build --prefix medical-mp/live2d-h5` → **BUILD SUCCESS**
+
+## Session: 2026-03-20 (H5 音频 fetch CORS 修正)
+
+### 当前证据
+- `vConsole` 已展开日志：`[H5] 播放音频失败: {"name":"TypeError","message":"Failed to fetch", ...}`。
+- 同时日志中的 `audioUrl` 已指向真实 TTS 文件，说明不是 `ttsUrl` 为空。
+- 代码复核发现 `audio-player.js` 的 fetch 设置了 `credentials: 'include'`，而后端 `ChatController#getTtsAudio()` 返回 `Access-Control-Allow-Origin: *`；该组合会被浏览器 CORS 直接拦截。
+
+### 实际修复
+- 删除 `medical-mp/live2d-h5/src/audio-player.js` 中音频 GET 的 `credentials: 'include'`，保留 `Authorization: Bearer <token>` 作为唯一鉴权手段。
+
+## Session: 2026-03-20 (H5 localhost 映射修正)
+
+### 问题修正
+- 用户确认网关实际就是 8080，因此不应将默认端口改成 9090。
+- 本轮将 `medical-mp` 相关默认 API 地址恢复为 `http://localhost:8080/api`。
+- 同时在 `medical-mp/live2d-h5/src/main.js` 增加 `resolveApiBase()`：若传入的 `apiBase` 主机名是 `localhost/127.0.0.1`，则自动替换为当前 H5 页面的 `window.location.hostname`，避免小程序内嵌 WebView 把 `localhost` 解释成自身环境而不是宿主机。
+
+## Session: 2026-03-20 (音频解锁日志降噪)
+
+### 问题修正
+- `unlockAudioPlayback()` 使用的 data URL 在当前微信 WebView 中会抛出 `NotSupportedError`，但它只是 warm-up 失败，不代表真实 TTS 音频无法播放。
+
+## Session: 2026-03-20 (会话衔接与规划文件同步)
+
+### Actions Completed
+- 按 planning-with-files 工作流执行续跑检查：先读取项目根目录现有 `task_plan.md`、`findings.md`、`progress.md`，再检查 Git 工作区未提交差异。
+- 通过 `git diff --stat` 与 `git status --short` 确认当前未提交改动集中在 H5 TTS 无声排障链路：`main.js`、`audio-player.js`、`chat.vue`、`pom.xml` 以及 `tts-audio/` 本地样本文件。
+- 复核 `medical-mp/live2d-h5/src/audio-player.js`，确认当前前端方案已切换为“带 Bearer 鉴权 fetch 音频 -> blob 播放 -> 共享 Audio 实例解锁”。
+- 同步更新规划文件，使当前阶段、发现与错误记录能反映本次续跑结论。
+
+### Files Modified
+- `task_plan.md`
+- `findings.md`
+- `progress.md`
+
+### Errors Encountered / Resolution
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| 在 Bash shell 中直接执行 PowerShell 版 catchup 命令，报 `syntax error near unexpected token '('` | 1 | 改用 Bash 兼容命令，不再混用 `(Get-Location)` |
+| 用户目录脚本路径 `~/.opencode/skills/planning-with-files/scripts/session-catchup.py` 不存在 | 2 | 改为仓库内 `D:/project/数字人/.opencode/skills/planning-with-files/scripts/session-catchup.py` 成功执行 |
+- 已在 `medical-mp/live2d-h5/src/audio-player.js` 中将该错误降级为静默忽略，并在 `medical-mp/live2d-h5/src/main.js` 中避免继续打印这类误导性日志。
+
+## Session: 2026-03-20 (TTS 播放回退到 UniApp 原生层)
+
+### 问题修正
+- `medical-mp/src/pages/chat/chat.vue` 现在给 H5 URL 传入 `audioMode=native`，并在收到 `ttsUrl` 时先转成完整后端地址再交给隐藏的 `TtsPlayer`。
+- `medical-mp/live2d-h5/src/main.js` 在 `audioMode === 'native'` 时跳过 H5 内部 `Audio` 播放，只保留 UI 与口型同步接收逻辑。
+- 这样真实音频由 UniApp 原生 `InnerAudioContext` 播放，H5 只通过 `START_LIPSYNC/STOP_LIPSYNC` 驱动数字人口型。
+
+## Session: 2026-03-20 (H5 调试面板接入)
+
+### Actions Completed
+- 为 `medical-mp/live2d-h5` 新增 `vconsole` 依赖，便于在小程序 `web-view` 中直接查看 H5 控制台日志。
+- 在 `medical-mp/live2d-h5/src/main.js` 启动时注册 `VConsole` 单例，避免重复初始化。
+
+## Session: 2026-03-20 (vConsole 开发环境收敛)
+
+### Actions Completed
+- `medical-mp/live2d-h5/src/main.js` 改为仅在 `import.meta.env.DEV` 为真时初始化 `VConsole`，避免生产环境显示调试面板。
+
+## Session: 2026-03-20 (Planning With Files 会话补全)
+
+### Actions Completed
+- 运行会话补全脚本，未发现需要回填到规划文件的未同步上下文。
+- 确认项目根目录规划文件仍存在：`task_plan.md`、`findings.md`、`progress.md`。
+- 重新读取 3 个规划文件，当前主线任务保持为 Phase 21「CosyVoice TTS 集成」。
+
+### Notes
+- 本次仅完成会话状态恢复与磁盘记忆校准，尚未进入新的实现步骤。
