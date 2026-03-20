@@ -120,6 +120,7 @@
 | DashScope TTS `NoClassDefFoundError: okhttp3/WebSocketListener` | 1 | 根因已定位：`medical-ai-service` 为 `spring-ai-openai-spring-boot-starter` 与 `dashscope-sdk-java` 都排除了 `okhttp`，导致 DashScope WebSocket 运行时缺类；待补齐兼容依赖并验证 |
 | `session-catchup.py` 按 PowerShell 示例直接在 Bash 执行失败 | 1 | 改为 Bash 兼容调用方式，不再混用 `(Get-Location)` 语法 |
 | 用户目录 `.opencode` 路径不存在，catchup 脚本无法打开 | 2 | 改用仓库内 `D:/project/数字人/.opencode/.../session-catchup.py` 成功完成会话检查 |
+| H5 TTS 音频 `TypeError: Failed to fetch` | 1 | 根因不是 `localhost` 映射，而是 `ChatController#getTtsAudio()` 手动返回 `Access-Control-Allow-Origin: *`，与 Gateway 全局 CORS 头冲突；已删除手动 CORS 头并通过 `mvn compile -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml -q` 验证 |
 
 ### Phase 6: API 联调审查与修复
 - [x] 5 批并行审查 (user/doctor/knowledge/ai/appointment)
@@ -409,4 +410,7 @@
 - [x] **Task 2 [Fix]**: 采用最小改动修复 H5 语音播放链路，确保音频请求可带鉴权并能正常播放
   - files_scope: `medical-mp/live2d-h5/src/main.js`
 - [x] **Task 3 [Verify]**: 完成构建或等效验证，并给出运行态复测建议
+- [x] **Task 4 [Backend CORS]**: 修复 `/ai/chat/tts/{fileName}` 响应头与 Gateway 全局 CORS 冲突，移除服务端重复的 `Access-Control-Allow-Origin`
+  - files_scope: `medical-ai/medical-service/medical-ai-service/src/main/java/com/medical/ai/controller/ChatController.java`
+  - verification: `mvn compile -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml -q` ✅
 - **Status:** complete

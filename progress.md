@@ -863,6 +863,23 @@ H5 handleSend()
 ### Actions Completed
 - `medical-mp/live2d-h5/src/main.js` 改为仅在 `import.meta.env.DEV` 为真时初始化 `VConsole`，避免生产环境显示调试面板。
 
+## Session: 2026-03-20 (TTS 音频 CORS 冲突最终修复)
+
+### 当前证据
+- 用户在真机提供了明确报错：`[H5] 播放音频失败: {"name":"TypeError","message":"Failed to fetch","audioUrl":"http://localhost:8080/api/ai/chat/tts/..."}`。
+- 复核后端发现 `medical-ai/medical-service/medical-ai-service/src/main/java/com/medical/ai/controller/ChatController.java` 的 `getTtsAudio()` 手动返回 `Access-Control-Allow-Origin: *`。
+- 同时 Gateway 已在 `medical-ai/medical-gateway/src/main/resources/application.yml` 配置全局 CORS，且 `allowCredentials: true`。这会让响应里同时出现 Gateway 注入的来源级 CORS 头和 Controller 手写的 `*`，浏览器直接拒绝该音频请求。
+
+### 实际修复
+- 删除 `ChatController#getTtsAudio()` 中重复的 `.header("Access-Control-Allow-Origin", "*")`，保留 `Content-Type` 与 `Cache-Control`。
+- 不再继续沿着 `localhost` 映射或 UniApp 原生播放回退方向扩大改动，回到最小修复路径：由 Gateway 统一处理 CORS。
+
+### Verification
+- `mvn compile -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml -q` → **SUCCESS**
+
+### Files Modified
+- `medical-ai/medical-service/medical-ai-service/src/main/java/com/medical/ai/controller/ChatController.java`
+
 ## Session: 2026-03-20 (Planning With Files 会话补全)
 
 ### Actions Completed
