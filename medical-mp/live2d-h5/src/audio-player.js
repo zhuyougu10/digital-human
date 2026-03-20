@@ -40,53 +40,56 @@ export async function unlockAudioPlayback() {
   }
 }
 
-export async function playAuthenticatedAudio({ audioUrl, token, onLoadedMetadata } = {}) {
-  if (!audioUrl) {
-    throw new Error('audioUrl is required')
-  }
-  if (!token) {
-    throw new Error('token is required')
-  }
+export function playAuthenticatedAudio({ audioUrl, token, onLoadedMetadata } = {}) {
+  return new Promise(async (resolve, reject) => {
+    if (!audioUrl) {
+      return reject(new Error('audioUrl is required'))
+    }
+    if (!token) {
+      return reject(new Error('token is required'))
+    }
 
-  const response = await fetch(audioUrl, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${token}`
+    try {
+      const response = await fetch(audioUrl, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+
+      const audioBlob = await response.blob()
+      const objectUrl = URL.createObjectURL(audioBlob)
+      const audio = ensureAudio()
+      audio.src = objectUrl
+
+      let revoked = false
+      const revokeObjectUrl = () => {
+        if (revoked) {
+          return
+        }
+        revoked = true
+        URL.revokeObjectURL(objectUrl)
+      }
+
+      audio.onended = () => {
+        revokeObjectUrl()
+        resolve(audio)
+      }
+      audio.onerror = (e) => {
+        revokeObjectUrl()
+        reject(e)
+      }
+      audio.onloadedmetadata = () => {
+        onLoadedMetadata?.(audio)
+      }
+
+      await audio.play()
+    } catch (error) {
+      reject(error)
     }
   })
-
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`)
-  }
-
-  const audioBlob = await response.blob()
-  const objectUrl = URL.createObjectURL(audioBlob)
-  const audio = ensureAudio()
-  audio.src = objectUrl
-
-  let revoked = false
-  const revokeObjectUrl = () => {
-    if (revoked) {
-      return
-    }
-    revoked = true
-    URL.revokeObjectURL(objectUrl)
-  }
-
-  audio.onended = revokeObjectUrl
-  audio.onerror = () => {
-    revokeObjectUrl()
-  }
-  audio.onloadedmetadata = () => {
-    onLoadedMetadata?.(audio)
-  }
-
-  try {
-    await audio.play()
-  } catch (error) {
-    revokeObjectUrl()
-    throw error
-  }
-
-  return audio
 }

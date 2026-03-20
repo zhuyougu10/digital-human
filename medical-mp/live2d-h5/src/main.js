@@ -81,6 +81,72 @@ async function bootstrap() {
     console.log('[H5] 接收到鉴权信息:', { sessionId, rawApiBase, apiBase })
   }
 
+  // --- TTS Sequential Playback State ---
+  let ttsQueue = []          // [{segmentIndex, ttsUrl, fileName}]
+  let ttsPlaying = false
+  let ttsTotalSegments = 0
+  let currentPlayIndex = 0
+  let playedFileNames = []   // 已播放完的文件名，用于最终清理
+
+  const resetTtsState = () => {
+    ttsQueue = []
+    ttsPlaying = false
+    ttsTotalSegments = 0
+    currentPlayIndex = 0
+    playedFileNames = []
+  }
+
+  const playNextTtsSegment = async () => {
+    if (ttsPlaying) return
+    
+    const next = ttsQueue.find(item => item.segmentIndex === currentPlayIndex)
+    if (!next) return
+    
+    ttsPlaying = true
+    const audioUrl = next.ttsUrl.startsWith('http') ? next.ttsUrl : (apiBase + next.ttsUrl)
+    
+    try {
+      await playAuthenticatedAudio({
+        audioUrl,
+        token,
+        onLoadedMetadata: (audio) => {
+          if (lipSyncManager) lipSyncManager.start(audio.duration * 1000)
+        }
+      })
+    } catch (e) {
+      console.warn('[H5] TTS 段落播放失败:', next.segmentIndex, e)
+    } finally {
+      playedFileNames.push(next.fileName)
+      ttsPlaying = false
+      currentPlayIndex++
+      
+      if (currentPlayIndex >= ttsTotalSegments && ttsTotalSegments > 0) {
+        if (lipSyncManager) lipSyncManager.stop()
+        cleanupTtsAudio()
+        // 不在这里重置，防止后续事件到达
+      } else {
+        playNextTtsSegment()
+      }
+    }
+  }
+
+  const cleanupTtsAudio = async () => {
+    if (playedFileNames.length === 0) return
+    try {
+      await fetch(`${apiBase}/ai/chat/tts/cleanup`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(playedFileNames)
+      })
+      console.log('[H5] TTS 音频清理完成:', playedFileNames.length, '个文件')
+    } catch (e) {
+      console.warn('[H5] TTS 音频清理失败:', e)
+    }
+  }
+
   let currentAiBubble = null
   let currentFullText = ''
   let renderPending = false
@@ -141,6 +207,9 @@ async function bootstrap() {
       console.error('[H5] 缺少 sessionId 或 token，无法发送消息')
       return
     }
+
+    // 重置 TTS 状态
+    resetTtsState()
 
     // 显示 AI 正在思考
     currentFullText = ''
@@ -203,31 +272,26 @@ async function bootstrap() {
                 renderPending = true
                 requestAnimationFrame(updateAiBubble)
               }
+            } else if (payload.type === 'tts') {
+              // 处理分段 TTS
+              const fileName = payload.ttsUrl.split('/').pop()
+              ttsQueue.push({
+                segmentIndex: payload.segmentIndex,
+                ttsUrl: payload.ttsUrl,
+                fileName: fileName
+              })
+              ttsTotalSegments = payload.totalSegments
+              
+              // 保证顺序并尝试播放
+              ttsQueue.sort((a, b) => a.segmentIndex - b.segmentIndex)
+              playNextTtsSegment()
             } else if (payload.type === 'complete') {
               // 确保最终渲染完整内容
               updateAiBubble()
               // 增强展示卡片
               enhanceBubbleWithCards(currentAiBubble, currentFullText)
               
-              // 处理语音播放和口型同步
-              if (payload.ttsUrl) {
-                // 如果 ttsUrl 是相对路径，拼接 apiBase 构建完整 URL
-                const audioUrl = payload.ttsUrl.startsWith('http') ? payload.ttsUrl : (apiBase + payload.ttsUrl)
-                playAuthenticatedAudio({
-                  audioUrl,
-                  token,
-                  onLoadedMetadata: (audio) => {
-                    if (lipSyncManager) lipSyncManager.start(audio.duration * 1000)
-                  }
-                }).catch(err => {
-                  console.error('[H5] 播放音频失败:', {
-                    name: err?.name,
-                    message: err?.message,
-                    stack: err?.stack,
-                    audioUrl
-                  })
-                })
-              }
+              // 旧的单一 ttsUrl 播放逻辑已移至 tts 事件处理，这里不再处理
             } else if (payload.type === 'error' && currentAiBubble) {
               currentFullText += payload.content || '服务暂时不可用'
               updateAiBubble()
