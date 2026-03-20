@@ -17,6 +17,7 @@ import com.medical.ai.service.SummaryService;
 import com.medical.ai.service.TtsService;
 import com.medical.common.core.exception.BusinessException;
 import com.medical.common.core.exception.ErrorCode;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -116,6 +117,8 @@ public class ChatServiceImpl implements ChatService {
         Prompt prompt = new Prompt(chatMessages, optionsBuilder.build());
 
         StringBuilder fullResponse = new StringBuilder();
+        AtomicReference<String> fullTextRef = new AtomicReference<>("");
+        AtomicReference<ChatMessage> assistantMessageRef = new AtomicReference<>();
 
         return chatModel.stream(prompt)
             .publishOn(Schedulers.boundedElastic())
@@ -136,38 +139,59 @@ public class ChatServiceImpl implements ChatService {
             .doOnError(e -> log.error("Chat stream error for session {}: {}", sessionId, e.getMessage(), e))
             .concatWith(Mono.fromCallable(() -> {
                 String fullText = fullResponse.toString();
-                // 1. 保存 assistant 消息到 DB
+                fullTextRef.set(fullText);
+
+                // 先保存 assistant 消息，保证完整文本先落库
                 ChatMessage assistantMsg = new ChatMessage();
                 assistantMsg.setSessionId(sessionId);
                 assistantMsg.setRole("assistant");
                 assistantMsg.setContent(fullText);
                 messageMapper.insert(assistantMsg);
+                assistantMessageRef.set(assistantMsg);
 
-                // 2. 更新会话标题
+                // 保留原有标题更新逻辑
                 if (DEFAULT_SESSION_TITLE.equals(session.getTitle()) && message != null && !message.isEmpty()) {
                     session.setTitle(message.length() > 20 ? message.substring(0, 20) + "..." : message);
                     sessionMapper.updateById(session);
                 }
 
-                // 3. TTS 合成（阻塞）
-                String ttsUrl = null;
-                try {
-                    ttsUrl = ttsService.synthesize(fullText);
-                    if (ttsUrl != null) {
-                        assistantMsg.setTtsUrl(ttsUrl);
-                        messageMapper.updateById(assistantMsg);
-                    }
-                } catch (Exception e) {
-                    log.warn("TTS 合成失败: {}", e.getMessage());
-                }
-
-                // 4. 构建 complete 事件
+                // 先下发 complete，避免被后续 TTS 拖住
                 SseMessageVO complete = new SseMessageVO();
                 complete.setType("complete");
                 complete.setContent(fullText);
-                complete.setTtsUrl(ttsUrl);
+                complete.setTtsUrl(null);
                 return complete;
-            }));
+            }))
+            .concatWith(Mono.defer(() -> Mono.fromCallable(() -> {
+                String fullText = fullTextRef.get();
+                String ttsUrl = ttsService.synthesize(fullText);
+                if (ttsUrl == null || ttsUrl.isBlank()) {
+                    SseMessageVO error = new SseMessageVO();
+                    error.setType("tts_error");
+                    error.setContent("TTS 合成失败");
+                    return error;
+                }
+
+                ChatMessage assistantMsg = assistantMessageRef.get();
+                if (assistantMsg != null) {
+                    assistantMsg.setTtsUrl(ttsUrl);
+                    messageMapper.updateById(assistantMsg);
+                }
+
+                SseMessageVO tts = new SseMessageVO();
+                tts.setType("tts");
+                tts.setTtsUrl(ttsUrl);
+                return tts;
+            })
+                .subscribeOn(Schedulers.boundedElastic())
+                .timeout(Duration.ofSeconds(30))
+                .onErrorResume(e -> {
+                    log.error("TTS 合成失败, sessionId={}: {}", sessionId, e.getMessage(), e);
+                    SseMessageVO error = new SseMessageVO();
+                    error.setType("tts_error");
+                    error.setContent("TTS 超时");
+                    return Mono.just(error);
+                })));
     }
 
     @Override

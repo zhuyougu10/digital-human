@@ -5,15 +5,17 @@ import com.alibaba.dashscope.audio.ttsv2.SpeechSynthesizer;
 import com.alibaba.dashscope.utils.Constants;
 import com.medical.ai.service.TtsService;
 import jakarta.annotation.PostConstruct;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
@@ -75,15 +77,7 @@ public class TtsServiceImpl implements TtsService {
                 .speechRate(speechRate)
                 .build();
 
-            SpeechSynthesizer synthesizer = new SpeechSynthesizer(param, null);
-            ByteBuffer audio = synthesizer.call(processedText);
-
-            try {
-                synthesizer.getDuplexApi().close(1000, "bye");
-            } catch (Exception e) {
-                log.debug("关闭 TTS WebSocket: {}", e.getMessage());
-            }
-
+            ByteBuffer audio = synthesizeAudio(processedText, param);
             if (audio == null || audio.remaining() == 0) {
                 log.warn("TTS: 合成返回空音频");
                 return null;
@@ -96,13 +90,40 @@ public class TtsServiceImpl implements TtsService {
             audioBuffer.get(audioBytes);
             Files.write(filePath, audioBytes);
 
-            log.info("TTS: 合成成功，文件={}, 大小={}KB, 首包延迟={}ms",
-                fileName, audioBytes.length / 1024, synthesizer.getFirstPackageDelay());
-
+            log.info("TTS: 合成成功，文件={}, 大小={}KB", fileName, audioBytes.length / 1024);
             return "/ai/chat/tts/" + fileName;
-        } catch (Exception e) {
-            log.warn("TTS 合成失败: {}", e.getMessage(), e);
+        } catch (TimeoutException e) {
+            log.error("TTS 合成超时: {}", e.getMessage(), e);
             return null;
+        } catch (Exception e) {
+            log.error("TTS 合成失败: {}", e.getMessage(), e);
+            return null;
+        }
+    }
+
+    protected ByteBuffer synthesizeAudio(String text, SpeechSynthesisParam param) throws Exception {
+        SpeechSynthesizer synthesizer = new SpeechSynthesizer(param, null);
+        try {
+            return CompletableFuture.supplyAsync(() -> doSynthesize(synthesizer, text))
+                .get(getTimeoutSeconds(), TimeUnit.SECONDS);
+        } finally {
+            closeSynthesizer(synthesizer);
+        }
+    }
+
+    protected ByteBuffer doSynthesize(SpeechSynthesizer synthesizer, String text) {
+        return synthesizer.call(text);
+    }
+
+    protected int getTimeoutSeconds() {
+        return 30;
+    }
+
+    protected void closeSynthesizer(SpeechSynthesizer synthesizer) {
+        try {
+            synthesizer.getDuplexApi().close(1000, "bye");
+        } catch (Exception e) {
+            log.debug("关闭 TTS WebSocket: {}", e.getMessage());
         }
     }
 
