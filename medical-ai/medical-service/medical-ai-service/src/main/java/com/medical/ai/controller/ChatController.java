@@ -98,7 +98,6 @@ public class ChatController {
             return ResponseEntity.ok()
                 .header("Content-Type", "audio/mpeg")
                 .header("Cache-Control", "public, max-age=86400")
-                .header("Access-Control-Allow-Origin", "*")
                 .body(resource);
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
