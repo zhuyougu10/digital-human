@@ -62,7 +62,7 @@ async function bootstrap() {
   // 解析 URL 参数获取鉴权信息 (供后续 SSE 扩展使用)
   const urlParams = new URLSearchParams(window.location.search)
   const token = urlParams.get('token')
-  const sessionId = urlParams.get('sessionId')
+  let sessionId = urlParams.get('sessionId')
   const rawApiBase = urlParams.get('apiBase') || 'http://localhost:8080/api'
   const resolveApiBase = (baseUrl) => {
     try {
@@ -145,6 +145,148 @@ async function bootstrap() {
     } catch (e) {
       console.warn('[H5] TTS 音频清理失败:', e)
     }
+  }
+
+  // --- 历史记录与分页状态 ---
+  let remainingMessages = []
+  let isLoadingHistory = false
+  const BATCH_SIZE = 20
+
+  const prependMessage = (role, content) => {
+    const msgDiv = document.createElement('div')
+    msgDiv.className = `msg ${role}`
+    const bubbleDiv = document.createElement('div')
+    bubbleDiv.className = 'bubble'
+    
+    if (role === 'ai' && content) {
+      bubbleDiv.innerHTML = window.marked ? window.marked.parse(content) : content
+    } else {
+      bubbleDiv.innerText = content
+    }
+    
+    msgDiv.appendChild(bubbleDiv)
+    // 插入到最顶部，但要在 load-more-tip 之后
+    const tip = messageList.querySelector('.load-more-tip')
+    if (tip) {
+      tip.after(msgDiv)
+    } else {
+      messageList.prepend(msgDiv)
+    }
+    return bubbleDiv
+  }
+
+  const loadMoreMessages = () => {
+    if (remainingMessages.length === 0) {
+      const tip = messageList.querySelector('.load-more-tip')
+      if (tip) tip.innerText = '已加载全部历史消息'
+      return
+    }
+
+    const scrollHeightBefore = messageList.scrollHeight
+    const batch = remainingMessages.splice(-BATCH_SIZE).reverse() // 取最后20个并反转顺序
+
+    batch.forEach(msg => {
+      prependMessage(msg.role === 'assistant' ? 'ai' : 'user', msg.content)
+    })
+
+    // 恢复滚动位置
+    requestAnimationFrame(() => {
+      messageList.scrollTop = messageList.scrollHeight - scrollHeightBefore
+    })
+  }
+
+  const loadHistory = async () => {
+    if (!sessionId || !token || isLoadingHistory) return
+    isLoadingHistory = true
+    
+    try {
+      const res = await fetch(`${apiBase}/ai/chat/session/${sessionId}/messages`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (!res.ok) return
+      const result = await res.json()
+      const messages = result.data || result
+      if (!Array.isArray(messages) || messages.length === 0) return
+
+      // 如果有历史消息，先清空默认欢迎语
+      messageList.innerHTML = ''
+      
+      // 添加加载提示
+      const tip = document.createElement('div')
+      tip.className = 'load-more-tip'
+      tip.innerText = messages.length > BATCH_SIZE ? '上滑加载历史消息' : '已加载全部历史消息'
+      messageList.appendChild(tip)
+
+      // 拆分消息：最近20条立即渲染，其余存入 remainingMessages
+      const total = messages.length
+      const initial = messages.slice(Math.max(0, total - BATCH_SIZE))
+      remainingMessages = messages.slice(0, Math.max(0, total - BATCH_SIZE))
+
+      initial.forEach(msg => {
+        appendMessage(msg.role === 'assistant' ? 'ai' : 'user', msg.content)
+      })
+
+      // 滚动到底部
+      messageList.scrollTop = messageList.scrollHeight
+    } catch (e) {
+      console.warn('[H5] 加载历史消息失败:', e)
+    } finally {
+      isLoadingHistory = false
+    }
+  }
+
+  // 监听滚动加载更多
+  messageList.addEventListener('scroll', () => {
+    if (messageList.scrollTop < 50 && !isLoadingHistory && remainingMessages.length > 0) {
+      loadMoreMessages()
+    }
+  })
+
+  // 新会话按钮逻辑
+  const newChatBtn = document.getElementById('new-chat-btn')
+  if (newChatBtn) {
+    newChatBtn.addEventListener('click', async () => {
+      if (!confirm('确定要开始新的问诊会话吗？')) return
+      
+      try {
+        statusText.innerHTML = '<div id="status-dot"></div> 正在创建新会话...'
+        // 结束当前会话
+        await fetch(`${apiBase}/ai/chat/session/${sessionId}/end`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        
+        // 创建新会话
+        const res = await fetch(`${apiBase}/ai/chat/session`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ sessionType: 'TRIAGE' })
+        })
+        const result = await res.json()
+        const newSessionId = result.data?.id || result.id
+        
+        // 更新全局 sessionId 和状态
+        sessionId = newSessionId
+        remainingMessages = []
+        
+        // 清空消息列表并显示欢迎语
+        messageList.innerHTML = ''
+        appendMessage('ai', '您好！我是AI医疗助手，请描述您的症状，我来帮您分析和推荐合适的医生。')
+        
+        // 通知 UniApp 更新 sessionId（可选）
+        if (window.uni && window.uni.postMessage) {
+          window.uni.postMessage({ data: { type: 'SESSION_CHANGED', sessionId: newSessionId } })
+        }
+      } catch (e) {
+        console.error('[H5] 创建新会话失败:', e)
+        alert('创建新会话失败，请重试')
+      } finally {
+        statusText.innerHTML = '<div id="status-dot"></div> 正在为您服务...'
+      }
+    })
   }
 
   let currentAiBubble = null
@@ -396,6 +538,9 @@ async function bootstrap() {
   })
 
   window.addEventListener('resize', () => live2dManager.fitToScreen())
+
+  // 初始化加载历史记录
+  loadHistory()
 }
 
 bootstrap()

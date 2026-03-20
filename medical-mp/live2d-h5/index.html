@@ -405,6 +405,41 @@
             padding: 2px 0;
             background: white;
         }
+
+        /* 上滑加载更多提示 */
+        .load-more-tip {
+            text-align: center;
+            font-size: 12px;
+            color: #94a3b8;
+            padding: 8px;
+            width: 100%;
+        }
+
+        /* 新会话按钮 */
+        #new-chat-btn {
+            width: 36px;
+            height: 36px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 50%;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            flex-shrink: 0;
+            cursor: pointer;
+            transition: all 0.2s;
+            outline: none;
+        }
+        #new-chat-btn:active {
+            background: #f1f5f9;
+            border-color: var(--primary-blue);
+            color: var(--primary-blue);
+        }
+        #new-chat-btn svg {
+            width: 20px;
+            height: 20px;
+        }
     </style>
 </head>
 <body>
@@ -433,6 +468,12 @@
             <div class="disclaimer">AI 医疗建议仅供参考，不作为最终诊断</div>
             
             <div id="input-bar">
+                <button id="new-chat-btn" title="新会话">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                </button>
                 <input type="text" id="chat-input" placeholder="输入您的症状或问题..." autocomplete="off">
                 <button id="send-btn">
                     <svg viewBox="0 0 24 24">

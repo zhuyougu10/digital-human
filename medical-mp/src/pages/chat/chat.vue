@@ -17,7 +17,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onHide, onShow } from '@dcloudio/uni-app'
 import { createSession } from '@/api/chat'
 import { createSSERequest } from '@/utils/sse'
 import TtsPlayer from '@/components/TtsPlayer.vue'
@@ -27,6 +27,26 @@ const live2dBaseUrl = import.meta.env.VITE_LIVE2D_URL || 'http://localhost:5173'
 const apiBase = import.meta.env.VITE_API_BASE || 'http://localhost:8080/api'
 const live2dUrl = ref(`${live2dBaseUrl}?t=${Date.now()}`)
 const currentTtsUrl = ref('')
+
+onHide(() => {
+  uni.setStorageSync('chatLeaveTime', Date.now())
+})
+
+onShow(() => {
+  const leaveTime = uni.getStorageSync('chatLeaveTime')
+  if (leaveTime && Date.now() - leaveTime > 5 * 60 * 1000) {
+    console.log('[Chat] 会话超时，准备重新初始化')
+    if (sessionId.value) {
+      // 异步结束旧会话
+      uni.request({
+        url: `${apiBase}/ai/chat/session/${sessionId.value}/end`,
+        method: 'POST',
+        header: { 'Authorization': `Bearer ${uni.getStorageSync('token')}` }
+      })
+    }
+    initChat()
+  }
+})
 
 // 消息桥接：UniApp -> H5
 const postToH5 = (type, data) => {
