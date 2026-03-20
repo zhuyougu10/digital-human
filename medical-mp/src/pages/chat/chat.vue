@@ -23,7 +23,8 @@ import { createSSERequest } from '@/utils/sse'
 import TtsPlayer from '@/components/TtsPlayer.vue'
 
 const sessionId = ref('')
-const live2dBaseUrl = 'http://localhost:5173' // Use local IP for real device test
+const live2dBaseUrl = import.meta.env.VITE_LIVE2D_URL || 'http://localhost:5173'
+const apiBase = import.meta.env.VITE_API_BASE || 'http://localhost:8080/api'
 const live2dUrl = ref(`${live2dBaseUrl}?t=${Date.now()}`)
 const currentTtsUrl = ref('')
 
@@ -32,7 +33,7 @@ const postToH5 = (type, data) => {
   // 通过 URL hash 传递指令给 H5，解决小程序跨端兼容性问题
   const payload = encodeURIComponent(JSON.stringify({ type, data, ts: Date.now() }))
   const token = uni.getStorageSync('token')
-  live2dUrl.value = `${live2dBaseUrl}?token=${encodeURIComponent(token)}&sessionId=${sessionId.value}#msg=${payload}`
+  live2dUrl.value = `${live2dBaseUrl}?token=${encodeURIComponent(token)}&sessionId=${sessionId.value}&apiBase=${encodeURIComponent(apiBase)}#msg=${payload}`
 }
 
 // 处理来自 H5 的消息
@@ -96,10 +97,10 @@ const initChat = async () => {
     
     // 初始化时将 token 和 sessionId 传给 H5
     const token = uni.getStorageSync('token')
-    const apiBase = 'http://localhost:8080/api' // Gateway 地址
     live2dUrl.value = `${live2dBaseUrl}?token=${encodeURIComponent(token)}&sessionId=${sessionId.value}&apiBase=${encodeURIComponent(apiBase)}&t=${Date.now()}`
   } catch (e) {
     console.error('Session init failed', e)
+    uni.showToast({ title: '会话初始化失败，请返回重试', icon: 'none' })
   }
 }
 
