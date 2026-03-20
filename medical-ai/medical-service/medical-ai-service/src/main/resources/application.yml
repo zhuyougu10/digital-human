@@ -49,7 +49,7 @@ tts:
   cosyvoice:
     api-key: ${DASHSCOPE_API_KEY:your-dashscope-key}
     model: cosyvoice-v3-flash
-    voice: longanyang
+    voice: longanhuan
     volume: 50
     speech-rate: 1.0
     audio-path: ${TTS_AUDIO_PATH:D:/project/数字人/tts-audio}

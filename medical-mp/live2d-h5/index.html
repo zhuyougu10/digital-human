@@ -216,14 +216,33 @@
             box-shadow: 0 4px 15px rgba(37, 99, 235, 0.15);
         }
 
-        /* AI 气泡 - 纯净医疗白 */
+        /* AI 气泡 */
         .ai .bubble {
-            background: white;
+            background: var(--primary-light);
             color: var(--text-main);
-            border: 1px solid #f1f5f9;
             border-bottom-left-radius: 4px;
-            /* AI 身份侧边装饰 */
-            border-left: 4px solid var(--medical-teal);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+        }
+
+        /* AI 加载态：气泡内容为空时显示跳动点 */
+        .ai .bubble:empty {
+            min-width: 60px;
+            min-height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .ai .bubble:empty::after {
+            content: '···';
+            letter-spacing: 4px;
+            font-size: 20px;
+            color: var(--text-sub);
+            animation: loadingDots 1.2s steps(4, end) infinite;
+        }
+        @keyframes loadingDots {
+            0%   { opacity: .2; }
+            50%  { opacity: 1; }
+            100% { opacity: .2; }
         }
 
         /* 时间戳样式 */
@@ -236,27 +255,27 @@
             opacity: 0.7;
         }
 
-        /* 输入区域设计 */
+        /* 输入区域 */
         #input-bar {
-            padding: 12px 20px calc(12px + var(--safe-area-bottom));
+            padding: 6px 16px calc(6px + var(--safe-area-bottom));
             background: white;
             display: flex;
-            gap: 12px;
+            gap: 8px;
             align-items: center;
             border-top: 1px solid #f1f5f9;
         }
 
         #chat-input {
             flex: 1;
-            height: 44px;
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 22px;
-            padding: 0 20px;
-            font-size: 15px;
+            height: 36px;
+            background: #f1f5f9;
+            border: 1.5px solid transparent;
+            border-radius: 18px;
+            padding: 0 16px;
+            font-size: 14px;
             color: var(--text-main);
             outline: none;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.25s ease;
         }
 
         #chat-input:focus {
@@ -266,8 +285,8 @@
         }
 
         #send-btn {
-            width: 44px;
-            height: 44px;
+            width: 36px;
+            height: 36px;
             background: var(--primary-blue);
             border: none;
             border-radius: 50%;
@@ -277,7 +296,7 @@
             justify-content: center;
             cursor: pointer;
             transition: all 0.2s ease;
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
             flex-shrink: 0;
         }
 
@@ -287,8 +306,8 @@
         }
 
         #send-btn svg {
-            width: 20px;
-            height: 20px;
+            width: 16px;
+            height: 16px;
             fill: none;
             stroke: currentColor;
             stroke-width: 2.5;
@@ -326,7 +345,7 @@
             font-size: 10px;
             color: #94a3b8;
             text-align: center;
-            padding: 4px 0;
+            padding: 2px 0;
             background: white;
         }
     </style>

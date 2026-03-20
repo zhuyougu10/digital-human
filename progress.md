@@ -695,3 +695,48 @@ H5 handleSend()
 |-------|---------|------------|
 | cherry-pick 失败（本地有未提交的 planning files 更改） | 1 | git stash → cherry-pick → stash pop |
 | 打分系统误报约束违规（40 分） | 1 | 手动逐项审查 DOM ID/class/script 标签，全部保留，确认为误报 |
+
+## Session: 2026-03-20 (Phase 20 — 小程序端全页面 UI 优化)
+
+### 任务描述
+使用 frontend-design skill 指导 Gemini 优化小程序端全部剩余页面的视觉设计，统一医疗蓝色系配色方案。
+
+### 执行方式
+- 4 批并行派发 Gemini（single 模式），按页面依赖关系分组
+- 最大并发 4，全部在 ~2 分钟内完成
+
+### 批次执行结果
+
+| 批次 | task_id | 修改文件 | 变更量 | 状态 |
+|------|---------|---------|--------|------|
+| A | mp-ui-batch-a | login.vue + mine/index.vue | +336/-108 | ✅ 合并 |
+| B | mp-ui-batch-b | doctors/list.vue + DoctorCard.vue | +297/-198 | ✅ 合并 |
+| C | mp-ui-batch-c | doctors/detail.vue + SlotPicker.vue | +394/-166 | ✅ 合并 (idle_terminated 但代码有效) |
+| D | mp-ui-batch-d | appointment/list.vue + detail.vue + AppointmentCard.vue | +533/-166 | ✅ 合并 |
+
+### 设计统一方案
+- **主色**：`#2563eb` (医疗蓝)
+- **辅色**：`#0d9488` (医用绿)
+- **文字**：`#1e293b` / `#64748b`
+- **背景**：`#f8faff`
+- **圆角**：24rpx/32rpx
+- **阴影**：柔和低对比度
+
+### 各页面优化亮点
+- **登录页**：多层渐变背景 + 品牌 Logo 光晕 + 按钮质感
+- **个人中心**：头像光圈 + 菜单卡片化 + 退出按钮风格化
+- **医生列表**：科室胶囊标签 + 卡片阴影层次 + 空态展示
+- **医生卡片**：三栏布局 + 头像圆形裁剪 + 专长胶囊标签
+- **号源选择**：日期选中指示点 + 上午/下午色彩指示条 + 约满灰色禁用态
+- **时段选择器**：胶囊日期 Tab + 剩余/约满状态标签 + 选中深蓝风格
+- **预约列表**：Tab 下划线指示器 + 状态色彩标签 + 取消按钮含蓄化
+- **预约详情**：成功绿色勾号 + 信息卡片标签-值对齐 + 操作按钮层级
+- **预约卡片**：状态胶囊标签 + 医生信息行 + 12px 统一圆角
+
+### 验证结果
+- `npm run build:mp-weixin` → **BUILD SUCCESS**
+
+### Errors Encountered / Resolution
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| Batch C idle_terminated (标记 failed) | 1 | 代码已完整提交 (commit 78b8fe5)，diff 有效，直接 cherry-pick 合并 |

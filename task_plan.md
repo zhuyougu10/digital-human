@@ -4,7 +4,7 @@
 构建基于 Spring Cloud + Spring AI + RAG + AI Agents + Vue3 + UniApp 的 AI 数字人医疗小助手系统（毕业设计）
 
 ## Current Phase
-Phase 19: H5 聊天界面优化 — complete
+Phase 21: CosyVoice TTS 集成 — in_progress
 
 ## Phases
 <!-- 
@@ -443,3 +443,23 @@ Phase 19: H5 聊天界面优化 — complete
   - 约束: 保留所有 DOM ID 和 CSS class 名（main.js 依赖），不修改 JS 逻辑
 - [x] **Task 2**: 编译验证 live2d-h5 build SUCCESS (3.49s)
 - **Status:** complete
+
+### Phase 20: 小程序端全页面 UI 优化 (23-mp-ui-polish)
+- [x] **Batch A**: 登录页 + 个人中心 (Gemini) ✅ cherry-pick 合并
+  - files_scope: `medical-mp/src/pages/login/login.vue`, `medical-mp/src/pages/mine/index.vue`
+- [x] **Batch B**: 医生列表 + 医生卡片组件 (Gemini) ✅ cherry-pick 合并
+  - files_scope: `medical-mp/src/pages/doctors/list.vue`, `medical-mp/src/components/DoctorCard.vue`
+- [x] **Batch C**: 号源选择 + 时段选择器组件 (Gemini) ✅ cherry-pick 合并 (idle_terminated 但代码有效)
+  - files_scope: `medical-mp/src/pages/doctors/detail.vue`, `medical-mp/src/components/SlotPicker.vue`
+- [x] **Batch D**: 预约列表 + 预约详情 + 预约卡片组件 (Gemini) ✅ cherry-pick 合并
+  - files_scope: `medical-mp/src/pages/appointment/list.vue`, `medical-mp/src/pages/appointment/detail.vue`, `medical-mp/src/components/AppointmentCard.vue`
+- [x] 编译验证: `npm run build:mp-weixin` → BUILD SUCCESS
+- **Status:** complete
+
+### Phase 21: CosyVoice TTS 集成 (24-tts-cosyvoice)
+- [ ] **Task 1 [Backend]**: 替换 NLS SDK 为 DashScope SDK + 重写 TtsServiceImpl + 修复 ChatServiceImpl complete 事件 + 新增音频服务端点 (Codex)
+  - files_scope: `pom.xml(root+ai-service)`, `application.yml`, `TtsServiceImpl.java`, `ChatServiceImpl.java`, `ChatController.java`
+- [ ] **Task 2 [Frontend]**: H5 main.js ttsUrl 路径拼接修复 (Gemini)
+  - files_scope: `medical-mp/live2d-h5/src/main.js`
+- [ ] **Task 3**: 编译验证 (Maven compile + MP build)
+- **Status:** in_progress

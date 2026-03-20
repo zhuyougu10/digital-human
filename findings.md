@@ -678,6 +678,50 @@ pm.cmd run build after router/sidebar edits to catch this immediately.
 - [2026-03-08] **PixiJS Compatibility**: `renderer.clearBeforeRender` is read-only in some PixiJS v6 sub-versions bundled with UniApp/Vite; wrapping property assignments in `try-catch` prevents app crash during initialization.
 - [2026-03-08] medical-user-service 微信登录 invalid appid (40013) 根因是本地运行时未注入 WX_APPID/WX_SECRET 环境变量，默认占位值 your-appid/your-secret 导致请求失败。
 
+## Phase 21: CosyVoice TTS 集成研究 (2026-03-20)
+
+### 当前 TTS 状态 — 完全不可用
+- `TtsServiceImpl.synthesize()` 是一个 stub，始终返回 `null`（第43行）
+- Maven 声明了 `com.alibaba.nls:nls-sdk-tts:2.2.1`（阿里云 NLS SDK），但**从未在任何 Java 类中 import 或使用**
+- 没有 `dashscope-sdk-java` 依赖，`com.alibaba.dashscope.audio.ttsv2` 类不可用
+- 配置使用旧 NLS 鉴权（access-key-id/secret/app-key），不是 DashScope API Key
+
+### SSE 完成事件 ttsUrl 从未设置（结构性 Bug）
+- `SseMessageVO` 有 `ttsUrl` 字段，但 `ChatServiceImpl.chat()` 中：
+  - `doOnComplete` 调用 `ttsService.synthesize()` 并存 DB（但返回 null）
+  - `concatWith(Mono.fromCallable(...))` 发出 complete 事件但**未设置 ttsUrl**
+  - `doOnComplete` 是 side effect，其结果无法传递到 `concatWith` 的 Mono 中
+- 前端（H5 main.js:137 + chat.vue:64）已经实现了 `ttsUrl` 消费逻辑，但永远收不到
+
+### CosyVoice 方案设计
+
+| 项目 | 决策 | 理由 |
+|------|------|------|
+| SDK | `com.alibaba:dashscope-sdk-java` (最新版 >= 2.19.0) | 官方 DashScope Java SDK，含 `audio.ttsv2` 包 |
+| 模型 | `cosyvoice-v3-flash` | 低延迟、性价比高，适合实时交互 |
+| 音色 | `longanyang` | v3-flash 系统音色，中文男声自然 |
+| API Key | 复用 `DASHSCOPE_API_KEY`（已用于 LLM） | 减少配置项，同一个百炼账号 |
+| WebSocket URL | `wss://dashscope.aliyuncs.com/api-ws/v1/inference` | 北京地域默认 |
+| 调用方式 | 非流式 `call(text)` 阻塞返回 ByteBuffer | 简单可靠，在 `boundedElastic` 线程池上运行不影响 SSE |
+| 音频格式 | MP3 (默认 22.05kHz) | 浏览器和小程序原生支持，无需转码 |
+| 音频存储 | 本地文件系统 `/data/tts-audio/{messageId}.mp3` | 简单直接，Docker 可挂载 volume |
+| 音频服务 | `GET /chat/tts/{messageId}` 新端点 | 通过 Gateway 路由 `/api/ai/chat/tts/{id}` 访问 |
+| Markdown 过滤 | 合成前正则剥离 Markdown 符号 | `enable_markdown_filter` 仅支持复刻音色，系统音色需手动处理 |
+| 文本长度限制 | 保留 300 字截断（已有） | CosyVoice 限制 20000 字符，300 字足够 |
+
+### 架构修复：ttsUrl 传递到 SSE complete 事件
+方案：使用 `AtomicReference<String>` 在 `doOnComplete`（执行 TTS 合成）和 `concatWith`（发出 complete 事件）之间共享 ttsUrl。
+
+### DashScope SDK 潜在依赖冲突
+- 可能传递 OkHttp 依赖（同 Milvus 问题），需排除 `com.squareup.okhttp3:okhttp`
+- 需要 WebSocket 客户端支持（OkHttp 或 Java 原生）
+
+### 前端就绪状态
+- H5 `main.js:137-143`: `if (payload.ttsUrl) { new Audio(payload.ttsUrl) }` — 需拼接 apiBase 前缀
+- UniApp `chat.vue:64-65`: `currentTtsUrl.value = payload.ttsUrl` → TtsPlayer 播放 — 与 H5 会双重播放
+- TtsPlayer.vue: `uni.createInnerAudioContext()` + lip-sync 事件 — 正常工作
+- **注意**: H5 直连 SSE 模式下，UniApp 的 `sendMessage` 不会被调用（Phase 17 修复），因此 TtsPlayer 不会触发，不存在双重播放问题
+
 ## 2026-03-20 智能导诊功能审计
 
 ### 导诊 Agent 架构
