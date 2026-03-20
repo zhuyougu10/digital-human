@@ -82,13 +82,54 @@ async function bootstrap() {
   }
 
   let currentAiBubble = null
+  let currentFullText = ''
+  let renderPending = false
+
+  const enhanceBubbleWithCards = (bubbleDiv, text) => {
+    // 匹配模式：推荐医生[：: ]*姓名[：: ]*(.+?)[，, ]+科室[：: ]*(.+?)[，, ]+擅长[：: ]*(.+?)(?=\n|$)
+    const doctorRegex = /(?:推荐医生|为您推荐|以下医生)[：: ]*(.+?)[，, ]+科室[：: ]*(.+?)[，, ]+擅长[：: ]*(.+?)(?=\n|$)/g
+    let match
+    let hasCard = false
+    
+    while ((match = doctorRegex.exec(text)) !== null) {
+      const [_, name, dept, specialty] = match
+      const cardHtml = `
+        <div class="doctor-card">
+          <div class="doctor-card-header">
+            <div class="doctor-avatar">👨‍⚕️</div>
+            <div class="doctor-info">
+              <div class="doctor-name">${name.trim()}</div>
+              <div class="doctor-dept">${dept.trim()}</div>
+            </div>
+          </div>
+          <div class="doctor-card-body">
+            <div class="doctor-specialty">擅长：${specialty.trim()}</div>
+          </div>
+        </div>
+      `
+      const cardWrapper = document.createElement('div')
+      cardWrapper.innerHTML = cardHtml
+      bubbleDiv.appendChild(cardWrapper.firstElementChild)
+      hasCard = true
+    }
+    
+    if (hasCard) {
+      messageList.scrollTop = messageList.scrollHeight
+    }
+  }
 
   const appendMessage = (role, content) => {
     const msgDiv = document.createElement('div')
     msgDiv.className = `msg ${role}`
     const bubbleDiv = document.createElement('div')
     bubbleDiv.className = 'bubble'
-    bubbleDiv.innerText = content
+    
+    if (role === 'ai' && content) {
+      bubbleDiv.innerHTML = window.marked ? window.marked.parse(content) : content
+    } else {
+      bubbleDiv.innerText = content
+    }
+    
     msgDiv.appendChild(bubbleDiv)
     messageList.appendChild(msgDiv)
     messageList.scrollTop = messageList.scrollHeight
@@ -102,6 +143,7 @@ async function bootstrap() {
     }
 
     // 显示 AI 正在思考
+    currentFullText = ''
     currentAiBubble = appendMessage('ai', '')
     statusText.innerHTML = '<div id="status-dot"></div> 正在思考...'
 
@@ -123,6 +165,13 @@ async function bootstrap() {
       const reader = response.body.getReader()
       const decoder = new TextDecoder('utf-8')
       let buffer = ''
+
+      const updateAiBubble = () => {
+        if (!currentAiBubble) return
+        currentAiBubble.innerHTML = window.marked ? window.marked.parse(currentFullText) : currentFullText
+        messageList.scrollTop = messageList.scrollHeight
+        renderPending = false
+      }
 
       while (true) {
         const { done, value } = await reader.read()
@@ -149,9 +198,17 @@ async function bootstrap() {
           try {
             const payload = JSON.parse(dataContent)
             if (payload.type === 'token' && currentAiBubble) {
-              currentAiBubble.innerText += payload.content || ''
-              messageList.scrollTop = messageList.scrollHeight
+              currentFullText += payload.content || ''
+              if (!renderPending) {
+                renderPending = true
+                requestAnimationFrame(updateAiBubble)
+              }
             } else if (payload.type === 'complete') {
+              // 确保最终渲染完整内容
+              updateAiBubble()
+              // 增强展示卡片
+              enhanceBubbleWithCards(currentAiBubble, currentFullText)
+              
               // 处理语音播放和口型同步
               if (payload.ttsUrl) {
                 // 如果 ttsUrl 是相对路径，拼接 apiBase 构建完整 URL
@@ -172,27 +229,33 @@ async function bootstrap() {
                 })
               }
             } else if (payload.type === 'error' && currentAiBubble) {
-              currentAiBubble.innerText += payload.content || '服务暂时不可用'
+              currentFullText += payload.content || '服务暂时不可用'
+              updateAiBubble()
             }
           } catch (e) {
             // 非 JSON，当作纯文本 token
             if (currentAiBubble) {
-              currentAiBubble.innerText += dataContent
-              messageList.scrollTop = messageList.scrollHeight
+              currentFullText += dataContent
+              if (!renderPending) {
+                renderPending = true
+                requestAnimationFrame(updateAiBubble)
+              }
             }
           }
         }
       }
     } catch (e) {
       console.error('[H5] SSE 请求失败:', e)
-      if (currentAiBubble && !currentAiBubble.innerText) {
-        currentAiBubble.innerText = '抱歉，服务暂时不可用，请稍后重试'
+      if (currentAiBubble && !currentFullText) {
+        currentFullText = '抱歉，服务暂时不可用，请稍后重试'
+        updateAiBubble()
       }
     }
 
     // 恢复状态
     statusText.innerHTML = '<div id="status-dot"></div> 正在为您服务...'
     currentAiBubble = null
+    currentFullText = ''
   }
 
   const handleSend = () => {
