@@ -135,10 +135,15 @@ async function bootstrap() {
             } else if (payload.type === 'complete') {
               // 处理语音播放和口型同步
               if (payload.ttsUrl) {
-                const audio = new Audio(payload.ttsUrl)
+                // 如果 ttsUrl 是相对路径，拼接 apiBase 构建完整 URL
+                const audioUrl = payload.ttsUrl.startsWith('http') ? payload.ttsUrl : (apiBase + payload.ttsUrl)
+                const audio = new Audio(audioUrl)
                 audio.onloadedmetadata = () => {
                   if (lipSyncManager) lipSyncManager.start(audio.duration * 1000)
                   audio.play().catch(err => console.error('[H5] 播放音频失败:', err))
+                }
+                audio.onerror = (e) => {
+                  console.error('[H5] 音频加载失败:', e)
                 }
               }
             } else if (payload.type === 'error' && currentAiBubble) {
