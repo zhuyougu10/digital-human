@@ -27,20 +27,15 @@ const live2dBaseUrl = 'http://localhost:5173' // Use local IP for real device te
 const live2dUrl = ref(`${live2dBaseUrl}?t=${Date.now()}`)
 const currentTtsUrl = ref('')
 
-// Message Bridge: UniApp -> H5
+// 消息桥接：UniApp -> H5
 const postToH5 = (type, data) => {
-  // In UniApp web-view, we use evalJS or just trust H5's message listener if platform is H5
-  // For cross-platform, we use the standard webview context
-  const webview = plus.webview.currentWebview().children()[0];
-  if (webview) {
-    webview.evalJS(`window.dispatchEvent(new MessageEvent('message', {data: ${JSON.stringify({type, data})}}))`);
-  } else {
-    // If running in browser/H5 platform directly
-    window.postMessage({ type, data }, '*')
-  }
+  // 通过 URL hash 传递指令给 H5，解决小程序跨端兼容性问题
+  const payload = encodeURIComponent(JSON.stringify({ type, data, ts: Date.now() }))
+  const token = uni.getStorageSync('token')
+  live2dUrl.value = `${live2dBaseUrl}?token=${encodeURIComponent(token)}&sessionId=${sessionId.value}#msg=${payload}`
 }
 
-// Handle messages from H5 -> UniApp
+// 处理来自 H5 的消息
 const onWebviewMessage = (e) => {
   const payload = e.detail.data[0] || e.detail.data
   if (payload.type === 'USER_SEND') {
@@ -48,7 +43,7 @@ const onWebviewMessage = (e) => {
   }
 }
 
-// SSE Chat Logic
+// SSE 聊天逻辑 (保留在 UniApp 侧)
 const sendMessage = async (text) => {
   if (!text || !sessionId.value) return
 
@@ -83,7 +78,7 @@ const sendMessage = async (text) => {
   )
 }
 
-// Sync lip-sync events from TtsPlayer to H5
+// 同步 TtsPlayer 的口型事件到 H5
 onMounted(() => {
   uni.$on('LIVE2D_POST_MESSAGE', (payload) => {
     postToH5(payload.type, payload.data)
@@ -98,6 +93,10 @@ const initChat = async () => {
   try {
     const res = await createSession('TRIAGE')
     sessionId.value = res.data?.sessionId || res.id
+    
+    // 初始化时将 token 和 sessionId 传给 H5
+    const token = uni.getStorageSync('token')
+    live2dUrl.value = `${live2dBaseUrl}?token=${encodeURIComponent(token)}&sessionId=${sessionId.value}&t=${Date.now()}`
   } catch (e) {
     console.error('Session init failed', e)
   }

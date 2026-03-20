@@ -53,6 +53,14 @@ async function bootstrap() {
   const sendBtn = document.getElementById('send-btn')
   const statusText = document.getElementById('status-text')
 
+  // 解析 URL 参数获取鉴权信息 (供后续 SSE 扩展使用)
+  const urlParams = new URLSearchParams(window.location.search)
+  const token = urlParams.get('token')
+  const sessionId = urlParams.get('sessionId')
+  if (token && sessionId) {
+    console.log('[H5] 接收到鉴权信息:', { sessionId })
+  }
+
   let currentAiBubble = null
 
   const appendMessage = (role, content) => {
@@ -91,9 +99,9 @@ async function bootstrap() {
     if (e.key === 'Enter') handleSend()
   })
 
-  // Handle messages from UniApp
-  window.addEventListener('message', (event) => {
-    const { type, data } = event.data || {}
+  // 统一消息处理函数
+  const handleUniAppMessage = (payload) => {
+    const { type, data } = payload || {}
     
     switch (type) {
       case 'AI_START':
@@ -117,6 +125,24 @@ async function bootstrap() {
         break
       default:
         break
+    }
+  }
+
+  // 监听标准 postMessage (App/H5 模式)
+  window.addEventListener('message', (event) => {
+    handleUniAppMessage(event.data)
+  })
+
+  // 监听 hash 变更 (微信小程序/兼容模式)
+  window.addEventListener('hashchange', () => {
+    const hash = window.location.hash
+    if (hash.startsWith('#msg=')) {
+      try {
+        const payload = JSON.parse(decodeURIComponent(hash.substring(5)))
+        handleUniAppMessage(payload)
+      } catch (e) {
+        console.error('[H5] 解析 Hash 消息失败:', e)
+      }
     }
   })
 
