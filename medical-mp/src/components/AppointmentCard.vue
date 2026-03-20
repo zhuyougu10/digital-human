@@ -1,22 +1,40 @@
 <template>
   <view class="appointment-card">
-    <view class="status-row">
-      <text class="success-icon">✔</text>
-      <text class="status-text">预约成功</text>
+    <view class="card-header">
+      <view class="doctor-brief">
+        <view class="avatar-placeholder">
+          <text class="avatar-text">{{ appointment.doctorName.substring(0, 1) }}</text>
+        </view>
+        <view class="doctor-meta">
+          <text class="doctor-name">{{ appointment.doctorName }}</text>
+          <text class="department-name">{{ appointment.department }}</text>
+        </view>
+      </view>
+      <view class="status-tag" :class="statusClass">
+        {{ statusText }}
+      </view>
     </view>
 
-    <view class="info-row"><text class="label">医生</text><text class="value">{{ appointment.doctorName }}</text></view>
-    <view class="info-row"><text class="label">科室</text><text class="value">{{ appointment.department }}</text></view>
-    <view class="info-row"><text class="label">就诊时间</text><text class="value">{{ appointment.date }} {{ appointment.time }}</text></view>
-    <view class="info-row"><text class="label">排队号</text><text class="value">{{ appointment.queueNumber }}</text></view>
-    <view class="info-row"><text class="label">状态</text><text class="value">{{ appointment.status }}</text></view>
+    <view class="card-content">
+      <view class="info-item">
+        <text class="info-label">就诊时间</text>
+        <text class="info-value">{{ appointment.date }} {{ appointment.time }}</text>
+      </view>
+      <view class="info-item">
+        <text class="info-label">排队序号</text>
+        <text class="info-value highlight">{{ appointment.queueNumber }}号</text>
+      </view>
+    </view>
 
-    <button class="detail-btn" @click="goDetail">查看预约详情</button>
+    <view class="card-footer">
+      <button class="detail-btn" @click="goDetail">查看详情</button>
+    </view>
   </view>
 </template>
 
 <script setup lang="ts">
-// [Codex 降级接管] 特殊消息卡片组件在 Gemini 不可用时由 Codex 接管实现。
+import { computed } from 'vue'
+
 interface Appointment {
   id: number | string
   doctorName: string
@@ -24,12 +42,28 @@ interface Appointment {
   date: string
   time: string
   queueNumber: string | number
-  status: string
+  status: string | number
 }
 
 const props = defineProps<{
   appointment: Appointment
 }>()
+
+const statusText = computed(() => {
+  const s = props.appointment.status
+  if (s === 0 || s === 'PENDING' || s === '待就诊') return '待就诊'
+  if (s === 1 || s === 'COMPLETED' || s === '已完成') return '已完成'
+  if (s === 2 || s === 'CANCELED' || s === '已取消') return '已取消'
+  return String(s)
+})
+
+const statusClass = computed(() => {
+  const s = props.appointment.status
+  if (s === 0 || s === 'PENDING' || s === '待就诊') return 'status-pending'
+  if (s === 1 || s === 'COMPLETED' || s === '已完成') return 'status-completed'
+  if (s === 2 || s === 'CANCELED' || s === '已取消') return 'status-canceled'
+  return ''
+})
 
 const goDetail = () => {
   uni.navigateTo({
@@ -41,60 +75,129 @@ const goDetail = () => {
 <style scoped>
 .appointment-card {
   background: #ffffff;
-  border-radius: 12rpx;
-  padding: 22rpx;
-  box-shadow: 0 6rpx 18rpx rgba(103, 194, 58, 0.14);
+  border-radius: 24rpx;
+  padding: 32rpx;
+  box-shadow: 0 8rpx 24rpx rgba(37, 99, 235, 0.06);
+  border: 1rpx solid rgba(37, 99, 235, 0.04);
+  margin-bottom: 24rpx;
 }
 
-.status-row {
-  display: flex;
-  align-items: center;
-  gap: 10rpx;
-  margin-bottom: 14rpx;
-}
-
-.success-icon {
-  width: 36rpx;
-  height: 36rpx;
-  border-radius: 50%;
-  color: #ffffff;
-  background: #67c23a;
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 24rpx;
-}
-
-.status-text {
-  color: #67c23a;
-  font-size: 28rpx;
-  font-weight: 700;
-}
-
-.info-row {
+.card-header {
   display: flex;
   justify-content: space-between;
-  font-size: 25rpx;
-  padding: 8rpx 0;
-  border-bottom: 1rpx solid #f2f6fc;
+  align-items: flex-start;
+  margin-bottom: 28rpx;
 }
 
-.label {
-  color: #909399;
+.doctor-brief {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
 }
 
-.value {
-  color: #303133;
-  max-width: 68%;
-  text-align: right;
+.avatar-placeholder {
+  width: 80rpx;
+  height: 80rpx;
+  background: #eff6ff;
+  border-radius: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar-text {
+  color: #2563eb;
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
+.doctor-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.doctor-name {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.department-name {
+  font-size: 24rpx;
+  color: #64748b;
+}
+
+.status-tag {
+  padding: 6rpx 16rpx;
+  border-radius: 8rpx;
+  font-size: 22rpx;
+  font-weight: 500;
+}
+
+.status-pending {
+  background: #fff7ed;
+  color: #f59e0b;
+}
+
+.status-completed {
+  background: #ecfdf5;
+  color: #10b981;
+}
+
+.status-canceled {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.card-content {
+  background: #f8faff;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.info-label {
+  font-size: 26rpx;
+  color: #64748b;
+}
+
+.info-value {
+  font-size: 26rpx;
+  color: #1e293b;
+  font-weight: 500;
+}
+
+.info-value.highlight {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.card-footer {
+  margin-top: 28rpx;
 }
 
 .detail-btn {
-  margin-top: 20rpx;
-  color: #4a90d9;
-  background: #ecf5ff;
-  border: 0;
-  border-radius: 10rpx;
-  font-size: 26rpx;
+  width: 100%;
+  height: 80rpx;
+  line-height: 80rpx;
+  background: #ffffff;
+  color: #2563eb;
+  border: 2rpx solid #2563eb;
+  border-radius: 40rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.detail-btn:active {
+  background: #f0f7ff;
 }
 </style>

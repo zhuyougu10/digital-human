@@ -1,7 +1,10 @@
 <template>
   <view class="appointment-list-page">
     <view class="appt-header">
-      <text class="appt-header-title">我的预约</text>
+      <view class="header-content">
+        <text class="appt-header-title">我的预约</text>
+        <text class="appt-header-subtitle">管理您的就诊安排</text>
+      </view>
     </view>
 
     <view class="appt-tabs">
@@ -27,34 +30,55 @@
         >
           <view class="card-header">
             <view class="doctor-info">
-              <uni-icons type="person-filled" size="20" color="#1E5AA8"></uni-icons>
-              <text class="doctor-name">{{ item.doctorName }}</text>
+              <view class="avatar-sm">
+                <text>{{ item.doctorName.substring(0, 1) }}</text>
+              </view>
+              <view class="doctor-meta">
+                <text class="doctor-name">{{ item.doctorName }}</text>
+                <text class="dept-name">{{ item.department }}</text>
+              </view>
             </view>
-            <text class="status" :class="item.status.toLowerCase()">{{ statusText(item.status) }}</text>
+            <view class="status-tag" :class="statusClass(item.status)">
+              {{ statusText(item.status) }}
+            </view>
           </view>
+          
           <view class="card-body">
             <view class="info-row">
-              <text class="label">就诊科室：</text>
-              <text class="value">{{ item.department }}</text>
-            </view>
-            <view class="info-row">
-              <text class="label">就诊时间：</text>
+              <uni-icons type="calendar" size="14" color="#64748b"></uni-icons>
+              <text class="label">预约时间：</text>
               <text class="value">{{ item.date }} {{ item.time }}</text>
             </view>
             <view class="info-row">
+              <uni-icons type="location" size="14" color="#64748b"></uni-icons>
               <text class="label">就诊地点：</text>
               <text class="value">门诊楼 3 楼 {{ item.department }}诊室</text>
             </view>
           </view>
-          <view class="card-footer" v-if="item.status === 0 || item.status === 'PENDING' || item.status === '待就诊'">
+
+          <view class="card-footer" v-if="isPending(item.status)">
             <view class="cancel-btn" @click.stop="handleCancel(item.id)">取消预约</view>
+            <view class="detail-link">
+              <text>详情</text>
+              <uni-icons type="right" size="12" color="#2563eb"></uni-icons>
+            </view>
+          </view>
+          <view class="card-footer" v-else>
+            <view class="detail-link">
+              <text>查看详情</text>
+              <uni-icons type="right" size="12" color="#64748b"></uni-icons>
+            </view>
           </view>
         </view>
       </view>
 
-      <view v-if="!filteredAppointments.length" class="empty">
-        <uni-icons type="calendar" size="48" color="#D1D5DB"></uni-icons>
-        <text>暂无预约记录</text>
+      <view v-if="!filteredAppointments.length" class="empty-state">
+        <image class="empty-img" src="/static/images/empty-apt.png" mode="aspectFit" v-if="false"></image>
+        <view class="empty-icon-wrap">
+          <uni-icons type="calendar-filled" size="64" color="#e2e8f0"></uni-icons>
+        </view>
+        <text class="empty-text">暂无相关预约记录</text>
+        <button class="empty-btn" @click="goChat" v-if="activeTab === 'ALL'">去预约</button>
       </view>
     </scroll-view>
   </view>
@@ -91,8 +115,22 @@ const statusText = (status: any) => {
   return map[status] ?? String(status)
 }
 
+const statusClass = (status: any) => {
+  if (status === 0 || status === 'PENDING' || status === '待就诊') return 'pending'
+  if (status === 1 || status === 'COMPLETED' || status === '已完成') return 'completed'
+  return 'canceled'
+}
+
+const isPending = (status: any) => {
+  return status === 0 || status === 'PENDING' || status === '待就诊'
+}
+
 const goDetail = (id: string | number) => {
   uni.navigateTo({ url: `/pages/appointment/detail?id=${id}` })
+}
+
+const goChat = () => {
+  uni.reLaunch({ url: '/pages/chat/chat' })
 }
 
 const fetchAppointments = async () => {
@@ -111,7 +149,8 @@ const fetchAppointments = async () => {
 const handleCancel = async (id: string | number) => {
   const res = await uni.showModal({
     title: '提示',
-    content: '确定要取消这个预约吗？'
+    content: '确定要取消这个预约吗？',
+    confirmColor: '#2563eb'
   })
   if (res.confirm) {
     try {
@@ -128,33 +167,65 @@ onMounted(fetchAppointments)
 </script>
 
 <style scoped lang="scss">
+$primary: #2563eb;
+$secondary: #0d9488;
+$success: #10b981;
+$warning: #f59e0b;
+$text-main: #1e293b;
+$text-sub: #64748b;
+$bg-light: #f8faff;
+
 .appointment-list-page {
   min-height: 100vh;
-  background: $uni-bg-color-grey;
+  background: #f1f5f9;
   display: flex;
   flex-direction: column;
 }
 
 .appt-header {
-  height: 220rpx;
-  background: $bg-gradient;
-  padding: 88rpx 32rpx 32rpx;
+  height: 280rpx;
+  background: linear-gradient(135deg, $primary 0%, $secondary 100%);
+  padding: 100rpx 40rpx 40rpx;
   display: flex;
   align-items: center;
+  position: relative;
+  overflow: hidden;
+
+  &::after {
+    content: '';
+    position: absolute;
+    right: -20rpx;
+    bottom: -20rpx;
+    width: 200rpx;
+    height: 200rpx;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 100rpx;
+  }
 }
 
 .appt-header-title {
-  font-size: 40rpx;
+  font-size: 44rpx;
   font-weight: 700;
   color: #FFFFFF;
+  display: block;
+}
+
+.appt-header-subtitle {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 8rpx;
+  display: block;
 }
 
 .appt-tabs {
-  height: 96rpx;
+  height: 100rpx;
   background: #FFFFFF;
   display: flex;
-  padding: 0 32rpx;
-  border-bottom: 1rpx solid #F3F4F6;
+  padding: 0 40rpx;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.02);
 }
 
 .tab-item {
@@ -166,25 +237,32 @@ onMounted(fetchAppointments)
   position: relative;
   
   .tab-text {
-    font-size: 28rpx;
-    color: #6B7280;
-    transition: all 0.3s;
+    font-size: 30rpx;
+    color: $text-sub;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
   
   &.active {
     .tab-text {
-      color: $uni-color-primary;
+      color: $primary;
       font-weight: 600;
+      transform: scale(1.05);
     }
     .tab-line {
-      width: 40rpx;
+      width: 48rpx;
       height: 6rpx;
-      background: $uni-color-primary;
+      background: $primary;
       border-radius: 3rpx;
       position: absolute;
-      bottom: 0;
+      bottom: 12rpx;
+      animation: tabIn 0.3s ease-out;
     }
   }
+}
+
+@keyframes tabIn {
+  from { width: 0; opacity: 0; }
+  to { width: 48rpx; opacity: 1; }
 }
 
 .appt-content {
@@ -197,47 +275,78 @@ onMounted(fetchAppointments)
 .list {
   display: flex;
   flex-direction: column;
-  gap: 24rpx;
+  gap: 28rpx;
 }
 
 .appt-card {
   background: #FFFFFF;
-  border-radius: 24rpx;
+  border-radius: 28rpx;
   padding: 32rpx;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+  box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.03);
+  transition: transform 0.2s;
+  
+  &:active {
+    transform: scale(0.99);
+  }
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24rpx;
-  padding-bottom: 24rpx;
-  border-bottom: 1rpx solid #F3F4F6;
+  margin-bottom: 28rpx;
 }
 
 .doctor-info {
   display: flex;
   align-items: center;
-  gap: 12rpx;
+  gap: 20rpx;
+}
+
+.avatar-sm {
+  width: 72rpx;
+  height: 72rpx;
+  background: #eff6ff;
+  border-radius: 36rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: $primary;
+}
+
+.doctor-meta {
+  display: flex;
+  flex-direction: column;
 }
 
 .doctor-name {
   font-size: 30rpx;
   font-weight: 600;
-  color: #1F2937;
+  color: $text-main;
 }
 
-.status {
-  font-size: 24rpx;
+.dept-name {
+  font-size: 22rpx;
+  color: $text-sub;
+}
+
+.status-tag {
+  font-size: 22rpx;
+  padding: 6rpx 16rpx;
+  border-radius: 8rpx;
   font-weight: 500;
   
-  &.pending { color: $uni-color-warning; }
-  &.completed { color: $uni-color-success; }
-  &.canceled { color: #9CA3AF; }
+  &.pending { background: #fff7ed; color: $warning; }
+  &.completed { background: #ecfdf5; color: $success; }
+  &.canceled { background: #f1f5f9; color: $text-sub; }
 }
 
 .card-body {
+  background: $bg-light;
+  border-radius: 20rpx;
+  padding: 24rpx;
   display: flex;
   flex-direction: column;
   gap: 16rpx;
@@ -245,44 +354,77 @@ onMounted(fetchAppointments)
 
 .info-row {
   display: flex;
-  gap: 16rpx;
+  align-items: center;
+  gap: 12rpx;
   
   .label {
     font-size: 26rpx;
-    color: #6B7280;
-    width: 140rpx;
+    color: $text-sub;
   }
   
   .value {
     font-size: 26rpx;
-    color: #374151;
-    flex: 1;
+    color: $text-main;
+    font-weight: 500;
   }
 }
 
 .card-footer {
-  margin-top: 24rpx;
-  padding-top: 24rpx;
-  border-top: 1rpx solid #F3F4F6;
+  margin-top: 28rpx;
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .cancel-btn {
-  padding: 8rpx 24rpx;
-  border: 1rpx solid #FCA5A5;
-  color: #EF4444;
+  padding: 10rpx 28rpx;
+  border: 2rpx solid #e2e8f0;
+  color: $text-sub;
   font-size: 24rpx;
-  border-radius: 24rpx;
+  border-radius: 30rpx;
 }
 
-.empty {
-  padding: 120rpx 0;
+.detail-link {
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+  font-size: 26rpx;
+  color: $primary;
+  font-weight: 500;
+}
+
+.empty-state {
+  padding: 160rpx 40rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20rpx;
-  color: #9CA3AF;
+}
+
+.empty-icon-wrap {
+  width: 160rpx;
+  height: 160rpx;
+  background: #f8fafc;
+  border-radius: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 32rpx;
+}
+
+.empty-text {
+  color: #94a3b8;
   font-size: 28rpx;
+}
+
+.empty-btn {
+  margin-top: 48rpx;
+  width: 240rpx;
+  height: 80rpx;
+  line-height: 80rpx;
+  background: $primary;
+  color: #FFFFFF;
+  border-radius: 40rpx;
+  font-size: 28rpx;
+  font-weight: 600;
 }
 </style>
