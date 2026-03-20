@@ -57,8 +57,9 @@ async function bootstrap() {
   const urlParams = new URLSearchParams(window.location.search)
   const token = urlParams.get('token')
   const sessionId = urlParams.get('sessionId')
+  const apiBase = urlParams.get('apiBase') || 'http://localhost:8080/api'
   if (token && sessionId) {
-    console.log('[H5] 接收到鉴权信息:', { sessionId })
+    console.log('[H5] 接收到鉴权信息:', { sessionId, apiBase })
   }
 
   let currentAiBubble = null
@@ -75,6 +76,95 @@ async function bootstrap() {
     return bubbleDiv
   }
 
+  const sendToBackend = async (text) => {
+    if (!sessionId || !token) {
+      console.error('[H5] 缺少 sessionId 或 token，无法发送消息')
+      return
+    }
+
+    // 显示 AI 正在思考
+    currentAiBubble = appendMessage('ai', '')
+    statusText.innerHTML = '<div id="status-dot"></div> 正在思考...'
+
+    try {
+      const response = await fetch(`${apiBase}/ai/chat/send`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream'
+        },
+        body: JSON.stringify({ sessionId: Number(sessionId), message: text })
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder('utf-8')
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const blocks = buffer.split('\n\n')
+        buffer = blocks.pop() // 最后一个可能不完整
+
+        for (const block of blocks) {
+          if (!block.trim()) continue
+          let eventType = 'message'
+          let dataContent = ''
+          for (const line of block.split('\n')) {
+            if (line.startsWith('event:')) {
+              eventType = line.substring(6).trim()
+            } else if (line.startsWith('data:')) {
+              dataContent = line.substring(5).trim()
+            }
+          }
+          if (dataContent === '[DONE]') continue
+          if (!dataContent) continue
+
+          try {
+            const payload = JSON.parse(dataContent)
+            if (payload.type === 'token' && currentAiBubble) {
+              currentAiBubble.innerText += payload.content || ''
+              messageList.scrollTop = messageList.scrollHeight
+            } else if (payload.type === 'complete') {
+              // 处理语音播放和口型同步
+              if (payload.ttsUrl) {
+                const audio = new Audio(payload.ttsUrl)
+                audio.onloadedmetadata = () => {
+                  if (lipSyncManager) lipSyncManager.start(audio.duration * 1000)
+                  audio.play().catch(err => console.error('[H5] 播放音频失败:', err))
+                }
+              }
+            } else if (payload.type === 'error' && currentAiBubble) {
+              currentAiBubble.innerText += payload.content || '服务暂时不可用'
+            }
+          } catch (e) {
+            // 非 JSON，当作纯文本 token
+            if (currentAiBubble) {
+              currentAiBubble.innerText += dataContent
+              messageList.scrollTop = messageList.scrollHeight
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error('[H5] SSE 请求失败:', e)
+      if (currentAiBubble && !currentAiBubble.innerText) {
+        currentAiBubble.innerText = '抱歉，服务暂时不可用，请稍后重试'
+      }
+    }
+
+    // 恢复状态
+    statusText.innerHTML = '<div id="status-dot"></div> 正在为您服务...'
+    currentAiBubble = null
+  }
+
   const handleSend = () => {
     const text = chatInput.value.trim()
     if (!text) return
@@ -82,16 +172,8 @@ async function bootstrap() {
     appendMessage('user', text)
     chatInput.value = ''
     
-    // Notify UniApp
-    window.parent.postMessage({
-      type: 'USER_SEND',
-      data: text
-    }, '*')
-    
-    // Fallback for some environments
-    if (window.uni && window.uni.postMessage) {
-      window.uni.postMessage({ data: { type: 'USER_SEND', content: text } })
-    }
+    // 直接通过 fetch SSE 调用后端（绕过小程序 postMessage 不实时的限制）
+    sendToBackend(text)
   }
 
   sendBtn.addEventListener('click', handleSend)

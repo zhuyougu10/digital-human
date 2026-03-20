@@ -96,7 +96,8 @@ const initChat = async () => {
     
     // 初始化时将 token 和 sessionId 传给 H5
     const token = uni.getStorageSync('token')
-    live2dUrl.value = `${live2dBaseUrl}?token=${encodeURIComponent(token)}&sessionId=${sessionId.value}&t=${Date.now()}`
+    const apiBase = 'http://localhost:8080/api' // Gateway 地址
+    live2dUrl.value = `${live2dBaseUrl}?token=${encodeURIComponent(token)}&sessionId=${sessionId.value}&apiBase=${encodeURIComponent(apiBase)}&t=${Date.now()}`
   } catch (e) {
     console.error('Session init failed', e)
   }
