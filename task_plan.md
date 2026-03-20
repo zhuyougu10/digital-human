@@ -414,3 +414,18 @@
   - files_scope: `medical-ai/medical-service/medical-ai-service/src/main/java/com/medical/ai/controller/ChatController.java`
   - verification: `mvn compile -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml -q` ✅
 - **Status:** complete
+
+### Phase 24: 小程序功能增强 (27-mp-enhancements)
+- [ ] **Task 1 [调研]**: 审计 H5 前端 + 后端 TTS 当前代码结构，输出精确改动点
+- [ ] **Task 2 [后端]**: TTS 分段合成 — 将长文本按段落拆分，逐段合成独立 MP3，SSE 分段推送 ttsUrl (Codex)
+  - files_scope: `TtsServiceImpl.java`, `ChatServiceImpl.java`, `ChatController.java`
+- [ ] **Task 3 [后端]**: 音频文件清理 — 播放完成后清理临时音频文件 (Codex)
+  - files_scope: `ChatController.java`, 可能新增 AudioCleanupService
+- [ ] **Task 4 [前端A]**: 问诊界面优化 — 医生推荐卡片(气泡内)/修复拉手指示器/MD 格式适配 (Gemini)
+  - files_scope: `live2d-h5/index.html`, `live2d-h5/src/main.js`
+- [ ] **Task 5 [前端B]**: 历史记录 + 会话管理 — 上滑加载历史/5分钟超时新会话/手动新会话按钮 (Gemini)
+  - files_scope: `live2d-h5/src/main.js`, `live2d-h5/index.html`, `medical-mp/src/pages/chat/chat.vue`
+- [ ] **Task 6 [前端C]**: TTS 顺序播放 + 清理 — 前端按序播放分段音频，播放完通知后端清理 (Gemini, 依赖 Task 2)
+  - files_scope: `live2d-h5/src/main.js`, `live2d-h5/src/audio-player.js`
+- [ ] **Task 7**: 编译验证 (Maven compile + MP build:mp-weixin + live2d-h5 build)
+- **Status:** in_progress

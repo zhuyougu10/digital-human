@@ -29,3 +29,8 @@ uploads/
 _req.json
 nul
 triage_*.txt
+tts-audio/
+
+.mcp/task-router/work/
+
+.mcp/task-router/node_modules/
