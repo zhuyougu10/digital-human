@@ -14,7 +14,7 @@
         <text class="status-desc">请按时就诊，祝您早日康复</text>
       </view>
       <view class="status-info" v-else>
-        <text class="status-title">{{ appointment?.status || '预约详情' }}</text>
+        <text class="status-title">{{ statusText(appointment?.status) }}</text>
         <text class="status-desc">感谢使用智能医疗助手</text>
       </view>
     </view>
@@ -31,7 +31,7 @@
         </view>
         <view class="card-item">
           <text class="label">就诊时间</text>
-          <text class="value highlight">{{ appointment.date }} {{ appointment.time }}</text>
+          <text class="value highlight">{{ appointment.appointmentDate }} {{ appointment.startTime }}{{ appointment.endTime ? '-' + appointment.endTime : '' }}</text>
         </view>
         <view class="card-item">
           <text class="label">就诊序号</text>
@@ -47,7 +47,7 @@
         <button class="btn primary" @click="goHome">返回首页</button>
         <button class="btn secondary" @click="goList">查看所有预约</button>
         <button 
-          v-if="appointment?.status === 'PENDING' || appointment?.status === '待就诊'" 
+          v-if="appointment?.status === 0 || appointment?.status === 'PENDING' || appointment?.status === '待就诊'" 
           class="btn outline" 
           @click="handleCancel"
         >
@@ -66,6 +66,11 @@ import { getAppointmentById, cancelAppointment } from '@/api/appointment'
 const appointmentId = ref('')
 const isSuccess = ref(false)
 const appointment = ref<any>(null)
+
+const statusText = (status: any) => {
+  const map: any = { 0: '待就诊', 1: '已完成', 2: '已取消' }
+  return map[status] ?? status ?? '预约详情'
+}
 
 const goBack = () => uni.navigateBack()
 const goHome = () => uni.reLaunch({ url: '/pages/chat/chat' })

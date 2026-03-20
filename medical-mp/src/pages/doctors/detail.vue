@@ -107,11 +107,17 @@ const dateList = computed(() => {
 })
 
 const morningSlots = computed(() => {
-  return slots.value.filter(s => s.date === activeDate.value && parseInt(s.time) < 12)
+  return slots.value.filter(s => {
+    const hour = parseInt(String(s.startTime || s.time || '0'))
+    return hour < 12
+  })
 })
 
 const afternoonSlots = computed(() => {
-  return slots.value.filter(s => s.date === activeDate.value && parseInt(s.time) >= 12)
+  return slots.value.filter(s => {
+    const hour = parseInt(String(s.startTime || s.time || '0'))
+    return hour >= 12
+  })
 })
 
 const selectedSlot = computed(() => {
@@ -123,16 +129,26 @@ const fetchDoctor = async () => {
   doctor.value = res.data || res
 }
 
-const fetchSlots = async () => {
-  const res = await getAvailableSlots({ doctorId: doctorId.value })
-  slots.value = res.data || res || []
-  if (dateList.value.length > 0) {
-    activeDate.value = dateList.value[0].date
+const fetchSlots = async (date?: string) => {
+  const queryDate = date || activeDate.value || dateList.value[0]?.date
+  if (!queryDate || !doctorId.value) return
+  activeDate.value = queryDate
+  try {
+    const res = await getAvailableSlots({ doctorId: doctorId.value, date: queryDate })
+    const list = Array.isArray(res) ? res : (res || [])
+    slots.value = list.map((s: any) => ({
+      ...s,
+      date: s.scheduleDate || queryDate,
+      time: s.startTime ? `${s.startTime}${s.endTime ? '-' + s.endTime : ''}` : '',
+      remaining: s.availableSlots ?? (s.totalSlots - s.bookedSlots) ?? 0
+    }))
+  } catch (e) {
+    slots.value = []
   }
 }
 
 const selectDate = (date: string) => {
-  activeDate.value = date
+  fetchSlots(date)
 }
 
 const selectSlot = (slot: any) => {
@@ -147,7 +163,8 @@ const handleConfirm = async () => {
   try {
     const res = await createAppointment({
       doctorId: doctorId.value,
-      scheduleId: selectedSlotId.value
+      slotId: selectedSlotId.value,
+      departmentId: doctor.value?.departmentId || null
     })
     const data = res.data || res
     uni.hideLoading()
@@ -163,6 +180,9 @@ const handleConfirm = async () => {
 onLoad((options) => {
   doctorId.value = String(options?.id || '')
   fetchDoctor()
+  if (dateList.value.length > 0) {
+    activeDate.value = dateList.value[0].date
+  }
   fetchSlots()
 })
 </script>
