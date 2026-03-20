@@ -2,24 +2,30 @@
   <view class="schedule-page">
     <view class="slot-header">
       <view class="header-top">
-        <uni-icons type="left" size="24" color="#FFFFFF" @click="goBack"></uni-icons>
+        <view class="back-icon" @click="goBack">
+          <uni-icons type="left" size="24" color="#1e293b"></uni-icons>
+        </view>
         <text class="header-title">选择号源</text>
         <view class="placeholder"></view>
       </view>
-      <view class="doctor-info" v-if="doctor">
+      <view class="doctor-card" v-if="doctor">
         <image class="avatar" :src="doctor.avatar || defaultAvatar" mode="aspectFill" />
         <view class="meta">
           <view class="name-row">
             <text class="name">{{ doctor.name }}</text>
             <text class="title">{{ doctor.title }}</text>
           </view>
-          <text class="dept">{{ doctor.departmentName }}</text>
+          <view class="dept-row">
+            <text class="dept">{{ doctor.departmentName }}</text>
+            <view class="divider"></view>
+            <text class="hospital">互联网医院</text>
+          </view>
         </view>
       </view>
     </view>
 
-    <scroll-view class="slot-content" scroll-y>
-      <view class="date-selector">
+    <view class="slot-content">
+      <scroll-view class="date-selector" scroll-x enable-flex>
         <view 
           v-for="(item, index) in dateList" 
           :key="index" 
@@ -29,49 +35,69 @@
         >
           <text class="week">{{ item.week }}</text>
           <text class="day">{{ item.day }}</text>
+          <view class="active-dot" v-if="activeDate === item.date"></view>
         </view>
-      </view>
+      </scroll-view>
 
-      <view class="section">
-        <text class="section-title">上午号源</text>
-        <view class="time-grid">
-          <view 
-            v-for="slot in morningSlots" 
-            :key="slot.id" 
-            class="time-item"
-            :class="{ active: selectedSlotId === slot.id, disabled: slot.remaining <= 0 }"
-            @click="selectSlot(slot)"
-          >
-            <text class="time">{{ slot.time }}</text>
-            <text class="status">{{ slot.remaining > 0 ? '有号' : '约满' }}</text>
+      <scroll-view class="slots-scroll" scroll-y>
+        <view class="section">
+          <view class="section-header">
+            <view class="indicator morning"></view>
+            <text class="section-title">上午号源</text>
+          </view>
+          <view class="time-grid">
+            <view 
+              v-for="slot in morningSlots" 
+              :key="slot.id" 
+              class="time-item"
+              :class="{ active: selectedSlotId === slot.id, disabled: slot.remaining <= 0 }"
+              @click="selectSlot(slot)"
+            >
+              <text class="time">{{ slot.time }}</text>
+              <view class="status-tag" :class="{ 'full': slot.remaining <= 0 }">
+                <text class="status-text">{{ slot.remaining > 0 ? '有号' : '约满' }}</text>
+              </view>
+            </view>
+            <view v-if="morningSlots.length === 0" class="empty-tip">暂无排班</view>
           </view>
         </view>
-      </view>
 
-      <view class="section">
-        <text class="section-title">下午号源</text>
-        <view class="time-grid">
-          <view 
-            v-for="slot in afternoonSlots" 
-            :key="slot.id" 
-            class="time-item"
-            :class="{ active: selectedSlotId === slot.id, disabled: slot.remaining <= 0 }"
-            @click="selectSlot(slot)"
-          >
-            <text class="time">{{ slot.time }}</text>
-            <text class="status">{{ slot.remaining > 0 ? '有号' : '约满' }}</text>
+        <view class="section">
+          <view class="section-header">
+            <view class="indicator afternoon"></view>
+            <text class="section-title">下午号源</text>
+          </view>
+          <view class="time-grid">
+            <view 
+              v-for="slot in afternoonSlots" 
+              :key="slot.id" 
+              class="time-item"
+              :class="{ active: selectedSlotId === slot.id, disabled: slot.remaining <= 0 }"
+              @click="selectSlot(slot)"
+            >
+              <text class="time">{{ slot.time }}</text>
+              <view class="status-tag" :class="{ 'full': slot.remaining <= 0 }">
+                <text class="status-text">{{ slot.remaining > 0 ? '有号' : '约满' }}</text>
+              </view>
+            </view>
+            <view v-if="afternoonSlots.length === 0" class="empty-tip">暂无排班</view>
           </view>
         </view>
-      </view>
+        <view class="bottom-padding"></view>
+      </scroll-view>
+    </view>
 
-      <view class="confirm-bar">
-        <view class="selection-info">
-          <text v-if="selectedSlot">已选: {{ selectedSlot.date }} {{ selectedSlot.time }}</text>
-          <text v-else class="placeholder">请选择就诊时间</text>
+    <view class="confirm-bar">
+      <view class="selection-info">
+        <view class="info-label" v-if="selectedSlot">
+          <text class="selected-text">已选：{{ selectedSlot.date }} {{ selectedSlot.time }}</text>
         </view>
-        <button class="confirm-btn" :disabled="!selectedSlotId" @click="handleConfirm">立即预约</button>
+        <text v-else class="info-placeholder">请在上方选择就诊时间</text>
       </view>
-    </scroll-view>
+      <button class="confirm-btn" :disabled="!selectedSlotId" @click="handleConfirm">
+        确认预约
+      </button>
+    </view>
   </view>
 </template>
 
@@ -190,46 +216,56 @@ onLoad((options) => {
 <style scoped lang="scss">
 .schedule-page {
   min-height: 100vh;
-  background: $uni-bg-color-grey;
+  background: #f8faff;
+  display: flex;
+  flex-direction: column;
 }
 
 .slot-header {
-  height: 360rpx;
-  background: $bg-gradient;
-  padding: 88rpx 32rpx 32rpx;
-  display: flex;
-  flex-direction: column;
-  gap: 32rpx;
+  padding: 88rpx 32rpx 48rpx;
+  background: #ffffff;
 }
 
 .header-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 40rpx;
+}
+
+.back-icon {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
 }
 
 .header-title {
-  font-size: 36rpx;
+  font-size: 34rpx;
   font-weight: 600;
-  color: #FFFFFF;
+  color: #1e293b;
 }
 
-.placeholder { width: 48rpx; }
-
-.doctor-info {
+.doctor-card {
   display: flex;
   align-items: center;
-  gap: 24rpx;
+  gap: 28rpx;
+  padding: 24rpx;
+  background: #f1f5f9;
+  border-radius: 24rpx;
 }
 
 .avatar {
-  width: 112rpx;
-  height: 112rpx;
-  border-radius: 56rpx;
-  border: 4rpx solid rgba(255, 255, 255, 0.3);
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 60rpx;
+  border: 4rpx solid #ffffff;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
 }
 
 .meta {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 8rpx;
@@ -238,79 +274,136 @@ onLoad((options) => {
 .name-row {
   display: flex;
   align-items: center;
-  gap: 12rpx;
+  gap: 16rpx;
 }
 
 .name {
-  font-size: 34rpx;
+  font-size: 36rpx;
   font-weight: 700;
-  color: #FFFFFF;
+  color: #1e293b;
 }
 
 .title {
   font-size: 24rpx;
-  color: #FFFFFF;
-  background: rgba(255, 255, 255, 0.2);
-  padding: 2rpx 12rpx;
+  color: #2563eb;
+  background: #eff6ff;
+  padding: 4rpx 16rpx;
   border-radius: 8rpx;
+  font-weight: 500;
 }
 
-.dept {
+.dept-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.dept, .hospital {
   font-size: 26rpx;
-  color: rgba(255, 255, 255, 0.9);
+  color: #64748b;
+}
+
+.divider {
+  width: 2rpx;
+  height: 20rpx;
+  background: #cbd5e1;
 }
 
 .slot-content {
-  margin-top: -32rpx;
-  height: calc(100vh - 328rpx);
-  background: $uni-bg-color-grey;
-  border-top-left-radius: 40rpx;
-  border-top-right-radius: 40rpx;
-  padding: 32rpx;
-  box-sizing: border-box;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #f8faff;
+  padding: 32rpx 32rpx 0;
+  border-radius: 48rpx 48rpx 0 0;
+  margin-top: -24rpx;
+  box-shadow: 0 -8rpx 24rpx rgba(0, 0, 0, 0.02);
 }
 
 .date-selector {
   display: flex;
-  gap: 16rpx;
-  margin-bottom: 40rpx;
-  overflow-x: auto;
-  padding-bottom: 8rpx;
+  white-space: nowrap;
+  padding: 8rpx 0 32rpx;
+  margin-bottom: 16rpx;
 }
 
 .date-item {
-  min-width: 100rpx;
-  height: 120rpx;
-  background: #FFFFFF;
-  border-radius: 20rpx;
-  display: flex;
+  display: inline-flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4rpx;
-  border: 1rpx solid #E5E7EB;
-  flex-shrink: 0;
+  min-width: 104rpx;
+  height: 128rpx;
+  background: #ffffff;
+  border-radius: 24rpx;
+  margin-right: 20rpx;
+  border: 2rpx solid #f1f5f9;
+  transition: all 0.2s ease;
+  position: relative;
 
   &.active {
-    background: $uni-color-primary;
-    border-color: $uni-color-primary;
-    .week, .day { color: #FFFFFF; }
+    background: #2563eb;
+    border-color: #2563eb;
+    box-shadow: 0 8rpx 16rpx rgba(37, 99, 235, 0.2);
+    
+    .week { color: rgba(255, 255, 255, 0.8); }
+    .day { color: #ffffff; }
   }
 
-  .week { font-size: 22rpx; color: #6B7280; }
-  .day { font-size: 30rpx; font-weight: 700; color: #1F2937; }
+  .week {
+    font-size: 22rpx;
+    color: #64748b;
+    margin-bottom: 4rpx;
+  }
+
+  .day {
+    font-size: 32rpx;
+    font-weight: 700;
+    color: #1e293b;
+  }
+  
+  .active-dot {
+    position: absolute;
+    bottom: 12rpx;
+    width: 8rpx;
+    height: 8rpx;
+    background: #ffffff;
+    border-radius: 4rpx;
+  }
+}
+
+.slots-scroll {
+  flex: 1;
 }
 
 .section {
   margin-bottom: 40rpx;
+  background: #ffffff;
+  padding: 32rpx;
+  border-radius: 32rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.01);
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 24rpx;
+}
+
+.indicator {
+  width: 8rpx;
+  height: 28rpx;
+  border-radius: 4rpx;
+  
+  &.morning { background: #f59e0b; }
+  &.afternoon { background: #2563eb; }
 }
 
 .section-title {
   font-size: 30rpx;
   font-weight: 600;
-  color: #1F2937;
-  margin-bottom: 24rpx;
-  display: block;
+  color: #1e293b;
 }
 
 .time-grid {
@@ -320,30 +413,64 @@ onLoad((options) => {
 }
 
 .time-item {
-  height: 100rpx;
-  background: #FFFFFF;
+  height: 112rpx;
+  background: #f8faff;
   border-radius: 20rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border: 1rpx solid #E5E7EB;
+  border: 2rpx solid #f1f5f9;
+  transition: all 0.2s;
 
   &.active {
-    background: #EFF6FF;
-    border-color: $uni-color-primary;
-    .time { color: $uni-color-primary; }
-    .status { color: $uni-color-primary; }
+    background: #eff6ff;
+    border-color: #2563eb;
+    .time { color: #2563eb; }
+    .status-tag { background: #2563eb; .status-text { color: #ffffff; } }
   }
 
   &.disabled {
-    background: #F9FAFB;
-    opacity: 0.5;
-    .time, .status { color: #9CA3AF; }
+    background: #f1f5f9;
+    opacity: 0.6;
+    border-color: #f1f5f9;
+    .time { color: #94a3b8; }
   }
 
-  .time { font-size: 28rpx; font-weight: 600; color: #1F2937; }
-  .status { font-size: 20rpx; color: #10B981; }
+  .time {
+    font-size: 28rpx;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 4rpx;
+  }
+}
+
+.status-tag {
+  padding: 2rpx 12rpx;
+  background: #dcfce7;
+  border-radius: 6rpx;
+  
+  &.full { background: #f1f5f9; }
+}
+
+.status-text {
+  font-size: 20rpx;
+  color: #059669;
+  font-weight: 500;
+  
+  .full & { color: #94a3b8; }
+}
+
+.empty-tip {
+  grid-column: span 3;
+  padding: 40rpx 0;
+  text-align: center;
+  font-size: 26rpx;
+  color: #94a3b8;
+}
+
+.bottom-padding {
+  height: 200rpx;
 }
 
 .confirm-bar {
@@ -351,37 +478,52 @@ onLoad((options) => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: #FFFFFF;
-  padding: 24rpx 32rpx calc(24rpx + env(safe-area-inset-bottom));
+  background: #ffffff;
+  padding: 24rpx 40rpx calc(40rpx + env(safe-area-inset-bottom));
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  border-top: 1rpx solid #E5E7EB;
-  z-index: 10;
+  justify-content: space-between;
+  box-shadow: 0 -8rpx 30rpx rgba(0, 0, 0, 0.05);
+  border-radius: 40rpx 40rpx 0 0;
+  z-index: 100;
 }
 
 .selection-info {
   flex: 1;
+}
+
+.selected-text {
   font-size: 28rpx;
-  color: #1F2937;
-  .placeholder { color: #9CA3AF; }
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.info-placeholder {
+  font-size: 26rpx;
+  color: #94a3b8;
 }
 
 .confirm-btn {
-  width: 240rpx;
-  height: 88rpx;
-  background: $uni-color-primary;
-  color: #FFFFFF;
-  border-radius: 44rpx;
-  font-size: 30rpx;
+  width: 260rpx;
+  height: 96rpx;
+  background: #2563eb;
+  color: #ffffff;
+  border-radius: 48rpx;
+  font-size: 32rpx;
   font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
   border: none;
-}
-
-.confirm-btn[disabled] {
-  background: #D1D5DB;
+  box-shadow: 0 8rpx 20rpx rgba(37, 99, 235, 0.25);
+  margin: 0;
+  
+  &::after { border: none; }
+  
+  &[disabled] {
+    background: #cbd5e1;
+    box-shadow: none;
+    color: #ffffff;
+  }
 }
 </style>

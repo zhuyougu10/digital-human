@@ -1,6 +1,6 @@
 <template>
   <view class="slot-picker">
-    <scroll-view class="date-tabs" scroll-x>
+    <scroll-view class="date-tabs" scroll-x enable-flex>
       <view
         v-for="date in dates"
         :key="date"
@@ -8,48 +8,67 @@
         :class="{ active: date === activeDate }"
         @click="activeDate = date"
       >
-        {{ date }}
+        <text class="date-text">{{ date }}</text>
       </view>
     </scroll-view>
 
     <view class="period-block">
-      <text class="period-title">上午</text>
+      <view class="period-header">
+        <view class="period-indicator morning"></view>
+        <text class="period-title">上午</text>
+      </view>
       <view class="grid">
         <view
           v-for="slot in morningSlots"
           :key="slot.slotId"
           class="slot-item"
-          :class="{ selected: slot.slotId === selectedSlotId }"
-          @click="selectSlot(slot)"
+          :class="{ 
+            selected: slot.slotId === selectedSlotId,
+            disabled: slot.remaining <= 0 
+          }"
+          @click="slot.remaining > 0 && selectSlot(slot)"
         >
           <text class="time">{{ slot.time }}</text>
-          <text class="remaining">剩余{{ slot.remaining }}</text>
+          <view class="remaining-box">
+            <text class="remaining-text">{{ slot.remaining > 0 ? '剩余' + slot.remaining : '约满' }}</text>
+          </view>
         </view>
       </view>
-      <text v-if="morningSlots.length === 0" class="empty">暂无号源</text>
+      <view v-if="morningSlots.length === 0" class="empty-state">
+        <text class="empty-text">该时段暂无号源</text>
+      </view>
     </view>
 
     <view class="period-block">
-      <text class="period-title">下午</text>
+      <view class="period-header">
+        <view class="period-indicator afternoon"></view>
+        <text class="period-title">下午</text>
+      </view>
       <view class="grid">
         <view
           v-for="slot in afternoonSlots"
           :key="slot.slotId"
           class="slot-item"
-          :class="{ selected: slot.slotId === selectedSlotId }"
-          @click="selectSlot(slot)"
+          :class="{ 
+            selected: slot.slotId === selectedSlotId,
+            disabled: slot.remaining <= 0 
+          }"
+          @click="slot.remaining > 0 && selectSlot(slot)"
         >
           <text class="time">{{ slot.time }}</text>
-          <text class="remaining">剩余{{ slot.remaining }}</text>
+          <view class="remaining-box">
+            <text class="remaining-text">{{ slot.remaining > 0 ? '剩余' + slot.remaining : '约满' }}</text>
+          </view>
         </view>
       </view>
-      <text v-if="afternoonSlots.length === 0" class="empty">暂无号源</text>
+      <view v-if="afternoonSlots.length === 0" class="empty-state">
+        <text class="empty-text">该时段暂无号源</text>
+      </view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-// [Codex 降级接管] 特殊消息卡片组件在 Gemini 不可用时由 Codex 接管实现。
 import { computed, ref, watch } from 'vue'
 
 interface Slot {
@@ -107,80 +126,147 @@ const selectSlot = (slot: Slot) => {
 <style scoped>
 .slot-picker {
   background: #ffffff;
-  border-radius: 12rpx;
-  padding: 20rpx;
-  box-shadow: 0 6rpx 18rpx rgba(74, 144, 217, 0.12);
+  border-radius: 24rpx;
+  padding: 32rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
 }
 
 .date-tabs {
+  display: flex;
   white-space: nowrap;
-  margin-bottom: 16rpx;
+  margin-bottom: 32rpx;
+  padding-bottom: 8rpx;
 }
 
 .date-tab {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 160rpx;
-  padding: 16rpx 20rpx;
-  margin-right: 12rpx;
-  border-radius: 999rpx;
-  background: #f5f7fa;
-  color: #606266;
-  font-size: 24rpx;
+  min-width: 180rpx;
+  height: 72rpx;
+  padding: 0 24rpx;
+  margin-right: 16rpx;
+  border-radius: 36rpx;
+  background: #f1f5f9;
+  transition: all 0.2s;
+  flex-shrink: 0;
 }
 
 .date-tab.active {
-  background: #4a90d9;
+  background: #2563eb;
+  box-shadow: 0 4rpx 12rpx rgba(37, 99, 235, 0.2);
+}
+
+.date-text {
+  font-size: 26rpx;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.date-tab.active .date-text {
   color: #ffffff;
 }
 
 .period-block {
-  margin-top: 14rpx;
+  margin-top: 24rpx;
 }
 
+.period-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.period-indicator {
+  width: 6rpx;
+  height: 24rpx;
+  border-radius: 3rpx;
+  margin-right: 12rpx;
+}
+
+.period-indicator.morning { background: #f59e0b; }
+.period-indicator.afternoon { background: #2563eb; }
+
 .period-title {
-  display: block;
-  font-size: 26rpx;
-  color: #303133;
-  margin-bottom: 10rpx;
+  font-size: 28rpx;
+  color: #1e293b;
   font-weight: 600;
 }
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12rpx;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16rpx;
 }
 
 .slot-item {
-  border: 2rpx solid #e4e7ed;
-  border-radius: 10rpx;
-  padding: 14rpx;
-  background: #ffffff;
+  border: 2rpx solid #f1f5f9;
+  border-radius: 16rpx;
+  padding: 20rpx;
+  background: #f8faff;
   display: flex;
   flex-direction: column;
-  gap: 6rpx;
+  align-items: center;
+  gap: 8rpx;
+  transition: all 0.2s;
 }
 
 .slot-item.selected {
-  border-color: #4a90d9;
-  background: #ecf5ff;
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.slot-item.disabled {
+  background: #f1f5f9;
+  border-color: #f1f5f9;
+  opacity: 0.6;
 }
 
 .time {
-  color: #303133;
-  font-size: 26rpx;
-  font-weight: 600;
+  color: #334155;
+  font-size: 30rpx;
+  font-weight: 700;
 }
 
-.remaining {
-  color: #67c23a;
-  font-size: 22rpx;
+.slot-item.selected .time {
+  color: #2563eb;
 }
 
-.empty {
-  color: #909399;
+.remaining-box {
+  padding: 2rpx 12rpx;
+  background: #dcfce7;
+  border-radius: 6rpx;
+}
+
+.remaining-text {
+  color: #059669;
+  font-size: 20rpx;
+  font-weight: 500;
+}
+
+.slot-item.selected .remaining-box {
+  background: #2563eb;
+}
+
+.slot-item.selected .remaining-text {
+  color: #ffffff;
+}
+
+.slot-item.disabled .remaining-box {
+  background: #e2e8f0;
+}
+
+.slot-item.disabled .remaining-text {
+  color: #94a3b8;
+}
+
+.empty-state {
+  padding: 32rpx;
+  text-align: center;
+}
+
+.empty-text {
+  color: #94a3b8;
   font-size: 24rpx;
 }
 </style>
