@@ -292,6 +292,7 @@ async function bootstrap() {
   let currentAiBubble = null
   let currentFullText = ''
   let renderPending = false
+  let currentAbortController = null
 
   const enhanceBubbleWithCards = (bubbleDiv, text) => {
     // 匹配模式：推荐医生[：: ]*姓名[：: ]*(.+?)[，, ]+科室[：: ]*(.+?)[，, ]+擅长[：: ]*(.+?)(?=\n|$)
@@ -350,6 +351,12 @@ async function bootstrap() {
       return
     }
 
+    // 取消旧请求
+    if (currentAbortController) {
+      currentAbortController.abort()
+    }
+    currentAbortController = new AbortController()
+
     // 重置 TTS 状态
     resetTtsState()
 
@@ -366,7 +373,8 @@ async function bootstrap() {
           'Content-Type': 'application/json',
           'Accept': 'text/event-stream'
         },
-        body: JSON.stringify({ sessionId: Number(sessionId), message: text })
+        body: JSON.stringify({ sessionId: Number(sessionId), message: text }),
+        signal: currentAbortController.signal
       })
 
       if (!response.ok) {
@@ -400,11 +408,11 @@ async function bootstrap() {
             if (line.startsWith('event:')) {
               eventType = line.substring(6).trim()
             } else if (line.startsWith('data:')) {
-              dataContent = line.substring(5).trim()
+              // 修复 SSE data 行解析，保留空格
+              dataContent = line.startsWith('data: ') ? line.substring(6) : line.substring(5)
             }
           }
           if (dataContent === '[DONE]') continue
-          if (!dataContent) continue
 
           try {
             const payload = JSON.parse(dataContent)
@@ -416,24 +424,26 @@ async function bootstrap() {
               }
             } else if (payload.type === 'tts') {
               // 处理分段 TTS
-              const fileName = payload.ttsUrl.split('/').pop()
-              ttsQueue.push({
-                segmentIndex: payload.segmentIndex,
-                ttsUrl: payload.ttsUrl,
-                fileName: fileName
-              })
-              ttsTotalSegments = payload.totalSegments
-              
-              // 保证顺序并尝试播放
-              ttsQueue.sort((a, b) => a.segmentIndex - b.segmentIndex)
-              playNextTtsSegment()
+              if (payload.ttsUrl) {
+                const fileName = payload.ttsUrl.split('/').pop()
+                ttsQueue.push({
+                  segmentIndex: payload.segmentIndex || 0,
+                  ttsUrl: payload.ttsUrl,
+                  fileName: fileName
+                })
+                ttsTotalSegments = payload.totalSegments || 1
+                
+                // 保证顺序并尝试播放
+                ttsQueue.sort((a, b) => a.segmentIndex - b.segmentIndex)
+                playNextTtsSegment()
+              }
+            } else if (payload.type === 'tts_error') {
+              console.warn('[H5] TTS 合成失败:', payload.content)
             } else if (payload.type === 'complete') {
               // 确保最终渲染完整内容
               updateAiBubble()
               // 增强展示卡片
               enhanceBubbleWithCards(currentAiBubble, currentFullText)
-              
-              // 旧的单一 ttsUrl 播放逻辑已移至 tts 事件处理，这里不再处理
             } else if (payload.type === 'error' && currentAiBubble) {
               currentFullText += payload.content || '服务暂时不可用'
               updateAiBubble()
@@ -451,6 +461,10 @@ async function bootstrap() {
         }
       }
     } catch (e) {
+      if (e.name === 'AbortError') {
+        console.log('[H5] 请求已取消')
+        return
+      }
       console.error('[H5] SSE 请求失败:', e)
       if (currentAiBubble && !currentFullText) {
         currentFullText = '抱歉，服务暂时不可用，请稍后重试'
@@ -462,6 +476,7 @@ async function bootstrap() {
     statusText.innerHTML = '<div id="status-dot"></div> 正在为您服务...'
     currentAiBubble = null
     currentFullText = ''
+    currentAbortController = null
   }
 
   const handleSend = () => {
