@@ -20,7 +20,7 @@ public interface AppointmentService {
 
     List<AppointmentVO> getDoctorAppointments(Long doctorId, LocalDate date);
 
-    AppointmentVO getAppointmentDetail(Long appointmentId);
+    AppointmentVO getAppointmentDetail(Long appointmentId, Long userId);
 
     PageResult<AppointmentListVO> listAll(AppointmentQueryDTO queryDTO, PageQuery pageQuery);
 

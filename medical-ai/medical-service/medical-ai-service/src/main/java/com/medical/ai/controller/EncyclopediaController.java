@@ -38,7 +38,8 @@ public class EncyclopediaController {
 
     @GetMapping("/session/{sessionId}/messages")
     public R<List<ChatMessageVO>> getMessages(@PathVariable Long sessionId) {
-        return R.ok(chatService.getSessionMessages(sessionId));
+        Long userId = SecurityUtil.getUserId();
+        return R.ok(chatService.getSessionMessages(sessionId, userId));
     }
 
     @PostMapping(value = "/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)

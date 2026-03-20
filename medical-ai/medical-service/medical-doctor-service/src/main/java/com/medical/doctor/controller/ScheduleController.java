@@ -1,6 +1,7 @@
 package com.medical.doctor.controller;
 
 import cn.dev33.satoken.annotation.SaCheckRole;
+import cn.dev33.satoken.annotation.SaMode;
 import com.medical.api.doctor.dto.SlotInfoDTO;
 import com.medical.common.core.constant.UserConstants;
 import com.medical.common.core.domain.R;
@@ -35,12 +36,14 @@ public class ScheduleController {
     }
 
     @PostMapping("/template/{doctorId}")
+    @SaCheckRole(value = {UserConstants.ROLE_ADMIN, UserConstants.ROLE_DOCTOR}, mode = SaMode.OR)
     public R<Void> saveTemplate(@PathVariable Long doctorId, @RequestBody ScheduleTemplateDTO dto) {
         scheduleService.saveTemplate(doctorId, dto);
         return R.ok();
     }
 
     @DeleteMapping("/template/{templateId}")
+    @SaCheckRole(value = {UserConstants.ROLE_ADMIN, UserConstants.ROLE_DOCTOR}, mode = SaMode.OR)
     public R<Void> deleteTemplate(@PathVariable Long templateId) {
         scheduleService.deleteTemplate(templateId);
         return R.ok();

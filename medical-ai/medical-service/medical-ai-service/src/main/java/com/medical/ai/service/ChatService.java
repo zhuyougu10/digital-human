@@ -12,12 +12,11 @@ public interface ChatService {
 
     List<ChatSessionVO> listSessions(Long userId);
 
-    List<ChatMessageVO> getSessionMessages(Long sessionId);
+    List<ChatMessageVO> getSessionMessages(Long sessionId, Long userId);
 
     Flux<SseMessageVO> chat(Long sessionId, Long userId, String message);
 
-    void endSession(Long sessionId);
+    void endSession(Long sessionId, Long userId);
 
-    void deleteSession(Long sessionId);
+    void deleteSession(Long sessionId, Long userId);
 }
-

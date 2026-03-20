@@ -517,3 +517,16 @@
 - curl 中文 body 直接传送会被 Gateway 拒绝 (400)，需用 `--data-binary @file` + `charset=utf-8`
 - AI 分诊保守：即便用户明确要求"直接挂号"，仍会先追问2轮再触发工具
 - `department_id=0` 在预约记录中 — AI 未传递 departmentId (非必填字段，不影响功能)
+
+## Session: 2026-03-20 (Security Fix Round)
+
+### 排障记录
+- Gateway `AuthFilter` 将 `/api/*/inner/**` 纳入白名单会导致内部接口绕过登录校验，本次已删除该白名单。
+- AI 服务 `ChatController`、`SummaryController`、`EncyclopediaController` 之前存在基于 `sessionId` 的越权访问入口，本次统一透传 `userId` 到 service，并在实现层校验 `session.userId`，不匹配抛 `FORBIDDEN`。
+- 预约服务 `AppointmentController.detail()` 之前未校验预约归属，本次改为仅允许 `patientId == userId` 或 `doctorId == userId` 访问。
+- 排班服务 `ScheduleController.saveTemplate` / `deleteTemplate` 之前缺少角色保护，本次补充 `ADMIN` 或 `DOCTOR` 角色校验。
+- 本地执行 `where.exe mvn` 返回 “Could not find files for the given pattern(s).”，当前沙箱环境缺少 Maven 可执行文件，因此未完成无测试编译验证。
+
+### 执行日志
+- 已修改文件：`medical-ai/medical-gateway/src/main/java/com/medical/gateway/filter/AuthFilter.java`、`medical-ai/medical-service/medical-ai-service/src/main/java/com/medical/ai/controller/ChatController.java`、`medical-ai/medical-service/medical-ai-service/src/main/java/com/medical/ai/controller/EncyclopediaController.java`、`medical-ai/medical-service/medical-ai-service/src/main/java/com/medical/ai/controller/SummaryController.java`、`medical-ai/medical-service/medical-ai-service/src/main/java/com/medical/ai/service/ChatService.java`、`medical-ai/medical-service/medical-ai-service/src/main/java/com/medical/ai/service/SummaryService.java`、`medical-ai/medical-service/medical-ai-service/src/main/java/com/medical/ai/service/impl/ChatServiceImpl.java`、`medical-ai/medical-service/medical-ai-service/src/main/java/com/medical/ai/service/impl/SummaryServiceImpl.java`、`medical-ai/medical-service/medical-appointment-service/src/main/java/com/medical/appointment/controller/AppointmentController.java`、`medical-ai/medical-service/medical-appointment-service/src/main/java/com/medical/appointment/service/AppointmentService.java`、`medical-ai/medical-service/medical-appointment-service/src/main/java/com/medical/appointment/service/impl/AppointmentServiceImpl.java`、`medical-ai/medical-service/medical-doctor-service/src/main/java/com/medical/doctor/controller/ScheduleController.java`。
+- 测试情况：按要求未新增测试、未运行测试；编译验证受限于环境缺少 Maven。

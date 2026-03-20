@@ -3,6 +3,7 @@ package com.medical.ai.controller;
 import com.medical.ai.domain.vo.ConversationSummaryVO;
 import com.medical.ai.service.SummaryService;
 import com.medical.common.core.domain.R;
+import com.medical.common.security.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,7 +16,8 @@ public class SummaryController {
 
     @GetMapping("/session/{sessionId}")
     public R<ConversationSummaryVO> getSummaryBySession(@PathVariable Long sessionId) {
-        return R.ok(summaryService.getSummaryBySession(sessionId));
+        Long userId = SecurityUtil.getUserId();
+        return R.ok(summaryService.getSummaryBySession(sessionId, userId));
     }
 
     @GetMapping("/appointment/{appointmentId}")

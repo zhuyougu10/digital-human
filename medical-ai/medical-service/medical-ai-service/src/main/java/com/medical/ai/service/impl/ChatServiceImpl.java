@@ -16,6 +16,14 @@ import com.medical.ai.service.ChatService;
 import com.medical.ai.service.SummaryService;
 import com.medical.ai.service.TtsService;
 import com.medical.common.core.exception.BusinessException;
+import com.medical.common.core.exception.ErrorCode;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.AssistantMessage;
@@ -30,20 +38,13 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Collectors;
-
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class ChatServiceImpl implements ChatService {
 
     private static final int MAX_CONTEXT_MESSAGES = 20;
+    private static final String DEFAULT_SESSION_TITLE = "\u65b0\u5bf9\u8bdd";
 
     private final ChatSessionMapper sessionMapper;
     private final ChatMessageMapper messageMapper;
@@ -58,7 +59,7 @@ public class ChatServiceImpl implements ChatService {
         ChatSession session = new ChatSession();
         session.setUserId(userId);
         session.setSessionType(sessionType);
-        session.setTitle("新对话");
+        session.setTitle(DEFAULT_SESSION_TITLE);
 
         String agentType = switch (sessionType) {
             case "TRIAGE" -> "TRIAGE";
@@ -83,7 +84,8 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
-    public List<ChatMessageVO> getSessionMessages(Long sessionId) {
+    public List<ChatMessageVO> getSessionMessages(Long sessionId, Long userId) {
+        assertSessionOwner(sessionId, userId);
         List<ChatMessage> messages = messageMapper.selectList(
             new LambdaQueryWrapper<ChatMessage>()
                 .eq(ChatMessage::getSessionId, sessionId)
@@ -94,10 +96,7 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public Flux<SseMessageVO> chat(Long sessionId, Long userId, String message) {
-        ChatSession session = sessionMapper.selectById(sessionId);
-        if (session == null || !Objects.equals(session.getUserId(), userId)) {
-            throw new BusinessException("会话不存在或无权访问");
-        }
+        ChatSession session = assertSessionOwner(sessionId, userId);
 
         ChatMessage userMsg = new ChatMessage();
         userMsg.setSessionId(sessionId);
@@ -141,7 +140,7 @@ public class ChatServiceImpl implements ChatService {
                 assistantMsg.setContent(fullText);
                 messageMapper.insert(assistantMsg);
 
-                if ("新对话".equals(session.getTitle()) && message != null && !message.isEmpty()) {
+                if (DEFAULT_SESSION_TITLE.equals(session.getTitle()) && message != null && !message.isEmpty()) {
                     session.setTitle(message.length() > 20 ? message.substring(0, 20) + "..." : message);
                     sessionMapper.updateById(session);
                 }
@@ -153,7 +152,7 @@ public class ChatServiceImpl implements ChatService {
                         messageMapper.updateById(assistantMsg);
                     }
                 } catch (Exception e) {
-                    log.warn("TTS 合成失败: {}", e.getMessage());
+                    log.warn("TTS \u5408\u6210\u5931\u8d25: {}", e.getMessage());
                 }
             })
             .doOnError(e -> log.error("Chat stream error for session {}: {}", sessionId, e.getMessage(), e))
@@ -166,11 +165,8 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
-    public void endSession(Long sessionId) {
-        ChatSession session = sessionMapper.selectById(sessionId);
-        if (session == null) {
-            return;
-        }
+    public void endSession(Long sessionId, Long userId) {
+        ChatSession session = assertSessionOwner(sessionId, userId);
 
         session.setStatus(1);
         sessionMapper.updateById(session);
@@ -178,17 +174,26 @@ public class ChatServiceImpl implements ChatService {
             try {
                 summaryService.generateSummary(sessionId, null);
             } catch (Exception e) {
-                log.warn("摘要生成失败: {}", e.getMessage());
+                log.warn("\u6458\u8981\u751f\u6210\u5931\u8d25: {}", e.getMessage());
             }
         }
     }
 
     @Override
-    public void deleteSession(Long sessionId) {
-        // 使用 MyBatis-Plus deleteById，@TableLogic 会自动将其转换为
-        // UPDATE chat_session SET deleted=1 WHERE id=? AND deleted=0
-        // 直接 setDeleted(1)+updateById 会因 @TableLogic 跳过该字段而无效
+    public void deleteSession(Long sessionId, Long userId) {
+        assertSessionOwner(sessionId, userId);
         sessionMapper.deleteById(sessionId);
+    }
+
+    private ChatSession assertSessionOwner(Long sessionId, Long userId) {
+        ChatSession session = sessionMapper.selectById(sessionId);
+        if (session == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND);
+        }
+        if (!Objects.equals(session.getUserId(), userId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
+        return session;
     }
 
     private List<Message> buildChatMessages(Long sessionId, Agent agent) {
@@ -199,8 +204,8 @@ public class ChatServiceImpl implements ChatService {
         List<Message> messages = new ArrayList<>();
         String systemPrompt = agent.getSystemPrompt();
         if ("TRIAGE".equals(agent.getAgentType()) && userId != null) {
-            systemPrompt += "\n\n当前患者信息：\n- patientId = " + userId
-                + "\n在调用 createAppointment 工具时，请务必使用上面的 patientId。";
+            systemPrompt += "\n\n\u5f53\u524d\u60a3\u8005\u4fe1\u606f\uff1a\n- patientId = " + userId
+                + "\n\u5728\u8c03\u7528 createAppointment \u5de5\u5177\u65f6\uff0c\u8bf7\u52a1\u5fc5\u4f7f\u7528\u4e0a\u9762\u7684 patientId\u3002";
         }
         messages.add(new SystemMessage(systemPrompt));
 

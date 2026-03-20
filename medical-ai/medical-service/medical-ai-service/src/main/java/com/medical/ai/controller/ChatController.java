@@ -37,7 +37,8 @@ public class ChatController {
 
     @GetMapping("/session/{sessionId}/messages")
     public R<List<ChatMessageVO>> getMessages(@PathVariable Long sessionId) {
-        return R.ok(chatService.getSessionMessages(sessionId));
+        Long userId = SecurityUtil.getUserId();
+        return R.ok(chatService.getSessionMessages(sessionId, userId));
     }
 
     @PostMapping(value = "/send", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
@@ -61,13 +62,15 @@ public class ChatController {
 
     @PostMapping("/session/{sessionId}/end")
     public R<Void> endSession(@PathVariable Long sessionId) {
-        chatService.endSession(sessionId);
+        Long userId = SecurityUtil.getUserId();
+        chatService.endSession(sessionId, userId);
         return R.ok();
     }
 
     @DeleteMapping("/session/{sessionId}")
     public R<Void> deleteSession(@PathVariable Long sessionId) {
-        chatService.deleteSession(sessionId);
+        Long userId = SecurityUtil.getUserId();
+        chatService.deleteSession(sessionId, userId);
         return R.ok();
     }
 }

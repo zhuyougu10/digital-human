@@ -148,10 +148,13 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     @Override
-    public AppointmentVO getAppointmentDetail(Long appointmentId) {
+    public AppointmentVO getAppointmentDetail(Long appointmentId, Long userId) {
         Appointment appointment = appointmentMapper.selectById(appointmentId);
         if (appointment == null || Objects.equals(appointment.getDeleted(), 1)) {
             throw new BusinessException(ErrorCode.APPOINTMENT_NOT_FOUND);
+        }
+        if (!Objects.equals(appointment.getPatientId(), userId) && !Objects.equals(appointment.getDoctorId(), userId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
         }
         return toVO(appointment);
     }

@@ -399,3 +399,10 @@ Phase 15: 医生数据补充与导诊闭环 — complete
 - [x] **Task 3**: 端到端导诊闭环验证 — 5 轮 SSE 对话全通 (症状收集→追问→searchDoctor→getSlots→createAppointment)
 - [x] **Task 4**: 提交 Phase 14+15 修复 commit
 - **Status:** complete
+
+### Security Fix Update (2026-03-20)
+- [x] 收紧 Gateway `inner` 接口白名单，恢复登录校验
+- [x] 为 AI 会话消息/结束/删除/摘要接口补齐 `userId` 归属校验
+- [x] 修复百科会话消息读取越权问题
+- [x] 为预约详情接口补齐患者/医生归属校验
+- [x] 为排班模板保存与删除接口补充 `ADMIN/DOCTOR` 角色校验

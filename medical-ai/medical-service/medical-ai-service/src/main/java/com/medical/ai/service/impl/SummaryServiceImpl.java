@@ -13,6 +13,8 @@ import com.medical.ai.mapper.ChatMessageMapper;
 import com.medical.ai.mapper.ChatSessionMapper;
 import com.medical.ai.mapper.ConversationSummaryMapper;
 import com.medical.ai.service.SummaryService;
+import com.medical.common.core.exception.BusinessException;
+import com.medical.common.core.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;
@@ -111,7 +113,8 @@ public class SummaryServiceImpl implements SummaryService {
     }
 
     @Override
-    public ConversationSummaryVO getSummaryBySession(Long sessionId) {
+    public ConversationSummaryVO getSummaryBySession(Long sessionId, Long userId) {
+        validateSessionOwner(sessionId, userId);
         ConversationSummary summary = summaryMapper.selectOne(
             new LambdaQueryWrapper<ConversationSummary>()
                 .eq(ConversationSummary::getSessionId, sessionId)
@@ -126,6 +129,16 @@ public class SummaryServiceImpl implements SummaryService {
                 .eq(ConversationSummary::getAppointmentId, appointmentId)
         );
         return summary != null ? toVO(summary) : null;
+    }
+
+    private void validateSessionOwner(Long sessionId, Long userId) {
+        ChatSession session = sessionMapper.selectById(sessionId);
+        if (session == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND);
+        }
+        if (!userId.equals(session.getUserId())) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
     }
 
     private String getJsonField(JsonNode json, String field) {
@@ -150,4 +163,3 @@ public class SummaryServiceImpl implements SummaryService {
         return vo;
     }
 }
-

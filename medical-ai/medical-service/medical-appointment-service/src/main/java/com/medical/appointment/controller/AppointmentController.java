@@ -56,7 +56,7 @@ public class AppointmentController {
     @SaCheckLogin
     @GetMapping("/{id}")
     public R<AppointmentVO> detail(@PathVariable("id") Long id) {
-        return R.ok(appointmentService.getAppointmentDetail(id));
+        return R.ok(appointmentService.getAppointmentDetail(id, StpUtil.getLoginIdAsLong()));
     }
 
     @SaCheckLogin
