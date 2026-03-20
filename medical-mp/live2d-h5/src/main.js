@@ -460,6 +460,43 @@ async function bootstrap() {
           }
         }
       }
+
+      // ── Bug fix: 刷新残留 buffer（服务端关流时最后一个事件可能没有 \n\n 结尾）──
+      if (buffer.trim()) {
+        let eventType = 'message'
+        let dataContent = ''
+        for (const line of buffer.split('\n')) {
+          if (line.startsWith('event:')) {
+            eventType = line.substring(6).trim()
+          } else if (line.startsWith('data:')) {
+            dataContent = line.startsWith('data: ') ? line.substring(6) : line.substring(5)
+          }
+        }
+        if (dataContent && dataContent !== '[DONE]') {
+          try {
+            const payload = JSON.parse(dataContent)
+            if (payload.type === 'token' && currentAiBubble) {
+              currentFullText += payload.content || ''
+            } else if (payload.type === 'complete' && currentAiBubble) {
+              // complete 也可能残留在 buffer 里
+            } else if (payload.type === 'error' && currentAiBubble) {
+              currentFullText += payload.content || '服务暂时不可用'
+            }
+          } catch (e) {
+            if (currentAiBubble) {
+              currentFullText += dataContent
+            }
+          }
+        }
+      }
+
+      // ── Bug fix: 同步执行最终渲染，防止 RAF 竞态导致内容全丢 ──
+      if (currentAiBubble && currentFullText) {
+        currentAiBubble.innerHTML = window.marked ? window.marked.parse(currentFullText) : currentFullText
+        messageList.scrollTop = messageList.scrollHeight
+        enhanceBubbleWithCards(currentAiBubble, currentFullText)
+      }
+
     } catch (e) {
       if (e.name === 'AbortError') {
         console.log('[H5] 请求已取消')
