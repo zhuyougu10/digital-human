@@ -116,7 +116,6 @@ public class ChatServiceImpl implements ChatService {
         Prompt prompt = new Prompt(chatMessages, optionsBuilder.build());
 
         StringBuilder fullResponse = new StringBuilder();
-        AtomicReference<String> ttsUrlRef = new AtomicReference<>();
 
         return chatModel.stream(prompt)
             .publishOn(Schedulers.boundedElastic())
@@ -134,36 +133,39 @@ public class ChatServiceImpl implements ChatService {
                 vo.setContent(token);
                 return vo;
             })
-            .doOnComplete(() -> {
+            .doOnError(e -> log.error("Chat stream error for session {}: {}", sessionId, e.getMessage(), e))
+            .concatWith(Mono.fromCallable(() -> {
                 String fullText = fullResponse.toString();
+                // 1. 保存 assistant 消息到 DB
                 ChatMessage assistantMsg = new ChatMessage();
                 assistantMsg.setSessionId(sessionId);
                 assistantMsg.setRole("assistant");
                 assistantMsg.setContent(fullText);
                 messageMapper.insert(assistantMsg);
 
+                // 2. 更新会话标题
                 if (DEFAULT_SESSION_TITLE.equals(session.getTitle()) && message != null && !message.isEmpty()) {
                     session.setTitle(message.length() > 20 ? message.substring(0, 20) + "..." : message);
                     sessionMapper.updateById(session);
                 }
 
+                // 3. TTS 合成（阻塞）
+                String ttsUrl = null;
                 try {
-                    String ttsUrl = ttsService.synthesize(fullText);
+                    ttsUrl = ttsService.synthesize(fullText);
                     if (ttsUrl != null) {
-                        ttsUrlRef.set(ttsUrl);
                         assistantMsg.setTtsUrl(ttsUrl);
                         messageMapper.updateById(assistantMsg);
                     }
                 } catch (Exception e) {
                     log.warn("TTS 合成失败: {}", e.getMessage());
                 }
-            })
-            .doOnError(e -> log.error("Chat stream error for session {}: {}", sessionId, e.getMessage(), e))
-            .concatWith(Mono.fromCallable(() -> {
+
+                // 4. 构建 complete 事件
                 SseMessageVO complete = new SseMessageVO();
                 complete.setType("complete");
-                complete.setContent(fullResponse.toString());
-                complete.setTtsUrl(ttsUrlRef.get());
+                complete.setContent(fullText);
+                complete.setTtsUrl(ttsUrl);
                 return complete;
             }));
     }
