@@ -44,7 +44,7 @@ import reactor.core.scheduler.Schedulers;
 public class ChatServiceImpl implements ChatService {
 
     private static final int MAX_CONTEXT_MESSAGES = 20;
-    private static final String DEFAULT_SESSION_TITLE = "\u65b0\u5bf9\u8bdd";
+    private static final String DEFAULT_SESSION_TITLE = "新对话";
 
     private final ChatSessionMapper sessionMapper;
     private final ChatMessageMapper messageMapper;
@@ -152,7 +152,7 @@ public class ChatServiceImpl implements ChatService {
                         messageMapper.updateById(assistantMsg);
                     }
                 } catch (Exception e) {
-                    log.warn("TTS \u5408\u6210\u5931\u8d25: {}", e.getMessage());
+                    log.warn("TTS 合成失败: {}", e.getMessage());
                 }
             })
             .doOnError(e -> log.error("Chat stream error for session {}: {}", sessionId, e.getMessage(), e))
@@ -174,7 +174,7 @@ public class ChatServiceImpl implements ChatService {
             try {
                 summaryService.generateSummary(sessionId, null);
             } catch (Exception e) {
-                log.warn("\u6458\u8981\u751f\u6210\u5931\u8d25: {}", e.getMessage());
+                log.warn("摘要生成失败: {}", e.getMessage());
             }
         }
     }
@@ -204,8 +204,8 @@ public class ChatServiceImpl implements ChatService {
         List<Message> messages = new ArrayList<>();
         String systemPrompt = agent.getSystemPrompt();
         if ("TRIAGE".equals(agent.getAgentType()) && userId != null) {
-            systemPrompt += "\n\n\u5f53\u524d\u60a3\u8005\u4fe1\u606f\uff1a\n- patientId = " + userId
-                + "\n\u5728\u8c03\u7528 createAppointment \u5de5\u5177\u65f6\uff0c\u8bf7\u52a1\u5fc5\u4f7f\u7528\u4e0a\u9762\u7684 patientId\u3002";
+            systemPrompt += "\n\n当前患者信息：\n- patientId = " + userId
+                + "\n在调用 createAppointment 工具时，请务必使用上面的 patientId。";
         }
         messages.add(new SystemMessage(systemPrompt));
 
