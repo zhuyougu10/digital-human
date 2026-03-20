@@ -23,6 +23,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -115,6 +116,7 @@ public class ChatServiceImpl implements ChatService {
         Prompt prompt = new Prompt(chatMessages, optionsBuilder.build());
 
         StringBuilder fullResponse = new StringBuilder();
+        AtomicReference<String> ttsUrlRef = new AtomicReference<>();
 
         return chatModel.stream(prompt)
             .publishOn(Schedulers.boundedElastic())
@@ -148,6 +150,7 @@ public class ChatServiceImpl implements ChatService {
                 try {
                     String ttsUrl = ttsService.synthesize(fullText);
                     if (ttsUrl != null) {
+                        ttsUrlRef.set(ttsUrl);
                         assistantMsg.setTtsUrl(ttsUrl);
                         messageMapper.updateById(assistantMsg);
                     }
@@ -160,6 +163,7 @@ public class ChatServiceImpl implements ChatService {
                 SseMessageVO complete = new SseMessageVO();
                 complete.setType("complete");
                 complete.setContent(fullResponse.toString());
+                complete.setTtsUrl(ttsUrlRef.get());
                 return complete;
             }));
     }

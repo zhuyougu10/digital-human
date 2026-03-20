@@ -9,11 +9,18 @@ import com.medical.ai.service.ChatService;
 import com.medical.common.core.domain.R;
 import com.medical.common.security.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 
 @RestController
@@ -22,6 +29,9 @@ import java.util.List;
 public class ChatController {
 
     private final ChatService chatService;
+
+    @Value("${tts.cosyvoice.audio-path:tts-audio}")
+    private String ttsAudioPath;
 
     @PostMapping("/session")
     public R<ChatSessionVO> createSession(@RequestBody CreateSessionDTO dto) {
@@ -72,5 +82,26 @@ public class ChatController {
         Long userId = SecurityUtil.getUserId();
         chatService.deleteSession(sessionId, userId);
         return R.ok();
+    }
+
+    @GetMapping("/tts/{fileName}")
+    public ResponseEntity<Resource> getTtsAudio(@PathVariable String fileName) {
+        try {
+            if (fileName.contains("..") || fileName.contains("/") || fileName.contains("\\")) {
+                return ResponseEntity.badRequest().build();
+            }
+            Path filePath = Paths.get(ttsAudioPath, fileName);
+            if (!Files.exists(filePath)) {
+                return ResponseEntity.notFound().build();
+            }
+            Resource resource = new FileSystemResource(filePath.toFile());
+            return ResponseEntity.ok()
+                .header("Content-Type", "audio/mpeg")
+                .header("Cache-Control", "public, max-age=86400")
+                .header("Access-Control-Allow-Origin", "*")
+                .body(resource);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
     }
 }

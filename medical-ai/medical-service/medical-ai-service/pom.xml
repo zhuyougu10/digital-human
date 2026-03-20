@@ -65,9 +65,8 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>com.alibaba.nls</groupId>
-            <artifactId>nls-sdk-tts</artifactId>
-            <version>${aliyun-sdk-nls.version}</version>
+            <groupId>com.alibaba</groupId>
+            <artifactId>dashscope-sdk-java</artifactId>
             <exclusions>
                 <exclusion>
                     <groupId>com.squareup.okhttp3</groupId>
