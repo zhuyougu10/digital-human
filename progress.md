@@ -534,3 +534,15 @@
 ### 执行日志
 - 已修改文件：`AppointmentServiceImpl.java`、`DoctorProfileServiceImpl.java`、5 个 DTO、4 个 Controller、`RemoteAppointmentService.java`。
 - 测试/验证情况：按用户要求未新增测试；尝试执行 Maven 编译但受环境缺少 Maven 限制，未能完成命令级验证。
+
+## Session: 2026-03-20 (Gateway CORS OPTIONS 预检放行修复)
+
+### 修改内容
+- 在 `medical-ai/medical-gateway/src/main/java/com/medical/gateway/filter/AuthFilter.java` 新增 `SaHolder` 导入。
+- 在 `SaReactorFilter` 链式配置中新增 `setBeforeAuth`，通过 `SaHolder.getRequest().getMethod()` 判断请求方法。
+- 当请求方法为 `OPTIONS` 时调用 `SaRouter.stop()` 跳过后续鉴权，避免 CORS 预检因不携带 token 被 Sa-Token 拦截返回 401。
+- 保持现有 `.addExclude()`、`.setAuth()`、`.setError()` 逻辑不变，并补充中文注释说明放行原因。
+
+### 测试/验证情况
+- 已核对 `AuthFilter.java` 变更内容、链式调用顺序与 UTF-8 文件字节。
+- 当前环境未提供可用 Maven 命令，未执行编译或自动化测试。
