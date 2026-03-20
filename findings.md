@@ -706,3 +706,151 @@ pm.cmd run build after router/sidebar edits to catch this immediately.
 - 修复：在事件块内按 `\n` 分割各行，分别提取 `event:` 和 `data:`
 - `chat.vue` 中 `payload.type === 'text'` 永远不匹配后端的 `'token'`，需改为 `'token'`
 
+## Phase 16: 小程序与服务端 API 对接审查 (2026-03-20)
+
+### 审查方法
+Gemini 逐文件读取前端 API 模块（api/*.js + utils/sse.js + pages/**/*.vue + live2d-h5/）与后端 Controller 源码，按 Gateway StripPrefix=2 规则对比 URL/方法/参数/响应结构。
+
+### 审查总结
+- 总端点数: 18
+- 已对接且正确: 11
+- 存在问题: 7
+
+### CRITICAL 问题 (运行时必崩/功能完全不可用)
+
+| # | 前端文件 | 后端端点 | 问题描述 | 建议修复方案 |
+|---|---------|---------|---------|------------|
+| C1 | `api/doctor.js` | `/schedule/slots` | URL 不匹配。前端调用 `/doctor/schedule/available`，后端实际路径为 `/schedule/slots`。→ 404 | 前端 URL 改为 `/doctor/schedule/slots` |
+| C2 | `pages/doctors/detail.vue` | `/schedule/slots` | 缺少必填参数 `date`。后端 `getAvailableSlots` 要求 `LocalDate date`，前端仅传 `doctorId`。→ 400 | `fetchSlots` 中传入当前日期或用户选定日期（格式 yyyy-MM-dd） |
+| C3 | `pages/doctors/list.vue` | `/doctor/list` | 分页数据解析错误。`request.js` 已解包 `R.data` 返回 `PageResult` 对象，前端 `res.data?.records` 中 `res.data` 为 undefined，最终 `.map()` 对 PageResult 对象操作，报 `map is not a function` | 改为 `(res.records \|\| []).map(...)` |
+| C4 | `pages/appointment/list.vue` | `/appointment/my` | 同 C3。`res` 是 PageResult 对象，前端误当数组处理 | 同上 |
+
+### MEDIUM 问题 (功能异常/数据缺失/体验差)
+
+| # | 前端文件 | 后端端点 | 问题描述 | 建议修复方案 |
+|---|---------|---------|---------|------------|
+| M1 | `api/auth.js` | `/auth/wx-login` | 响应字段不匹配。后端 `LoginVO` 返回 `user`，前端查找 `userInfo`，登录后 `userInfo` 存入 Storage 为空 | 前端改为 `result.user \|\| {}` |
+| M2 | `pages/appointment/list.vue` | `/appointment/my` | 状态映射失效。后端返回 Integer (0/1/2)，前端 statusMap 仅支持字符串键 ('pending' 等)，UI 显示数字 | 前端增加 0→'待就诊' / 1→'已完成' / 2→'已取消' 映射 |
+| M3 | `pages/appointment/detail.vue` | `/appointment/{id}` | 字段不匹配。前端 `appointment.date`/`appointment.time`，后端 VO 为 `appointmentDate`/`startTime` | 前端模板改为 `appointmentDate`/`startTime` |
+
+### LOW 问题
+
+| # | 前端文件 | 后端端点 | 问题描述 |
+|---|---------|---------|---------|
+| L1 | `pages/index/index.vue` | `/encyclopedia/**` | 健康科普为静态硬编码，未调用后端百科 API |
+| L2 | `pages/chat/chat.vue` | `/ai/chat/send` | SSE 双重检查 eventType 和 data.type，略冗余 |
+
+### 未对接的后端端点
+
+| # | 后端端点 | 说明 |
+|---|---------|------|
+| 1 | `DELETE /ai/chat/session/{sessionId}` | 删除会话 |
+| 2 | `POST /ai/chat/session/{sessionId}/end` | 结束会话 |
+| 3 | `GET /ai/summary/appointment/{appointmentId}` | 预约对话摘要 |
+| 4 | `POST /ai/encyclopedia/**` | 百科对话端点 |
+| 5 | `GET /doctor/doctor/search` | 症状搜索医生（前端仅用带参数的 list） |
+
+### 前端调用了但后端不存在的端点
+
+| # | 前端文件 | 调用 URL | 实际后端端点 |
+|---|---------|---------|------------|
+| 1 | `api/doctor.js` | `/doctor/schedule/available` | `/schedule/slots` |
+
+## 数字人界面消息发送无响应 — 根因分析 (2026-03-20)
+
+### 完整消息链路
+```
+H5 handleSend()
+  → window.parent.postMessage({type:'USER_SEND', data:text})   ← 标准 iframe API
+  → window.uni.postMessage({data:{type:'USER_SEND',content:text}}) ← 小程序 web-view API
+  → UniApp @message="onWebviewMessage"
+  → sendMessage(text)
+  → createSSERequest('/ai/chat/send', {sessionId, message})
+  → 后端 ChatController.chat()
+```
+
+### 根因：H5 → UniApp 通信通道在微信小程序中不可用
+
+| 通信方式 | 代码位置 | 问题 |
+|---------|---------|------|
+| `window.parent.postMessage()` | main.js:86-89 | 这是标准 iframe 通信 API，但微信小程序 `<web-view>` **不是** iframe，此调用完全无效 |
+| `window.uni.postMessage()` | main.js:92-94 | 这是微信小程序正确的 H5→小程序 API，但 **`bindmessage` 仅在以下时机触发**：用户后退、组件销毁、分享。**不会实时触发！** 消息被排队但永远不会在当前页面生命周期内传递 |
+
+**结论**: 用户在 H5 输入框发送消息后，`postMessage` 被排队但永远不送达 UniApp 的 `onWebviewMessage`，`sendMessage()` 从未被调用，后端完全不会收到请求。
+
+### 修复方案：H5 直接 SSE 通信
+
+既然架构已选定"方案 A：全量 H5 化"，且 H5 已通过 URL 参数拿到 `token` 和 `sessionId`，应将 SSE 通信逻辑直接内嵌到 H5 中，绕过不可靠的 postMessage 通道。
+
+**前提条件验证**:
+- ✅ Gateway CORS 已配置 `allowedOriginPatterns: "*"` + `allowedHeaders: "*"` + `allowCredentials: true`
+- ✅ H5 通过 URL params 拿到 `token` 和 `sessionId`（main.js:57-62）
+- ✅ SSE 端点 `POST /api/ai/chat/send` body `{sessionId, message}` header `Authorization: Bearer <token>`
+
+**修改文件**:
+1. `live2d-h5/src/main.js` — 新增 `sendToBackend()` 使用 `fetch + ReadableStream` 直接调 SSE 端点
+2. `live2d-h5/vite.config.js` — 开发环境添加 `/api` 代理到 Gateway
+3. `chat.vue` — 传递 `apiBase` URL 参数给 H5
+
+## Phase 18: H5 SSE 跨域请求被 Sa-Token 拦截 — 根因分析 (2026-03-20)
+
+### 症状
+- 小程序数字人界面发送消息后提示"抱歉，服务暂时不可用，请稍后重试"
+- 后端 Gateway 日志中无对应 POST 请求记录
+
+### 全链路追踪
+```
+用户在 H5 发送消息
+  → main.js:168 handleSend() → sendToBackend(text)
+  → main.js:80  检查 sessionId/token (通过，URL params 存在)
+  → main.js:90  fetch('http://localhost:8080/api/ai/chat/send', {
+                   Authorization: 'Bearer xxx',
+                   Content-Type: 'application/json',
+                   Accept: 'text/event-stream'
+                 })
+  → 浏览器检测到跨域 (H5 origin: localhost:5173 → Gateway: localhost:8080)
+  → 浏览器自动发送 OPTIONS 预检请求 (不携带 Authorization header)
+  → Gateway SaReactorFilter 拦截 OPTIONS → StpUtil::checkLogin → 无 token → 401
+  → 401 响应不含 Access-Control-Allow-* CORS 头
+  → 浏览器判定 CORS 预检失败 → 阻止实际 POST 请求
+  → fetch Promise reject (TypeError: Failed to fetch)
+  → main.js:156 catch 块 → 显示 "抱歉，服务暂时不可用，请稍后重试"
+```
+
+### 根因确认
+
+**P0 (CRITICAL): `AuthFilter.java` 未放行 HTTP OPTIONS 方法**
+
+```java
+// AuthFilter.java:14-30 — 当前代码
+return new SaReactorFilter()
+    .addInclude("/**")          // ← 包含所有请求（含 OPTIONS）
+    .addExclude(/* 只排除了特定 URL 路径，未排除 HTTP 方法 */)
+    .setAuth(obj -> SaRouter.match("/**", StpUtil::checkLogin));  // ← OPTIONS 也被鉴权
+```
+
+- CORS 预检 (OPTIONS) 不携带 `Authorization` header（浏览器规范）
+- Sa-Token `StpUtil::checkLogin` 对 OPTIONS 返回 401
+- Spring Cloud Gateway 的 `globalcors` CORS 处理在 `HandlerMapping` 层，运行在 `SaReactorFilter` (WebFilter) **之后**
+- 因此 CORS headers 永远无法添加到 OPTIONS 的 401 响应中
+
+**P1 (MEDIUM): `chat.vue` `postToH5()` 更新 URL 丢失 `apiBase`**
+
+```javascript
+// chat.vue:35 — postToH5 更新 URL 不含 apiBase
+live2dUrl.value = `${live2dBaseUrl}?token=...&sessionId=...#msg=...`
+// 缺少 &apiBase=...
+```
+
+若 TTS 口型事件触发 `postToH5()`，web-view 会重载 H5，丢失 `apiBase` 参数。
+
+**P2 (LOW): 硬编码 localhost + 无 initChat 失败提示**
+
+```javascript
+// chat.vue:26 — live2d H5 地址硬编码
+const live2dBaseUrl = 'http://localhost:5173'
+// chat.vue:99 — Gateway 地址硬编码  
+const apiBase = 'http://localhost:8080/api'
+// chat.vue:101-103 — 会话创建失败仅 console.error，无用户提示
+```
+

@@ -535,14 +535,163 @@
 - 已修改文件：`AppointmentServiceImpl.java`、`DoctorProfileServiceImpl.java`、5 个 DTO、4 个 Controller、`RemoteAppointmentService.java`。
 - 测试/验证情况：按用户要求未新增测试；尝试执行 Maven 编译但受环境缺少 Maven 限制，未能完成命令级验证。
 
-## Session: 2026-03-20 (Gateway CORS OPTIONS 预检放行修复)
+## Session: 2026-03-20 (Phase 16 — 小程序与服务端 API 对接审查)
 
-### 修改内容
-- 在 `medical-ai/medical-gateway/src/main/java/com/medical/gateway/filter/AuthFilter.java` 新增 `SaHolder` 导入。
-- 在 `SaReactorFilter` 链式配置中新增 `setBeforeAuth`，通过 `SaHolder.getRequest().getMethod()` 判断请求方法。
-- 当请求方法为 `OPTIONS` 时调用 `SaRouter.stop()` 跳过后续鉴权，避免 CORS 预检因不携带 token 被 Sa-Token 拦截返回 401。
-- 保持现有 `.addExclude()`、`.setAuth()`、`.setError()` 逻辑不变，并补充中文注释说明放行原因。
+### 任务描述
+使用 Gemini 子代理全面审查 medical-mp 小程序前端 API 调用与后端 Controller 端点的对接情况。
 
-### 测试/验证情况
-- 已核对 `AuthFilter.java` 变更内容、链式调用顺序与 UTF-8 文件字节。
-- 当前环境未提供可用 Maven 命令，未执行编译或自动化测试。
+### 执行方式
+- 工具: MCP task-router `/delegate` → Gemini (single 模式)
+- task_id: `mp-api-audit-v1`
+- 耗时: ~7.5 分钟（因超时被标记 failed，但分析内容完整）
+- 审查范围: 前端 11 类文件 + 后端 10 个 Controller + DTO/VO
+
+### 审查结果
+| 级别 | 数量 | 关键问题 |
+|------|------|---------|
+| CRITICAL | 4 | 号源 URL 404、缺少 date 参数、PageResult 解析崩溃 (2处) |
+| MEDIUM | 3 | LoginVO 字段不匹配、状态码 Integer/String 不兼容、预约详情字段名不对 |
+| LOW | 2 | 健康科普静态硬编码、SSE 双重类型检查 |
+| 未对接端点 | 5 | 删除/结束会话、预约摘要、百科对话、症状搜索 |
+| 幽灵端点 | 1 | `/schedule/available` (应为 `/schedule/slots`) |
+
+### Errors Encountered / Resolution
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| Gemini task timed out (7.5min > default) | 1 | 分析内容已完整输出到 stdout，直接从结果文件提取 |
+| 结果 JSON 编码乱码 (GBK/UTF-8 混合) | 1 | 从 `collect_result` 和事件流中提取可读部分，交叉验证 |
+
+### 详细问题清单已落盘
+- `findings.md`: Phase 16 审查结果（含完整问题表格）
+- `task_plan.md`: Phase 16 Task 1 标记完成
+
+## Session: 2026-03-20 (Phase 16 Task 3-6 — 小程序 API 对接修复)
+
+### 修复执行
+3 个修复批次并行派发 Gemini，全部完成后逐个 diff 审查并 cherry-pick 合并。
+
+| 批次 | task_id | 修改文件 | 修复内容 | 状态 |
+|------|---------|---------|---------|------|
+| A | mp-fix-batch-a | `api/doctor.js` + `api/auth.js` | C1: URL `/schedule/available`→`/schedule/slots`; M1: `result.userInfo`→`result.user` | ✅ 合并 |
+| B | mp-fix-batch-b | `doctors/list.vue` + `appointment/list.vue` | C3+C4: PageResult 解析改 `Array.isArray(res) ? res : (res.records \|\| [])`; M2: statusMap 增加 Integer 键 0/1/2; 字段映射 `appointmentDate`/`startTime` | ✅ 合并 |
+| C | mp-fix-batch-c | `doctors/detail.vue` + `appointment/detail.vue` | C2: fetchSlots 增加 `date` 参数 + selectDate 触发重查; VO 映射 `scheduleDate→date`/`startTime→time`/`availableSlots→remaining`; `scheduleId→slotId` + `departmentId`; M3: detail 字段名修复 + statusText 函数 | ✅ 合并 |
+
+### 验证结果
+- `npm run build:mp-weixin` → **BUILD SUCCESS** (Build complete)
+
+### 修复覆盖统计
+- CRITICAL 4/4 已修复 ✅
+- MEDIUM 3/3 已修复 ✅
+- LOW 2/2 暂不修复（健康科普静态 + SSE 双重检查，不影响功能）
+
+## Session: 2026-03-20 (Phase 17 — 数字人消息发送无响应修复)
+
+### 根因分析
+**现象**: 数字人界面发送消息后无响应，后端未收到任何请求。
+
+**链路追踪**:
+```
+H5 handleSend()
+  → window.parent.postMessage()     ← iframe API，web-view 不是 iframe，无效
+  → window.uni.postMessage()        ← 微信 API，仅在后退/销毁/分享时触发，不实时
+  → UniApp @message                 ← 永远不被实时调用
+  → sendMessage()                   ← 从未执行
+  → createSSERequest()              ← 从未发出
+```
+
+**根因**: 微信小程序 `<web-view>` 的 `bindmessage` 事件**不会实时触发**，消息被排队直到页面生命周期结束才送达。H5 → UniApp 的消息通道在整个聊天过程中完全断开。
+
+### 修复方案
+将 SSE 通信逻辑从 UniApp 中转模式改为 H5 直连模式：
+- H5 已通过 URL 参数持有 `token`、`sessionId`、`apiBase`
+- 使用 `fetch` + `ReadableStream` 直接调用 `POST /api/ai/chat/send`
+- Gateway CORS 已配置 `allowedOriginPatterns: "*"`，允许跨域
+
+### 修复内容
+| 文件 | 变更 |
+|------|------|
+| `live2d-h5/src/main.js` | 新增 `sendToBackend()` 函数（fetch SSE），`handleSend` 改为直接调用；SSE 解析逻辑与 `sse.js` 一致；额外处理 TTS complete 事件的音频播放 |
+| `live2d-h5/vite.config.js` | 开发环境 proxy `/api` → `localhost:8080` |
+| `chat.vue` | `initChat` 传递 `apiBase` URL 参数给 H5 |
+
+### 验证结果
+- `npm run build:mp-weixin` → **BUILD SUCCESS**
+- `npm run build` (live2d-h5) → **BUILD SUCCESS** (530KB JS)
+
+### 修复后消息链路
+```
+H5 handleSend()
+  → fetch('${apiBase}/ai/chat/send', {Authorization: Bearer token})  ← 直连后端
+  → ReadableStream 解析 SSE 事件
+  → currentAiBubble.innerText += content                              ← 直接更新 UI
+```
+
+## Session: 2026-03-20 (Phase 18 — H5 SSE 跨域请求被 Sa-Token 拦截修复)
+
+### 根因定位
+
+| 编号 | 严重性 | 问题 | 根因 |
+|------|--------|------|------|
+| P0 | CRITICAL | AuthFilter 未放行 OPTIONS 预检请求 | Sa-Token SaReactorFilter 拦截 CORS 预检返回 401，浏览器阻止实际 POST 请求 |
+| P1 | MEDIUM | chat.vue postToH5() 更新 URL 丢失 apiBase | H5 重载后 apiBase 回退默认值 |
+| P2 | LOW | live2dBaseUrl/apiBase 硬编码 localhost | 真机测试不可用 + initChat 失败无提示 |
+
+### 链路追踪
+- 错误消息来源: `live2d-h5/src/main.js:159` catch 块
+- 请求链路断点: CORS OPTIONS 预检在 Gateway SaReactorFilter 被 401 拦截
+- 服务端无 POST 日志: 浏览器在预检失败后阻止发送实际请求
+
+### 修复内容
+
+| Task | 代理 | 修改文件 | 修复内容 | 状态 |
+|------|------|---------|---------|------|
+| T1 (P0) | Codex | `AuthFilter.java` | `.setBeforeAuth()` 中判断 OPTIONS 方法并 `SaRouter.stop()` 放行 | ✅ cherry-pick 合并 |
+| T2 (P1+P2) | Gemini | `chat.vue` | `apiBase` 提升为模块级环境变量; `postToH5` 含 apiBase; `initChat` 加 showToast | ✅ cherry-pick 合并 |
+
+### 验证结果
+- `mvn compile -pl medical-gateway -am -q` → **SUCCESS** (无输出=无错误)
+- `npm run build:mp-weixin` → **Build complete**
+
+### Errors Encountered / Resolution
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| cherry-pick 冲突 (progress.md 本地有未提交更改) | 1 | git stash → cherry-pick → stash pop → resolve conflict |
+
+## Session: 2026-03-20 (Phase 19 — H5 聊天界面优化)
+
+### 任务描述
+使用 frontend-design skill 指导 Gemini 重新设计 `live2d-h5/index.html` 聊天界面，同时将标题从 "Live2D AI Chat" 改为 "AI问诊"。
+
+### 执行方式
+- 工具: MCP task-router `/delegate` → Gemini (fallback 模式)
+- task_id: `h5-chat-redesign-v1`
+- 耗时: ~1.5 分钟
+- 打分: 40（约束违规为误报，手动审查全部通过）
+
+### 设计改进
+
+| 改进项 | 旧设计 | 新设计 |
+|--------|--------|--------|
+| 配色 | 单一蓝色渐变 `#93C5FD → #1E40AF` | 医疗蓝 `#2563eb` + 医用绿 `#0d9488` 双色系 |
+| 背景 | 强烈的蓝色径向渐变 | 柔和的多层径向渐变（几乎白色，专业质感） |
+| 字体栈 | 系统默认 + sans-serif | PingFang SC + Hiragino + Microsoft YaHei |
+| AI 气泡 | 纯白色 + 浅边框 | 白色 + 左侧医疗绿装饰条（AI 身份标识） |
+| 医生卡片 | 半透明暗色毛玻璃 + 黑色描边文字 | 明亮白色毛玻璃 + 正常颜色文字 |
+| 状态动画 | pulse 缩放 + 阴影 | ripple 涟漪扩散（更现代） |
+| 输入区域 | 36px 高，紧凑布局 | 44px 高，safe-area 适配 |
+| 发送按钮 | 渐变填充 + filled SVG | 纯色 + stroke SVG 线性图标 |
+| 新增特性 | — | 拉手指示器、typing 动画、.msg-time 时间戳、AI 免责声明 |
+| title | "Live2D AI Chat" | "AI问诊" |
+
+### Files Modified
+- `medical-mp/live2d-h5/index.html`: 全面重构 CSS + 微调 HTML 结构
+
+### 验证结果
+- `npm run build` (live2d-h5) → **BUILD SUCCESS** (3.49s, 530KB JS)
+- cherry-pick 合并: `c72e10f`
+
+### Errors Encountered / Resolution
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| cherry-pick 失败（本地有未提交的 planning files 更改） | 1 | git stash → cherry-pick → stash pop |
+| 打分系统误报约束违规（40 分） | 1 | 手动逐项审查 DOM ID/class/script 标签，全部保留，确认为误报 |

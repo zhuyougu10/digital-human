@@ -4,7 +4,7 @@
 构建基于 Spring Cloud + Spring AI + RAG + AI Agents + Vue3 + UniApp 的 AI 数字人医疗小助手系统（毕业设计）
 
 ## Current Phase
-Phase 15: 医生数据补充与导诊闭环 — complete
+Phase 19: H5 聊天界面优化 — complete
 
 ## Phases
 <!-- 
@@ -404,3 +404,42 @@ Phase 15: 医生数据补充与导诊闭环 — complete
 - [x] **[Doctor N+1]** `DoctorProfileServiceImpl` 在 `listByDepartment/searchBySymptom` 中批量查询 `doctor_department` 与 `department`，构建医生到科室列表映射后复用。
 - [x] **[Bean Validation]** 为 `CreateAppointmentDTO`、`DoctorProfileDTO`、`KnowledgeBaseDTO`、`ChunkManualDTO`、`ScheduleTemplateDTO` 增加参数校验，并在对应 Controller `@RequestBody` 入参处补充 `@Valid`。
 - [x] **[Dead Code]** 删除 `RemoteAppointmentService.cancelAppointment` 无效 Feign 声明。
+
+### Phase 16: 小程序与服务端对接审查 (19-mp-api-audit)
+- [x] **Task 1**: Gemini 全面审查 medical-mp 前端 API 调用与后端 Controller 端点的对接情况 — 发现 4 CRITICAL + 3 MEDIUM + 2 LOW
+  - 审查范围: API 模块 (api/*.js) + 工具 (utils/sse.js) + 页面 (pages/**/*.vue) + H5 (live2d-h5/)
+  - 对比对象: 5 个后端 Controller 的全部端点 (URL/方法/参数/响应结构)
+  - 输出: 按严重性分级的问题清单 (CRITICAL / MEDIUM / LOW)
+- [x] **Task 2**: 制定修复计划
+- [x] **Task 3**: 修复批次 A — API 层修复 (doctor.js URL + auth.js 字段) — Gemini ✅ cherry-pick 合并
+  - files_scope: `medical-mp/src/api/doctor.js`, `medical-mp/src/api/auth.js`
+- [x] **Task 4**: 修复批次 B — 页面数据解析修复 (doctors/list + appointment/list PageResult + appointment status 映射) — Gemini ✅ cherry-pick 合并
+  - files_scope: `medical-mp/src/pages/doctors/list.vue`, `medical-mp/src/pages/appointment/list.vue`
+- [x] **Task 5**: 修复批次 C — 号源与预约详情修复 (doctors/detail 日期参数 + ScheduleSlotVO 字段映射 + appointment/detail 字段名) — Gemini ✅ cherry-pick 合并
+  - files_scope: `medical-mp/src/pages/doctors/detail.vue`, `medical-mp/src/pages/appointment/detail.vue`
+- [x] **Task 6**: 编译验证 `npm run build:mp-weixin` → BUILD SUCCESS
+- **Status:** complete
+
+### Phase 17: 数字人消息发送无响应修复 (20-h5-sse-direct)
+- [x] **Task 1**: 根因定位 — H5 postMessage 在微信小程序 web-view 中不实时触发，消息永远送不到 UniApp
+- [x] **Task 2**: Gemini 修复 — H5 内嵌 SSE 直连后端，绕过 postMessage 通道 ✅ cherry-pick 合并
+  - files_scope: `live2d-h5/src/main.js`, `live2d-h5/vite.config.js`, `chat.vue`
+- [x] **Task 3**: 编译验证 → MP build SUCCESS + live2d-h5 build SUCCESS
+- **Status:** complete
+
+### Phase 18: H5 SSE 跨域请求被 Sa-Token 拦截修复 (21-cors-fix)
+- [x] **Task 1 [P0]**: AuthFilter.java — 放行 OPTIONS 预检请求，避免 Sa-Token 拦截 CORS (Codex) ✅ cherry-pick 合并
+  - files_scope: `medical-ai/medical-gateway/src/main/java/com/medical/gateway/filter/AuthFilter.java`
+- [x] **Task 2 [P1+P2]**: chat.vue — 修复 postToH5 丢失 apiBase + URLs 可配置化 + initChat 错误提示 (Gemini) ✅ cherry-pick 合并
+  - files_scope: `medical-mp/src/pages/chat/chat.vue`
+- [x] **Task 3**: 编译验证 → Maven Gateway compile SUCCESS + MP build SUCCESS
+- **Status:** complete
+
+### Phase 19: H5 聊天界面优化 (22-h5-chat-redesign)
+- [x] **Task 1**: 使用 frontend-design 风格优化 live2d-h5/index.html 聊天界面 UI (Gemini) ✅ cherry-pick 合并
+  - 重命名 title: "Live2D AI Chat" → "AI问诊"
+  - 优化视觉设计：排版/配色/动效/气泡/输入框
+  - files_scope: `medical-mp/live2d-h5/index.html`
+  - 约束: 保留所有 DOM ID 和 CSS class 名（main.js 依赖），不修改 JS 逻辑
+- [x] **Task 2**: 编译验证 live2d-h5 build SUCCESS (3.49s)
+- **Status:** complete
