@@ -106,7 +106,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, watch } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { Plus, ChatDotRound, Delete, UserFilled, Service, ChatLineRound, Position } from '@element-plus/icons-vue'
 import { 
   createSession, 
@@ -120,6 +120,7 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus'
 import dayjs from 'dayjs'
 import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 // Assets
 // import aiAvatarImg from '@/assets/ai-avatar.png' 
 
@@ -134,6 +135,9 @@ const props = defineProps({
     default: 'ENCYCLOPEDIA' // ENCYCLOPEDIA | TRIAGE
   }
 })
+
+// SSE 连接控制器
+let abortController = null
 
 // State
 const loadingSessions = ref(false)
@@ -263,12 +267,18 @@ const handleSend = async () => {
   streamingContent.value = ''
   scrollToBottom()
 
+  // 取消上一次未完成的 SSE 连接
+  if (abortController) {
+    abortController.abort()
+  }
+  abortController = new AbortController()
+
   try {
     const sendFn = props.sessionType === 'ENCYCLOPEDIA' ? encyclopediaChat : sendMessage
     const response = await sendFn({
       sessionId: currentSession.value.id,
       message: userMsg
-    })
+    }, abortController.signal)
 
     if (!response.ok) throw new Error('Network response was not ok')
 
@@ -318,11 +328,16 @@ const handleSend = async () => {
        currentSession.value.title = userMsg.slice(0, 10) + '...'
     }
   } catch (error) {
+    if (error.name === 'AbortError') {
+      console.log('SSE connection aborted')
+      return
+    }
     console.error('SSE Error:', error)
     ElMessage.error('发送消息失败，请重试')
     messages.value.push({ role: 'assistant', content: '**发送失败**：网络错误或服务不可用。', createTime: new Date().toISOString() })
   } finally {
     sending.value = false
+    abortController = null
     scrollToBottom()
   }
 }
@@ -341,18 +356,26 @@ const scrollToBottom = () => {
 const renderMarkdown = (content) => {
   if (!content) return ''
   try {
-    return marked.parse(content)
+    const html = marked.parse(content)
+    return DOMPurify.sanitize(html) // XSS 过滤
   } catch (e) {
-    return content
+    return DOMPurify.sanitize(content
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
-      .replace(/\n/g, '<br/>')
+      .replace(/\n/g, '<br/>'))
   }
 }
 
 onMounted(() => {
   fetchSessions()
+})
+
+onUnmounted(() => {
+  if (abortController) {
+    abortController.abort()
+    abortController = null
+  }
 })
 
 watch(() => props.sessionType, () => {

@@ -47,8 +47,9 @@ export function getMessageList(sessionId) {
 /**
  * 发送对话消息 (SSE)
  * @param {Object} data { sessionId, message }
+ * @param {AbortSignal} signal 可选的信号量，用于取消请求
  */
-export function sendMessage(data) {
+export function sendMessage(data, signal) {
   const token = localStorage.getItem('token')
   const baseURL = import.meta.env.VITE_API_BASE_URL || ''
   return fetch(`${baseURL}/api/ai/chat/send`, {
@@ -57,7 +58,8 @@ export function sendMessage(data) {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
     },
-    body: JSON.stringify(data)
+    body: JSON.stringify(data),
+    signal
   })
 }
 
@@ -96,8 +98,9 @@ export function createEncyclopediaSession() {
 /**
  * 百科对话 (SSE)
  * @param {Object} data { sessionId, message }
+ * @param {AbortSignal} signal 可选的信号量，用于取消请求
  */
-export function encyclopediaChat(data) {
+export function encyclopediaChat(data, signal) {
   const token = localStorage.getItem('token')
   const baseURL = import.meta.env.VITE_API_BASE_URL || ''
   return fetch(`${baseURL}/api/ai/encyclopedia/chat`, {
@@ -106,6 +109,7 @@ export function encyclopediaChat(data) {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
     },
-    body: JSON.stringify(data)
+    body: JSON.stringify(data),
+    signal
   })
 }

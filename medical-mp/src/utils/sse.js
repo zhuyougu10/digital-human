@@ -1,5 +1,8 @@
 const BASE_URL = import.meta.env.VITE_API_BASE || 'http://localhost:8080/api'
 
+// 创建 TextDecoder 实例支持流式解码，防止 UTF-8 中文字符跨 chunk 产生乱码
+const textDecoder = new TextDecoder('utf-8')
+
 export const createSSERequest = (url, data, callbacks) => {
   const { onMessage, onComplete, onError } = callbacks
   const token = uni.getStorageSync('token')
@@ -27,8 +30,8 @@ export const createSSERequest = (url, data, callbacks) => {
 
   let buffer = ''
   requestTask.onChunkReceived((res) => {
-    // ArrayBuffer to string conversion
-    const chunk = String.fromCharCode.apply(null, new Uint8Array(res.data))
+    // 使用 TextDecoder 流式解码 ArrayBuffer
+    const chunk = textDecoder.decode(new Uint8Array(res.data), { stream: true })
     buffer += chunk
     
     const lines = buffer.split('\n\n')
