@@ -1,25 +1,32 @@
 <template>
-  <view class="doctor-card">
-    <view class="header">
+  <view class="doctor-card" @click="onSelect">
+    <!-- 左侧：头像区域 -->
+    <view class="avatar-section">
       <image class="avatar" :src="doctor.avatar || defaultAvatar" mode="aspectFill" />
-      <view class="meta">
+    </view>
+
+    <!-- 中间：信息区域 -->
+    <view class="info-section">
+      <view class="name-row">
         <text class="name">{{ doctor.name }}</text>
         <text class="title">{{ doctor.title }}</text>
-        <text class="department">{{ doctor.department }}</text>
+      </view>
+      <text class="dept">{{ doctor.department }}</text>
+      <view class="specialties">
+        <text
+          v-for="(item, index) in (doctor.specialties || []).slice(0, 2)"
+          :key="index"
+          class="tag"
+        >
+          {{ item }}
+        </text>
       </view>
     </view>
 
-    <view class="specialties">
-      <text
-        v-for="item in doctor.specialties"
-        :key="item"
-        class="tag"
-      >
-        {{ item }}
-      </text>
+    <!-- 右侧：操作区域 -->
+    <view class="action-section">
+      <view class="book-btn">预约</view>
     </view>
-
-    <button class="select-btn" @click="onSelect">选择此医生</button>
   </view>
 </template>
 
@@ -52,62 +59,94 @@ const onSelect = () => {
 <style scoped>
 .doctor-card {
   background: #ffffff;
-  border-radius: 12rpx;
-  box-shadow: 0 6rpx 18rpx rgba(74, 144, 217, 0.15);
-  padding: 24rpx;
+  border-radius: 24rpx;
+  padding: 28rpx 24rpx;
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  box-shadow: 0 8rpx 24rpx rgba(37, 99, 235, 0.06);
+  margin-bottom: 24rpx;
+  border: 1rpx solid rgba(226, 232, 240, 0.6);
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
 }
 
-.header {
-  display: flex;
-  gap: 20rpx;
+.avatar-section {
+  flex-shrink: 0;
 }
 
 .avatar {
-  width: 112rpx;
-  height: 112rpx;
-  border-radius: 50%;
-  background: #f5f7fa;
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 60rpx;
+  background: #f8faff;
+  border: 4rpx solid #f0f4ff;
 }
 
-.meta {
+.info-section {
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 8rpx;
+  min-width: 0;
 }
 
-.name {
-  font-size: 34rpx;
-  color: #303133;
-  font-weight: 700;
-}
-
-.title,
-.department {
-  font-size: 26rpx;
-  color: #606266;
-}
-
-.specialties {
-  margin-top: 20rpx;
+.name-row {
   display: flex;
-  flex-wrap: wrap;
+  align-items: baseline;
   gap: 12rpx;
 }
 
-.tag {
-  padding: 8rpx 16rpx;
-  border-radius: 999rpx;
-  background: #ecf5ff;
-  color: #4a90d9;
-  font-size: 24rpx;
+.name {
+  font-size: 32rpx;
+  color: #1e293b;
+  font-weight: 700;
 }
 
-.select-btn {
-  margin-top: 24rpx;
-  background: #4a90d9;
-  border: 0;
-  border-radius: 10rpx;
-  font-size: 28rpx;
+.title {
+  font-size: 24rpx;
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.08);
+  padding: 2rpx 12rpx;
+  border-radius: 6rpx;
+}
+
+.dept {
+  font-size: 26rpx;
+  color: #64748b;
+}
+
+.specialties {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 4rpx;
+}
+
+.tag {
+  padding: 4rpx 16rpx;
+  border-radius: 24rpx;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 22rpx;
+  white-space: nowrap;
+}
+
+.action-section {
+  flex-shrink: 0;
+}
+
+.book-btn {
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 26rpx;
+  font-weight: 600;
+  padding: 12rpx 32rpx;
+  border-radius: 30rpx;
+  box-shadow: 0 4rpx 12rpx rgba(37, 99, 235, 0.2);
+}
+
+.book-btn:active {
+  opacity: 0.8;
+  transform: scale(0.95);
 }
 </style>

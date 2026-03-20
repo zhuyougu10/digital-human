@@ -3,67 +3,79 @@
     <view class="dr-header">
       <view class="header-top">
         <uni-icons type="left" size="24" color="#FFFFFF" @click="goBack"></uni-icons>
-        <text class="header-title">医生推荐</text>
+        <text class="header-title">找医生</text>
         <view class="placeholder"></view>
       </view>
       <view class="dr-info">
         <view class="dr-avatar">
-          <uni-icons type="person-filled" size="32" color="#1E5AA8"></uni-icons>
+          <uni-icons type="person-filled" size="36" color="#2563eb"></uni-icons>
         </view>
-        <text class="dr-name">数字人医生</text>
-        <text class="dr-status">根据您的症状，为您推荐以下医生</text>
+        <text class="dr-name">数字人 AI 辅助</text>
+        <text class="dr-status">基于您的健康档案，为您精准推荐</text>
       </view>
     </view>
 
-    <scroll-view class="dr-content" scroll-y>
-      <view class="dept-selector" v-if="departments.length">
-        <view 
-          v-for="dept in departments" 
-          :key="dept.id" 
-          class="dept-tag"
-          :class="{ active: activeDeptId === dept.id }"
-          @click="activeDeptId = dept.id"
-        >
-          {{ dept.name }}
+    <view class="dr-content-wrapper">
+      <scroll-view class="dr-content" scroll-y>
+        <!-- 搜索/筛选区域 -->
+        <view class="search-section">
+          <view class="dept-selector" v-if="departments.length">
+            <view 
+              v-for="dept in departments" 
+              :key="dept.id" 
+              class="dept-tag"
+              :class="{ active: activeDeptId === dept.id }"
+              @click="activeDeptId = dept.id"
+            >
+              {{ dept.name }}
+            </view>
+          </view>
         </view>
-      </view>
 
-      <view class="doctor-list">
-        <view 
-          v-for="doctor in filteredDoctors" 
-          :key="doctor.id" 
-          class="doctor-card"
-          @click="goDetail(doctor.id)"
-        >
-          <view class="card-header">
-            <image class="avatar" :src="doctor.avatar || defaultAvatar" mode="aspectFill" />
-            <view class="meta">
+        <!-- 医生列表 -->
+        <view class="doctor-list">
+          <view 
+            v-for="doctor in filteredDoctors" 
+            :key="doctor.id" 
+            class="doctor-card"
+            @click="goDetail(doctor.id)"
+          >
+            <view class="card-left">
+              <image class="avatar" :src="doctor.avatar || defaultAvatar" mode="aspectFill" />
+            </view>
+            <view class="card-middle">
               <view class="name-row">
                 <text class="name">{{ doctor.name }}</text>
-                <text class="title">{{ doctor.title }}</text>
+                <text class="title-tag">{{ doctor.title }}</text>
               </view>
-              <text class="dept">{{ doctor.departmentName }}</text>
+              <text class="dept-name">{{ doctor.departmentName }}</text>
+              <view class="specialty-tags">
+                <text v-for="tag in (doctor.specialties || []).slice(0, 2)" :key="tag" class="tag">{{ tag }}</text>
+              </view>
             </view>
-            <view class="score">
-              <uni-icons type="star-filled" size="14" color="#F59E0B"></uni-icons>
-              <text class="score-text">4.9</text>
+            <view class="card-right">
+              <view class="fee-box">
+                <text class="fee-label">挂号费</text>
+                <text class="fee-amount">¥{{ doctor.fee || 50 }}</text>
+              </view>
+              <view class="book-btn">预约</view>
             </view>
-          </view>
-          <view class="specialties">
-            <text v-for="tag in doctor.specialties" :key="tag" class="tag">{{ tag }}</text>
-          </view>
-          <view class="footer">
-            <text class="fee">挂号费: ¥{{ doctor.fee || 50 }}</text>
-            <view class="select-btn">立即预约</view>
           </view>
         </view>
-      </view>
 
-      <view v-if="!filteredDoctors.length" class="empty">
-        <uni-icons type="info" size="48" color="#D1D5DB"></uni-icons>
-        <text>暂无匹配医生</text>
-      </view>
-    </scroll-view>
+        <!-- 空状态 -->
+        <view v-if="!filteredDoctors.length" class="empty-state">
+          <view class="empty-icon-box">
+            <uni-icons type="info" size="64" color="#cbd5e1"></uni-icons>
+          </view>
+          <text class="empty-text">暂无相关医生</text>
+          <text class="empty-subtext">可以尝试切换其他科室看看</text>
+        </view>
+        
+        <!-- 底部占位 -->
+        <view class="bottom-placeholder"></view>
+      </scroll-view>
+    </view>
   </view>
 </template>
 
@@ -112,26 +124,27 @@ onMounted(() => {
 <style scoped lang="scss">
 .recommend-page {
   min-height: 100vh;
-  background: $uni-bg-color-grey;
+  background: #f8faff;
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
 }
 
 .dr-header {
-  height: 440rpx;
-  background: $bg-gradient;
+  height: 480rpx;
+  background: linear-gradient(180deg, #2563eb 0%, #3b82f6 60%, #60a5fa 100%);
   padding: 88rpx 32rpx 32rpx;
   display: flex;
   flex-direction: column;
-  gap: 24rpx;
 }
 
 .header-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 40rpx;
 }
 
 .header-title {
-  font-size: 36rpx;
+  font-size: 34rpx;
   font-weight: 600;
   color: #FFFFFF;
 }
@@ -139,28 +152,29 @@ onMounted(() => {
 .placeholder { width: 48rpx; }
 
 .dr-info {
-  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 12rpx;
+  gap: 16rpx;
 }
 
 .dr-avatar {
-  width: 120rpx;
-  height: 120rpx;
-  background: #FFFFFF;
-  border-radius: 60rpx;
+  width: 140rpx;
+  height: 140rpx;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 70rpx;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.1);
+  border: 4rpx solid rgba(255, 255, 255, 0.3);
 }
 
 .dr-name {
-  font-size: 32rpx;
-  font-weight: 600;
+  font-size: 36rpx;
+  font-weight: 700;
   color: #FFFFFF;
+  letter-spacing: 2rpx;
 }
 
 .dr-status {
@@ -168,157 +182,203 @@ onMounted(() => {
   color: rgba(255, 255, 255, 0.9);
 }
 
+.dr-content-wrapper {
+  margin-top: -48rpx;
+  flex: 1;
+  position: relative;
+  height: calc(100vh - 432rpx);
+}
+
 .dr-content {
-  margin-top: -32rpx;
-  height: calc(100vh - 408rpx);
-  background: $uni-bg-color-grey;
-  border-top-left-radius: 40rpx;
-  border-top-right-radius: 40rpx;
-  padding: 32rpx;
+  height: 100%;
+  background: #f8faff;
+  border-top-left-radius: 48rpx;
+  border-top-right-radius: 48rpx;
+  padding: 40rpx 32rpx;
   box-sizing: border-box;
+}
+
+.search-section {
+  margin-bottom: 32rpx;
 }
 
 .dept-selector {
   display: flex;
-  flex-wrap: wrap;
-  gap: 16rpx;
-  margin-bottom: 32rpx;
+  white-space: nowrap;
+  gap: 20rpx;
+  padding-bottom: 8rpx;
+  overflow-x: auto;
+  
+  // 隐藏滚动条
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .dept-tag {
-  padding: 12rpx 28rpx;
-  background: #FFFFFF;
-  color: #4B5563;
-  font-size: 24rpx;
-  border-radius: 32rpx;
-  border: 1rpx solid #E5E7EB;
+  flex-shrink: 0;
+  padding: 14rpx 32rpx;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 26rpx;
+  border-radius: 40rpx;
+  transition: all 0.3s;
   
   &.active {
-    background: $uni-color-primary;
+    background: #2563eb;
     color: #FFFFFF;
-    border-color: $uni-color-primary;
+    box-shadow: 0 4rpx 12rpx rgba(37, 99, 235, 0.25);
   }
 }
 
 .doctor-list {
   display: flex;
   flex-direction: column;
-  gap: 24rpx;
+  gap: 28rpx;
 }
 
 .doctor-card {
   background: #FFFFFF;
-  border-radius: 24rpx;
-  padding: 24rpx;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
-}
-
-.card-header {
+  border-radius: 28rpx;
+  padding: 32rpx 24rpx;
   display: flex;
-  gap: 20rpx;
-  align-items: flex-start;
+  align-items: center;
+  gap: 24rpx;
+  box-shadow: 0 8rpx 24rpx rgba(148, 163, 184, 0.08);
+  border: 1rpx solid rgba(226, 232, 240, 0.6);
+  
+  &:active {
+    transform: scale(0.98);
+    background: #fcfdfe;
+  }
 }
 
-.avatar {
-  width: 100rpx;
-  height: 100rpx;
-  border-radius: 50%;
-  background: #F3F4F6;
+.card-left {
+  flex-shrink: 0;
+  
+  .avatar {
+    width: 120rpx;
+    height: 120rpx;
+    border-radius: 60rpx;
+    background: #f8faff;
+    border: 4rpx solid #f0f4ff;
+  }
 }
 
-.meta {
+.card-middle {
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 8rpx;
-}
-
-.name-row {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-}
-
-.name {
-  font-size: 32rpx;
-  font-weight: 700;
-  color: #1F2937;
-}
-
-.title {
-  font-size: 24rpx;
-  color: $uni-color-primary;
-  background: #EFF6FF;
-  padding: 2rpx 12rpx;
-  border-radius: 8rpx;
-}
-
-.dept {
-  font-size: 24rpx;
-  color: #6B7280;
-}
-
-.score {
-  display: flex;
-  align-items: center;
-  gap: 4rpx;
-  background: #FFFBEB;
-  padding: 4rpx 12rpx;
-  border-radius: 8rpx;
+  min-width: 0;
   
-  .score-text {
-    font-size: 24rpx;
-    font-weight: 600;
-    color: #D97706;
+  .name-row {
+    display: flex;
+    align-items: center;
+    gap: 12rpx;
   }
-}
-
-.specialties {
-  margin-top: 20rpx;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12rpx;
   
-  .tag {
+  .name {
+    font-size: 32rpx;
+    font-weight: 700;
+    color: #1e293b;
+  }
+  
+  .title-tag {
     font-size: 22rpx;
-    color: #6B7280;
-    background: #F9FAFB;
-    padding: 6rpx 16rpx;
+    color: #2563eb;
+    background: rgba(37, 99, 235, 0.08);
+    padding: 2rpx 12rpx;
     border-radius: 8rpx;
   }
+  
+  .dept-name {
+    font-size: 26rpx;
+    color: #64748b;
+  }
+  
+  .specialty-tags {
+    display: flex;
+    gap: 12rpx;
+    margin-top: 6rpx;
+    
+    .tag {
+      font-size: 22rpx;
+      color: #94a3b8;
+      background: #f8fafc;
+      padding: 4rpx 16rpx;
+      border-radius: 20rpx;
+      border: 1rpx solid #f1f5f9;
+    }
+  }
 }
 
-.footer {
-  margin-top: 24rpx;
-  padding-top: 24rpx;
-  border-top: 1rpx solid #F3F4F6;
+.card-right {
+  flex-shrink: 0;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 16rpx;
+  
+  .fee-box {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .fee-label {
+    font-size: 20rpx;
+    color: #94a3b8;
+  }
+  
+  .fee-amount {
+    font-size: 28rpx;
+    font-weight: 700;
+    color: #0d9488; // 使用辅色
+  }
+  
+  .book-btn {
+    background: #2563eb;
+    color: #ffffff;
+    font-size: 24rpx;
+    font-weight: 600;
+    padding: 10rpx 28rpx;
+    border-radius: 24rpx;
+    box-shadow: 0 4rpx 10rpx rgba(37, 99, 235, 0.2);
+  }
 }
 
-.fee {
-  font-size: 28rpx;
-  font-weight: 600;
-  color: #EF4444;
-}
-
-.select-btn {
-  padding: 12rpx 32rpx;
-  background: $uni-color-primary;
-  color: #FFFFFF;
-  font-size: 26rpx;
-  font-weight: 600;
-  border-radius: 32rpx;
-}
-
-.empty {
-  padding: 120rpx 0;
+.empty-state {
+  padding: 160rpx 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20rpx;
-  color: #9CA3AF;
-  font-size: 28rpx;
+  gap: 24rpx;
+}
+
+.empty-icon-box {
+  width: 160rpx;
+  height: 160rpx;
+  background: #f1f5f9;
+  border-radius: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8rpx;
+}
+
+.empty-text {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.empty-subtext {
+  font-size: 26rpx;
+  color: #94a3b8;
+}
+
+.bottom-placeholder {
+  height: 80rpx;
 }
 </style>
