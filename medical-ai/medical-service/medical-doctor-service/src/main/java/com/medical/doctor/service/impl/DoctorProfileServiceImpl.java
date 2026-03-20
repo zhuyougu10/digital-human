@@ -19,8 +19,10 @@ import com.medical.doctor.mapper.DoctorProfileMapper;
 import com.medical.doctor.service.DoctorProfileService;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -61,8 +63,9 @@ public class DoctorProfileServiceImpl implements DoctorProfileService {
         wrapper.like(StringUtils.hasText(keyword), DoctorProfile::getName, keyword);
         wrapper.orderByDesc(DoctorProfile::getCreateTime);
         Page<DoctorProfile> result = doctorProfileMapper.selectPage(page, wrapper);
+        Map<Long, List<DepartmentVO>> departmentMap = buildDepartmentMap(result.getRecords());
         List<DoctorVO> records = result.getRecords().stream()
-                .map(this::buildDoctorVO)
+                .map(profile -> buildDoctorVO(profile, departmentMap))
                 .collect(Collectors.toList());
         return PageResult.of(records, result.getTotal(),
                 (int) result.getCurrent(), (int) result.getSize());
@@ -93,9 +96,11 @@ public class DoctorProfileServiceImpl implements DoctorProfileService {
         });
         wrapper.orderByDesc(DoctorProfile::getCreateTime);
 
-        return doctorProfileMapper.selectList(wrapper)
+        List<DoctorProfile> profiles = doctorProfileMapper.selectList(wrapper);
+        Map<Long, List<DepartmentVO>> departmentMap = buildDepartmentMap(profiles);
+        return profiles
                 .stream()
-                .map(this::buildDoctorVO)
+                .map(profile -> buildDoctorVO(profile, departmentMap))
                 .collect(Collectors.toList());
     }
 
@@ -221,6 +226,10 @@ public class DoctorProfileServiceImpl implements DoctorProfileService {
     }
 
     private DoctorVO buildDoctorVO(DoctorProfile profile) {
+        return buildDoctorVO(profile, buildDepartmentMap(List.of(profile)));
+    }
+
+    private DoctorVO buildDoctorVO(DoctorProfile profile, Map<Long, List<DepartmentVO>> departmentMap) {
         DoctorVO vo = new DoctorVO();
         vo.setId(profile.getId());
         vo.setUserId(profile.getUserId());
@@ -232,31 +241,58 @@ public class DoctorProfileServiceImpl implements DoctorProfileService {
         vo.setTreatmentAreas(profile.getTreatmentAreas());
         vo.setConsultationFee(profile.getConsultationFee());
         vo.setStatus(profile.getStatus());
+        vo.setDepartments(departmentMap.getOrDefault(profile.getId(), Collections.emptyList()));
+        return vo;
+    }
+
+    private Map<Long, List<DepartmentVO>> buildDepartmentMap(List<DoctorProfile> profiles) {
+        if (profiles == null || profiles.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        Set<Long> doctorIds = profiles.stream()
+                .map(DoctorProfile::getId)
+                .filter(id -> id != null)
+                .collect(Collectors.toSet());
+        if (doctorIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
 
         List<DoctorDepartment> relations = doctorDepartmentMapper.selectList(
-                new LambdaQueryWrapper<DoctorDepartment>().eq(DoctorDepartment::getDoctorId, profile.getId()));
-        List<Long> departmentIds = relations.stream()
+                new LambdaQueryWrapper<DoctorDepartment>().in(DoctorDepartment::getDoctorId, doctorIds));
+        if (relations.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        Set<Long> departmentIds = relations.stream()
                 .map(DoctorDepartment::getDepartmentId)
-                .distinct()
-                .collect(Collectors.toList());
-        if (departmentIds.isEmpty()) {
-            vo.setDepartments(Collections.emptyList());
-            return vo;
+                .filter(id -> id != null)
+                .collect(Collectors.toSet());
+        Map<Long, Department> departmentMap = departmentMapper.selectBatchIds(departmentIds)
+                .stream()
+                .collect(Collectors.toMap(Department::getId, department -> department));
+
+        Map<Long, List<DepartmentVO>> doctorDepartmentMap = new HashMap<>();
+        for (DoctorDepartment relation : relations) {
+            Department department = departmentMap.get(relation.getDepartmentId());
+            if (department == null) {
+                continue;
+            }
+            doctorDepartmentMap.computeIfAbsent(relation.getDoctorId(), key -> new ArrayList<>())
+                    .add(toDepartmentVO(department));
         }
-        List<Department> departments = departmentMapper.selectBatchIds(departmentIds);
-        List<DepartmentVO> departmentVOS = new ArrayList<>();
-        for (Department department : departments) {
-            DepartmentVO departmentVO = new DepartmentVO();
-            departmentVO.setId(department.getId());
-            departmentVO.setName(department.getName());
-            departmentVO.setDescription(department.getDescription());
-            departmentVO.setIcon(department.getIcon());
-            departmentVO.setSort(department.getSort());
-            departmentVO.setStatus(department.getStatus());
-            departmentVO.setCreateTime(department.getCreateTime());
-            departmentVOS.add(departmentVO);
-        }
-        vo.setDepartments(departmentVOS);
-        return vo;
+        return doctorDepartmentMap;
+    }
+
+    private DepartmentVO toDepartmentVO(Department department) {
+        DepartmentVO departmentVO = new DepartmentVO();
+        departmentVO.setId(department.getId());
+        departmentVO.setName(department.getName());
+        departmentVO.setDescription(department.getDescription());
+        departmentVO.setIcon(department.getIcon());
+        departmentVO.setSort(department.getSort());
+        departmentVO.setStatus(department.getStatus());
+        departmentVO.setCreateTime(department.getCreateTime());
+        return departmentVO;
     }
 }

@@ -11,7 +11,4 @@ public interface RemoteAppointmentService {
     R<Long> createAppointment(@RequestParam("patientId") Long patientId,
                               @RequestParam("doctorId") Long doctorId,
                               @RequestParam("slotId") Long slotId);
-
-    @PostMapping("/inner/cancel")
-    R<Boolean> cancelAppointment(@RequestParam("appointmentId") Long appointmentId);
 }

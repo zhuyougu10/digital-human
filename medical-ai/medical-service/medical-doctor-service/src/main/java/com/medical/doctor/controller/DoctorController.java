@@ -10,6 +10,7 @@ import com.medical.common.security.util.SecurityUtil;
 import com.medical.doctor.domain.dto.DoctorProfileDTO;
 import com.medical.doctor.domain.vo.DoctorVO;
 import com.medical.doctor.service.DoctorProfileService;
+import jakarta.validation.Valid;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -60,14 +61,14 @@ public class DoctorController {
 
     @SaCheckRole(UserConstants.ROLE_ADMIN)
     @PostMapping
-    public R<Void> create(@RequestBody DoctorProfileDTO dto) {
+    public R<Void> create(@RequestBody @Valid DoctorProfileDTO dto) {
         doctorProfileService.create(dto);
         return R.ok();
     }
 
     @SaCheckRole(UserConstants.ROLE_ADMIN)
     @PutMapping("/{id}")
-    public R<Void> update(@PathVariable Long id, @RequestBody DoctorProfileDTO dto) {
+    public R<Void> update(@PathVariable Long id, @RequestBody @Valid DoctorProfileDTO dto) {
         doctorProfileService.update(id, dto);
         return R.ok();
     }

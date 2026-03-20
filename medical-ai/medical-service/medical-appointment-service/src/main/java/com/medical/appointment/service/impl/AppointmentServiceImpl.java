@@ -23,11 +23,13 @@ import com.medical.common.core.exception.ErrorCode;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -130,8 +132,10 @@ public class AppointmentServiceImpl implements AppointmentService {
                         .eq(Appointment::getPatientId, userId)
                         .eq(Appointment::getDeleted, 0)
                         .orderByDesc(Appointment::getCreateTime));
+        Map<Long, DoctorInfoDTO> doctorMap = batchFetchDoctorInfo(collectDoctorIds(result.getRecords()));
+        Map<Long, UserInfoDTO> userMap = batchFetchUserInfo(collectPatientIds(result.getRecords()));
         List<AppointmentListVO> records = result.getRecords().stream()
-                .map(this::toListVO)
+                .map(appointment -> toListVO(appointment, doctorMap, userMap))
                 .collect(Collectors.toList());
         return PageResult.of(records, result.getTotal(), (int) result.getCurrent(), (int) result.getSize());
     }
@@ -144,7 +148,10 @@ public class AppointmentServiceImpl implements AppointmentService {
                         .eq(date != null, Appointment::getAppointmentDate, date)
                         .eq(Appointment::getDeleted, 0)
                         .orderByAsc(Appointment::getStartTime));
-        return appointments.stream().map(this::toVO).collect(Collectors.toList());
+        Map<Long, DoctorInfoDTO> doctorMap = batchFetchDoctorInfo(collectDoctorIds(appointments));
+        return appointments.stream()
+                .map(appointment -> toVO(appointment, doctorMap))
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -180,8 +187,10 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         Page<Appointment> page = new Page<>(pageQuery.getPageNum(), pageQuery.getPageSize());
         Page<Appointment> result = appointmentMapper.selectPage(page, wrapper);
+        Map<Long, DoctorInfoDTO> doctorMap = batchFetchDoctorInfo(collectDoctorIds(result.getRecords()));
+        Map<Long, UserInfoDTO> userMap = batchFetchUserInfo(collectPatientIds(result.getRecords()));
         List<AppointmentListVO> records = result.getRecords().stream()
-                .map(this::toListVO)
+                .map(appointment -> toListVO(appointment, doctorMap, userMap))
                 .collect(Collectors.toList());
         return PageResult.of(records, result.getTotal(), (int) result.getCurrent(), (int) result.getSize());
     }
@@ -237,10 +246,19 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     private AppointmentListVO toListVO(Appointment appointment) {
+        return toListVO(
+                appointment,
+                batchFetchDoctorInfo(Collections.singleton(appointment.getDoctorId())),
+                batchFetchUserInfo(Collections.singleton(appointment.getPatientId())));
+    }
+
+    private AppointmentListVO toListVO(Appointment appointment,
+                                       Map<Long, DoctorInfoDTO> doctorMap,
+                                       Map<Long, UserInfoDTO> userMap) {
         AppointmentListVO vo = new AppointmentListVO();
         vo.setId(appointment.getId());
         vo.setPatientId(appointment.getPatientId());
-        UserInfoDTO userInfo = fetchUserInfo(appointment.getPatientId());
+        UserInfoDTO userInfo = userMap.get(appointment.getPatientId());
         if (userInfo != null) {
             vo.setPatientName(userInfo.getNickname() == null || userInfo.getNickname().isBlank()
                     ? userInfo.getUsername() : userInfo.getNickname());
@@ -253,7 +271,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         vo.setEndTime(appointment.getEndTime());
         vo.setStatus(appointment.getStatus());
 
-        DoctorInfoDTO doctorInfo = fetchDoctorInfo(appointment.getDoctorId());
+        DoctorInfoDTO doctorInfo = doctorMap.get(appointment.getDoctorId());
         if (doctorInfo != null) {
             vo.setDoctorName(doctorInfo.getName());
             vo.setDepartmentName(doctorInfo.getDepartmentNames());
@@ -262,6 +280,10 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     private AppointmentVO toVO(Appointment appointment) {
+        return toVO(appointment, batchFetchDoctorInfo(Collections.singleton(appointment.getDoctorId())));
+    }
+
+    private AppointmentVO toVO(Appointment appointment, Map<Long, DoctorInfoDTO> doctorMap) {
         AppointmentVO vo = new AppointmentVO();
         vo.setId(appointment.getId());
         vo.setPatientId(appointment.getPatientId());
@@ -279,7 +301,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         vo.setCreateTime(appointment.getCreateTime());
         vo.setUpdateTime(appointment.getUpdateTime());
 
-        DoctorInfoDTO doctorInfo = fetchDoctorInfo(appointment.getDoctorId());
+        DoctorInfoDTO doctorInfo = doctorMap.get(appointment.getDoctorId());
         if (doctorInfo != null) {
             vo.setDoctorName(doctorInfo.getName());
             vo.setDepartmentName(doctorInfo.getDepartmentNames());
@@ -289,6 +311,42 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         vo.setConversationSummary(null);
         return vo;
+    }
+
+    private Set<Long> collectDoctorIds(List<Appointment> appointments) {
+        return appointments.stream()
+                .map(Appointment::getDoctorId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+    }
+
+    private Set<Long> collectPatientIds(List<Appointment> appointments) {
+        return appointments.stream()
+                .map(Appointment::getPatientId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+    }
+
+    private Map<Long, DoctorInfoDTO> batchFetchDoctorInfo(Set<Long> ids) {
+        Map<Long, DoctorInfoDTO> map = new HashMap<>();
+        for (Long id : ids) {
+            DoctorInfoDTO info = fetchDoctorInfo(id);
+            if (info != null) {
+                map.put(id, info);
+            }
+        }
+        return map;
+    }
+
+    private Map<Long, UserInfoDTO> batchFetchUserInfo(Set<Long> ids) {
+        Map<Long, UserInfoDTO> map = new HashMap<>();
+        for (Long id : ids) {
+            UserInfoDTO info = fetchUserInfo(id);
+            if (info != null) {
+                map.put(id, info);
+            }
+        }
+        return map;
     }
 
     private DoctorInfoDTO fetchDoctorInfo(Long doctorId) {

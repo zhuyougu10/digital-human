@@ -9,6 +9,7 @@ import com.medical.doctor.domain.dto.ScheduleTemplateDTO;
 import com.medical.doctor.domain.entity.ScheduleTemplate;
 import com.medical.doctor.domain.vo.ScheduleSlotVO;
 import com.medical.doctor.service.ScheduleService;
+import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -37,7 +38,7 @@ public class ScheduleController {
 
     @PostMapping("/template/{doctorId}")
     @SaCheckRole(value = {UserConstants.ROLE_ADMIN, UserConstants.ROLE_DOCTOR}, mode = SaMode.OR)
-    public R<Void> saveTemplate(@PathVariable Long doctorId, @RequestBody ScheduleTemplateDTO dto) {
+    public R<Void> saveTemplate(@PathVariable Long doctorId, @RequestBody @Valid ScheduleTemplateDTO dto) {
         scheduleService.saveTemplate(doctorId, dto);
         return R.ok();
     }

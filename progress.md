@@ -517,16 +517,20 @@
 - curl 中文 body 直接传送会被 Gateway 拒绝 (400)，需用 `--data-binary @file` + `charset=utf-8`
 - AI 分诊保守：即便用户明确要求"直接挂号"，仍会先追问2轮再触发工具
 - `department_id=0` 在预约记录中 — AI 未传递 departmentId (非必填字段，不影响功能)
+## Session: 2026-03-20 (性能与规范修复)
 
-## Session: 2026-03-20 (Security Fix Round)
+### 修改内容
+- `AppointmentServiceImpl`：在预约列表与医生预约列表中批量预取医生/患者信息，消除同页重复远程调用。
+- `DoctorProfileServiceImpl`：在医生列表与症状搜索中批量查询 `doctor_department` 与 `department`，消除逐医生查科室的 N+1。
+- `CreateAppointmentDTO`、`DoctorProfileDTO`、`KnowledgeBaseDTO`、`ChunkManualDTO`、`ScheduleTemplateDTO`：补充 `jakarta.validation` 注解。
+- `DoctorController`、`AppointmentController`、`KnowledgeBaseController`、`ScheduleController`：为对应 `@RequestBody` 参数补充 `@Valid`。
+- `RemoteAppointmentService`：删除未被端点实现的 `cancelAppointment` 死代码。
 
 ### 排障记录
-- Gateway `AuthFilter` 将 `/api/*/inner/**` 纳入白名单会导致内部接口绕过登录校验，本次已删除该白名单。
-- AI 服务 `ChatController`、`SummaryController`、`EncyclopediaController` 之前存在基于 `sessionId` 的越权访问入口，本次统一透传 `userId` 到 service，并在实现层校验 `session.userId`，不匹配抛 `FORBIDDEN`。
-- 预约服务 `AppointmentController.detail()` 之前未校验预约归属，本次改为仅允许 `patientId == userId` 或 `doctorId == userId` 访问。
-- 排班服务 `ScheduleController.saveTemplate` / `deleteTemplate` 之前缺少角色保护，本次补充 `ADMIN` 或 `DOCTOR` 角色校验。
-- 本地执行 `where.exe mvn` 返回 “Could not find files for the given pattern(s).”，当前沙箱环境缺少 Maven 可执行文件，因此未完成无测试编译验证。
+| 错误特征 | 根因分析 | 处理结果 |
+|-------|---------|---------|
+| `mvn` 命令不可用，无法在当前沙箱直接执行模块编译 | 当前环境 PATH 中没有 Maven，仓库内也不存在 `mvnw/mvnw.cmd` 包装脚本 | 已完成源码级修复并做静态复查，编译验证需在具备 Maven 的环境执行 |
 
 ### 执行日志
-- 已修改文件：`medical-ai/medical-gateway/src/main/java/com/medical/gateway/filter/AuthFilter.java`、`medical-ai/medical-service/medical-ai-service/src/main/java/com/medical/ai/controller/ChatController.java`、`medical-ai/medical-service/medical-ai-service/src/main/java/com/medical/ai/controller/EncyclopediaController.java`、`medical-ai/medical-service/medical-ai-service/src/main/java/com/medical/ai/controller/SummaryController.java`、`medical-ai/medical-service/medical-ai-service/src/main/java/com/medical/ai/service/ChatService.java`、`medical-ai/medical-service/medical-ai-service/src/main/java/com/medical/ai/service/SummaryService.java`、`medical-ai/medical-service/medical-ai-service/src/main/java/com/medical/ai/service/impl/ChatServiceImpl.java`、`medical-ai/medical-service/medical-ai-service/src/main/java/com/medical/ai/service/impl/SummaryServiceImpl.java`、`medical-ai/medical-service/medical-appointment-service/src/main/java/com/medical/appointment/controller/AppointmentController.java`、`medical-ai/medical-service/medical-appointment-service/src/main/java/com/medical/appointment/service/AppointmentService.java`、`medical-ai/medical-service/medical-appointment-service/src/main/java/com/medical/appointment/service/impl/AppointmentServiceImpl.java`、`medical-ai/medical-service/medical-doctor-service/src/main/java/com/medical/doctor/controller/ScheduleController.java`。
-- 测试情况：按要求未新增测试、未运行测试；编译验证受限于环境缺少 Maven。
+- 已修改文件：`AppointmentServiceImpl.java`、`DoctorProfileServiceImpl.java`、5 个 DTO、4 个 Controller、`RemoteAppointmentService.java`。
+- 测试/验证情况：按用户要求未新增测试；尝试执行 Maven 编译但受环境缺少 Maven 限制，未能完成命令级验证。

@@ -12,6 +12,7 @@ import com.medical.common.core.constant.UserConstants;
 import com.medical.common.core.domain.PageQuery;
 import com.medical.common.core.domain.PageResult;
 import com.medical.common.core.domain.R;
+import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +36,7 @@ public class AppointmentController {
 
     @SaCheckLogin
     @PostMapping
-    public R<Long> create(@RequestBody CreateAppointmentDTO dto) {
+    public R<Long> create(@RequestBody @Valid CreateAppointmentDTO dto) {
         dto.setPatientId(StpUtil.getLoginIdAsLong());
         return R.ok(appointmentService.createAppointment(dto));
     }

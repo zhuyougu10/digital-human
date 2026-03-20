@@ -24,6 +24,7 @@ import com.medical.knowledge.mapper.KnowledgeChunkMapper;
 import com.medical.knowledge.mapper.KnowledgeDocumentMapper;
 import com.medical.knowledge.service.KnowledgeBaseService;
 import com.medical.knowledge.service.VectorStoreService;
+import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,7 +51,7 @@ public class KnowledgeBaseController {
 
     @SaCheckRole("ADMIN")
     @PostMapping
-    public R<Long> createKb(@RequestBody KnowledgeBaseDTO dto) {
+    public R<Long> createKb(@RequestBody @Valid KnowledgeBaseDTO dto) {
         return R.ok(knowledgeBaseService.createKb(dto));
     }
 
@@ -110,7 +111,7 @@ public class KnowledgeBaseController {
 
     @SaCheckRole("ADMIN")
     @PostMapping("/{kbId}/chunk")
-    public R<Long> addManualChunk(@PathVariable Long kbId, @RequestBody ChunkManualDTO dto) {
+    public R<Long> addManualChunk(@PathVariable Long kbId, @RequestBody @Valid ChunkManualDTO dto) {
         dto.setKbId(kbId);
         return R.ok(knowledgeBaseService.addManualChunk(dto));
     }

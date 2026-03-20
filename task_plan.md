@@ -399,10 +399,8 @@ Phase 15: 医生数据补充与导诊闭环 — complete
 - [x] **Task 3**: 端到端导诊闭环验证 — 5 轮 SSE 对话全通 (症状收集→追问→searchDoctor→getSlots→createAppointment)
 - [x] **Task 4**: 提交 Phase 14+15 修复 commit
 - **Status:** complete
-
-### Security Fix Update (2026-03-20)
-- [x] 收紧 Gateway `inner` 接口白名单，恢复登录校验
-- [x] 为 AI 会话消息/结束/删除/摘要接口补齐 `userId` 归属校验
-- [x] 修复百科会话消息读取越权问题
-- [x] 为预约详情接口补齐患者/医生归属校验
-- [x] 为排班模板保存与删除接口补充 `ADMIN/DOCTOR` 角色校验
+### Phase 12 Update Log (2026-03-20, Round 16)
+- [x] **[Appointment N+1]** `AppointmentServiceImpl` 在 `getMyAppointments/listAll/getDoctorAppointments` 中预加载医生与患者信息，`toListVO/toVO` 改为优先从批量缓存 Map 读取，避免分页列表重复远程调用。
+- [x] **[Doctor N+1]** `DoctorProfileServiceImpl` 在 `listByDepartment/searchBySymptom` 中批量查询 `doctor_department` 与 `department`，构建医生到科室列表映射后复用。
+- [x] **[Bean Validation]** 为 `CreateAppointmentDTO`、`DoctorProfileDTO`、`KnowledgeBaseDTO`、`ChunkManualDTO`、`ScheduleTemplateDTO` 增加参数校验，并在对应 Controller `@RequestBody` 入参处补充 `@Valid`。
+- [x] **[Dead Code]** 删除 `RemoteAppointmentService.cancelAppointment` 无效 Feign 声明。
