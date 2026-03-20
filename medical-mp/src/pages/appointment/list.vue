@@ -46,7 +46,7 @@
               <text class="value">门诊楼 3 楼 {{ item.department }}诊室</text>
             </view>
           </view>
-          <view class="card-footer" v-if="item.status === 'PENDING' || item.status === '待就诊'">
+          <view class="card-footer" v-if="item.status === 0 || item.status === 'PENDING' || item.status === '待就诊'">
             <view class="cancel-btn" @click.stop="handleCancel(item.id)">取消预约</view>
           </view>
         </view>
@@ -76,25 +76,19 @@ const appointments = ref<any[]>([])
 const filteredAppointments = computed(() => {
   if (activeTab.value === 'ALL') return appointments.value
   return appointments.value.filter(a => {
-    if (activeTab.value === 'PENDING') return ['PENDING', '待就诊'].includes(a.status)
-    if (activeTab.value === 'COMPLETED') return ['COMPLETED', '已完成'].includes(a.status)
+    if (activeTab.value === 'PENDING') return a.status === 0 || a.status === 'PENDING' || a.status === '待就诊'
+    if (activeTab.value === 'COMPLETED') return a.status === 1 || a.status === 'COMPLETED' || a.status === '已完成'
     return true
   })
 })
 
-const statusText = (status: string) => {
+const statusText = (status: any) => {
   const map: any = {
-    PENDING: '待就诊',
-    COMPLETED: '已完成',
-    CANCELED: '已取消',
-    pending: '待就诊',
-    completed: '已完成',
-    canceled: '已取消',
-    '待就诊': '待就诊',
-    '已完成': '已完成',
-    '已取消': '已取消'
+    0: '待就诊', 1: '已完成', 2: '已取消',
+    PENDING: '待就诊', COMPLETED: '已完成', CANCELED: '已取消',
+    '待就诊': '待就诊', '已完成': '已完成', '已取消': '已取消'
   }
-  return map[status] || status
+  return map[status] ?? String(status)
 }
 
 const goDetail = (id: string | number) => {
@@ -103,14 +97,14 @@ const goDetail = (id: string | number) => {
 
 const fetchAppointments = async () => {
   const res = await getMyAppointments({})
-  const list = res.data?.records || res.data || res || []
+  const list = Array.isArray(res) ? res : (res.records || [])
   appointments.value = list.map((item: any) => ({
     id: item.id,
-    doctorName: item.doctorName || item.doctor?.name || '未知医生',
-    department: item.department || item.departmentName || '',
-    date: item.date || item.appointmentDate || '',
-    time: item.time || item.appointmentTime || '',
-    status: item.status || 'PENDING'
+    doctorName: item.doctorName || '未知医生',
+    department: item.departmentName || '',
+    date: item.appointmentDate || '',
+    time: item.startTime ? `${item.startTime}${item.endTime ? '-' + item.endTime : ''}` : '',
+    status: item.status
   }))
 }
 

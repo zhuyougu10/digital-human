@@ -85,7 +85,7 @@ const filteredDoctors = computed(() => {
 
 const fetchDepartments = async () => {
   const res = await getDepartmentList()
-  departments.value = (res.data?.records || res.data || res || []).map(d => ({
+  departments.value = (Array.isArray(res) ? res : (res.records || [])).map(d => ({
     id: d.id,
     name: d.name || d.departmentName
   }))
@@ -93,7 +93,7 @@ const fetchDepartments = async () => {
 
 const fetchDoctors = async () => {
   const res = await getDoctorList({})
-  doctors.value = (res.data?.records || res.data || res || []).map(d => ({
+  doctors.value = (Array.isArray(res) ? res : (res.records || [])).map(d => ({
     ...d,
     specialties: (d.specialties || '').split(/[，,]/).filter(Boolean)
   }))
