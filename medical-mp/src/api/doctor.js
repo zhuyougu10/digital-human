@@ -24,7 +24,7 @@ export const getDepartmentList = () => {
 
 export const getAvailableSlots = (params) => {
   return request({
-    url: '/doctor/schedule/available',
+    url: '/doctor/schedule/slots',
     method: 'GET',
     data: params
   })

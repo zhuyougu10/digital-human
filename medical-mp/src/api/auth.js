@@ -14,7 +14,7 @@ export const wxLogin = () => {
             })
             if (result.token) {
               uni.setStorageSync('token', result.token)
-              uni.setStorageSync('userInfo', result.userInfo || {})
+              uni.setStorageSync('userInfo', result.user || {})
             }
             resolve(result)
           } catch (error) {
