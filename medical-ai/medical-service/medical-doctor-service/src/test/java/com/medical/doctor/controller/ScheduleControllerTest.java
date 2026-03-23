@@ -5,6 +5,7 @@ import com.medical.doctor.domain.dto.ScheduleTemplateDTO;
 import com.medical.doctor.domain.entity.ScheduleTemplate;
 import com.medical.doctor.domain.vo.ScheduleSlotVO;
 import com.medical.doctor.service.ScheduleService;
+import com.medical.common.core.exception.BusinessException;
 import com.medical.common.core.exception.ErrorCode;
 import com.medical.common.core.handler.GlobalExceptionHandler;
 import org.junit.jupiter.api.Test;
@@ -91,6 +92,18 @@ public class ScheduleControllerTest {
                 .param("date", "2026-03-10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data").isArray());
+    }
+
+    @Test
+    void getSlots_shouldReturnBusyMessageWhenHotspotBlocks() throws Exception {
+        when(scheduleService.getAvailableSlots(eq(1L), any(LocalDate.class)))
+                .thenThrow(new BusinessException(ErrorCode.FAIL, "号源查询繁忙，请稍后重试"));
+
+        mockMvc.perform(get("/schedule/slots")
+                .param("doctorId", "1")
+                .param("date", "2026-03-10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.msg").value("号源查询繁忙，请稍后重试"));
     }
 
     @Test

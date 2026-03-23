@@ -1,5 +1,9 @@
 package com.medical.ai.service.impl;
 
+import com.alibaba.csp.sentinel.Entry;
+import com.alibaba.csp.sentinel.SphU;
+import com.alibaba.csp.sentinel.Tracer;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,6 +49,7 @@ import reactor.core.scheduler.Schedulers;
 @RequiredArgsConstructor
 public class ChatServiceImpl implements ChatService {
 
+    public static final String CHAT_STREAM_RESOURCE = "svc:ai:chatStream";
     private static final int MAX_CONTEXT_MESSAGES = 20;
     private static final String DEFAULT_SESSION_TITLE = "新对话";
 
@@ -99,6 +104,12 @@ public class ChatServiceImpl implements ChatService {
     @Override
     public Flux<SseMessageVO> chat(Long sessionId, Long userId, String message) {
         ChatSession session = assertSessionOwner(sessionId, userId);
+        final Entry sentinelEntry;
+        try {
+            sentinelEntry = SphU.entry(CHAT_STREAM_RESOURCE);
+        } catch (BlockException e) {
+            return Flux.error(new BusinessException(ErrorCode.AI_RATE_LIMIT));
+        }
 
         ChatMessage userMsg = new ChatMessage();
         userMsg.setSessionId(sessionId);
@@ -136,7 +147,10 @@ public class ChatServiceImpl implements ChatService {
                 vo.setContent(token);
                 return vo;
             })
-            .doOnError(e -> log.error("Chat stream error for session {}: {}", sessionId, e.getMessage(), e))
+            .doOnError(e -> {
+                Tracer.trace(e);
+                log.error("Chat stream error for session {}: {}", sessionId, e.getMessage(), e);
+            })
             .concatWith(Mono.fromCallable(() -> {
                 String fullText = fullResponse.toString();
                 fullTextRef.set(fullText);
@@ -186,12 +200,14 @@ public class ChatServiceImpl implements ChatService {
                 .subscribeOn(Schedulers.boundedElastic())
                 .timeout(Duration.ofSeconds(30))
                 .onErrorResume(e -> {
+                    Tracer.trace(e);
                     log.error("TTS 合成失败, sessionId={}: {}", sessionId, e.getMessage(), e);
                     SseMessageVO error = new SseMessageVO();
                     error.setType("tts_error");
                     error.setContent("TTS 超时");
                     return Mono.just(error);
-                })));
+                })))
+            .doFinally(signalType -> sentinelEntry.exit());
     }
 
     @Override

@@ -1,5 +1,9 @@
 package com.medical.doctor.service.impl;
 
+import com.alibaba.csp.sentinel.Entry;
+import com.alibaba.csp.sentinel.EntryType;
+import com.alibaba.csp.sentinel.SphU;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
@@ -34,6 +38,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ScheduleServiceImpl implements ScheduleService {
 
+    public static final String SLOTS_RESOURCE = "svc:doctor:scheduleSlots";
+    public static final String SLOTS_BUSY_MESSAGE = "号源查询繁忙，请稍后重试";
     private final ScheduleTemplateMapper scheduleTemplateMapper;
     private final ScheduleSlotMapper scheduleSlotMapper;
     private final DoctorProfileMapper doctorProfileMapper;
@@ -157,6 +163,14 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     @Override
     public List<ScheduleSlotVO> getAvailableSlots(Long doctorId, LocalDate date) {
+        final Entry sentinelEntry;
+        try {
+            sentinelEntry = SphU.entry(SLOTS_RESOURCE, EntryType.IN, 1, doctorId + ":" + date);
+        } catch (BlockException e) {
+            throw new BusinessException(ErrorCode.FAIL, SLOTS_BUSY_MESSAGE);
+        }
+
+        try {
         List<ScheduleSlot> slots = scheduleSlotMapper.selectList(
                 new LambdaQueryWrapper<ScheduleSlot>()
                         .eq(ScheduleSlot::getDoctorId, doctorId)
@@ -169,6 +183,9 @@ public class ScheduleServiceImpl implements ScheduleService {
         DoctorProfile doctor = doctorProfileMapper.selectById(doctorId);
         String doctorName = doctor == null ? "" : doctor.getName();
         return slots.stream().map(slot -> toSlotVO(slot, doctorName)).collect(Collectors.toList());
+        } finally {
+            sentinelEntry.exit();
+        }
     }
 
     @Override

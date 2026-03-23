@@ -19,6 +19,7 @@ import com.medical.knowledge.domain.vo.KnowledgeChunkVO;
 import com.medical.knowledge.domain.vo.KnowledgeDocumentVO;
 import com.medical.knowledge.domain.vo.KnowledgeBaseVO;
 import com.medical.knowledge.domain.vo.SearchResultVO;
+import com.medical.knowledge.service.impl.KnowledgeBaseServiceImpl;
 import com.medical.knowledge.mapper.KnowledgeBaseMapper;
 import com.medical.knowledge.mapper.KnowledgeChunkMapper;
 import com.medical.knowledge.mapper.KnowledgeDocumentMapper;
@@ -26,6 +27,7 @@ import com.medical.knowledge.service.KnowledgeBaseService;
 import com.medical.knowledge.service.VectorStoreService;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Collections;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -137,17 +139,36 @@ public class KnowledgeBaseController {
 
     @PostMapping("/search")
     public R<List<SearchResultVO>> search(@RequestBody KnowledgeSearchRequest request) {
-        return R.ok(knowledgeBaseService.search(request.getKbId(), request.getQuery(), request.getTopK()));
+        try {
+            return R.ok(knowledgeBaseService.search(request.getKbId(), request.getQuery(), request.getTopK()));
+        } catch (BusinessException e) {
+            if (isSearchDegradeException(e)) {
+                return R.fail(ErrorCode.AI_RATE_LIMIT.getCode(), KnowledgeBaseServiceImpl.SEARCH_DEGRADE_MESSAGE);
+            }
+            throw e;
+        }
     }
 
     @PostMapping("/inner/search")
     public R<List<KnowledgeSearchResult>> innerSearch(@RequestBody KnowledgeSearchRequest request) {
-        List<KnowledgeSearchResult> result = knowledgeBaseService.search(
-                        request.getKbId(), request.getQuery(), request.getTopK())
-                .stream()
-                .map(this::toKnowledgeSearchResult)
-                .toList();
-        return R.ok(result);
+        try {
+            List<KnowledgeSearchResult> result = knowledgeBaseService.search(
+                            request.getKbId(), request.getQuery(), request.getTopK())
+                    .stream()
+                    .map(this::toKnowledgeSearchResult)
+                    .toList();
+            return R.ok(result);
+        } catch (BusinessException e) {
+            if (isSearchDegradeException(e)) {
+                return R.ok(Collections.emptyList());
+            }
+            throw e;
+        }
+    }
+
+    private boolean isSearchDegradeException(BusinessException e) {
+        return e.getCode() == ErrorCode.AI_RATE_LIMIT.getCode()
+                || e.getCode() == ErrorCode.EMBEDDING_ERROR.getCode();
     }
 
     private KnowledgeDocumentVO toKnowledgeDocumentVO(KnowledgeDocument doc) {

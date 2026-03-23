@@ -7,6 +7,7 @@ import com.medical.ai.domain.vo.ChatSessionVO;
 import com.medical.ai.domain.vo.SseMessageVO;
 import com.medical.ai.service.ChatService;
 import com.medical.common.core.domain.R;
+import com.medical.common.core.exception.BusinessException;
 import com.medical.common.security.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -62,7 +63,11 @@ public class ChatController {
             .onErrorResume(e -> {
                 SseMessageVO errorMsg = new SseMessageVO();
                 errorMsg.setType("error");
-                errorMsg.setContent("服务暂时不可用，请稍后重试");
+                if (e instanceof BusinessException businessException) {
+                    errorMsg.setContent(businessException.getMessage());
+                } else {
+                    errorMsg.setContent("服务暂时不可用，请稍后重试");
+                }
                 return Flux.just(ServerSentEvent.<SseMessageVO>builder()
                     .event("error")
                     .data(errorMsg)

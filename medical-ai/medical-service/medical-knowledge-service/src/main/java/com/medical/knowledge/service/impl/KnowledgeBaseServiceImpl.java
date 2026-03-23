@@ -1,5 +1,9 @@
 package com.medical.knowledge.service.impl;
 
+import com.alibaba.csp.sentinel.Entry;
+import com.alibaba.csp.sentinel.SphU;
+import com.alibaba.csp.sentinel.Tracer;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.medical.common.core.domain.PageQuery;
@@ -49,6 +53,8 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
 
+    public static final String SEARCH_RESOURCE = "svc:knowledge:search";
+    public static final String SEARCH_DEGRADE_MESSAGE = "知识检索暂不可用，请稍后重试";
     private static final int DEFAULT_CHUNK_SIZE = 500;
     private static final int DEFAULT_CHUNK_OVERLAP = 50;
     private static final double KB_ROUTE_THRESHOLD = 0.4d;
@@ -276,54 +282,74 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
         if (query == null || query.isBlank()) {
             return Collections.emptyList();
         }
+
+        final Entry sentinelEntry;
+        try {
+            sentinelEntry = SphU.entry(SEARCH_RESOURCE);
+        } catch (BlockException e) {
+            throw new BusinessException(ErrorCode.AI_RATE_LIMIT, SEARCH_DEGRADE_MESSAGE);
+        }
+
         int k = topK == null || topK <= 0 ? 5 : topK;
 
-        if (kbId != null) {
-            return searchSingleKb(kbId, query, k);
-        }
+        try {
+            if (kbId != null) {
+                return searchSingleKb(kbId, query, k);
+            }
 
-        List<KnowledgeBase> allKbs = knowledgeBaseMapper.selectList(new LambdaQueryWrapper<>());
-        if (allKbs.isEmpty()) {
-            return Collections.emptyList();
-        }
+            List<KnowledgeBase> allKbs = knowledgeBaseMapper.selectList(new LambdaQueryWrapper<>());
+            if (allKbs.isEmpty()) {
+                return Collections.emptyList();
+            }
 
-        float[] queryVector = embeddingService.embed(query);
-        KnowledgeBase matchedKb = findBestKb(allKbs, queryVector);
-        if (matchedKb != null) {
-            try {
-                List<VectorData> vectorResults = vectorStoreService.search(matchedKb.getCollectionName(), queryVector, k);
-                List<SearchResultVO> results = resolveSearchResults(vectorResults);
-                double maxScore = results.stream()
-                        .mapToDouble(result -> result.getScore() == null ? 0d : result.getScore())
-                        .max()
-                        .orElse(0d);
-                if (!results.isEmpty() && maxScore >= RESULT_QUALITY_THRESHOLD) {
-                    log.info("KB routing hit: KB[{}] maxScore={}", matchedKb.getId(), maxScore);
-                    return results;
+            float[] queryVector = embeddingService.embed(query);
+            KnowledgeBase matchedKb = findBestKb(allKbs, queryVector);
+            if (matchedKb != null) {
+                try {
+                    List<VectorData> vectorResults = vectorStoreService.search(matchedKb.getCollectionName(), queryVector, k);
+                    List<SearchResultVO> results = resolveSearchResults(vectorResults);
+                    double maxScore = results.stream()
+                            .mapToDouble(result -> result.getScore() == null ? 0d : result.getScore())
+                            .max()
+                            .orElse(0d);
+                    if (!results.isEmpty() && maxScore >= RESULT_QUALITY_THRESHOLD) {
+                        log.info("KB routing hit: KB[{}] maxScore={}", matchedKb.getId(), maxScore);
+                        return results;
+                    }
+                    log.info("KB routing result quality too low (maxScore={}), falling back to all-KB search", maxScore);
+                } catch (Exception e) {
+                    log.warn("KB[{}] routed search failed: {}, falling back to all-KB search", matchedKb.getId(), e.getMessage());
                 }
-                log.info("KB routing result quality too low (maxScore={}), falling back to all-KB search", maxScore);
-            } catch (Exception e) {
-                log.warn("KB[{}] routed search failed: {}, falling back to all-KB search", matchedKb.getId(), e.getMessage());
             }
-        }
 
-        List<SearchResultVO> allResults = new ArrayList<>();
-        for (KnowledgeBase kb : allKbs) {
-            if (kb == null || kb.getCollectionName() == null || kb.getCollectionName().isBlank()) {
-                continue;
+            List<SearchResultVO> allResults = new ArrayList<>();
+            for (KnowledgeBase kb : allKbs) {
+                if (kb == null || kb.getCollectionName() == null || kb.getCollectionName().isBlank()) {
+                    continue;
+                }
+                try {
+                    List<VectorData> vectorResults = vectorStoreService.search(kb.getCollectionName(), queryVector, k);
+                    allResults.addAll(resolveSearchResults(vectorResults));
+                } catch (Exception e) {
+                    log.warn("Skip KB[{}] search failed: {}", kb.getId(), e.getMessage());
+                }
             }
-            try {
-                List<VectorData> vectorResults = vectorStoreService.search(kb.getCollectionName(), queryVector, k);
-                allResults.addAll(resolveSearchResults(vectorResults));
-            } catch (Exception e) {
-                log.warn("Skip KB[{}] search failed: {}", kb.getId(), e.getMessage());
+            allResults.sort(Comparator.comparingDouble(result -> {
+                Double score = result.getScore();
+                return score == null ? 0d : -score;
+            }));
+            return allResults.size() > k ? allResults.subList(0, k) : allResults;
+        } catch (BusinessException e) {
+            if (e.getCode() != ErrorCode.AI_RATE_LIMIT.getCode()) {
+                Tracer.trace(e);
             }
+            throw e;
+        } catch (Exception e) {
+            Tracer.trace(e);
+            throw e;
+        } finally {
+            sentinelEntry.exit();
         }
-        allResults.sort(Comparator.comparingDouble(result -> {
-            Double score = result.getScore();
-            return score == null ? 0d : -score;
-        }));
-        return allResults.size() > k ? allResults.subList(0, k) : allResults;
     }
 
     private List<SearchResultVO> searchSingleKb(Long kbId, String query, int topK) {

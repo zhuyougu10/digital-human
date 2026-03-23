@@ -253,6 +253,43 @@ public class KnowledgeBaseControllerTest {
     }
 
     @Test
+    void search_shouldReturnBusyMessageWhenKnowledgeSearchDegrades() throws Exception {
+        when(knowledgeBaseService.search(eq(1L), eq("query"), eq(5)))
+                .thenThrow(new BusinessException(ErrorCode.AI_RATE_LIMIT, "请求过于频繁，请稍后再试"));
+
+        KnowledgeSearchRequest req = new KnowledgeSearchRequest();
+        req.setKbId(1L);
+        req.setQuery("query");
+        req.setTopK(5);
+
+        mockMvc.perform(post("/kb/search")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(ErrorCode.AI_RATE_LIMIT.getCode()))
+                .andExpect(jsonPath("$.msg").value("知识检索暂不可用，请稍后重试"));
+    }
+
+    @Test
+    void innerSearch_shouldReturnEmptyListWhenKnowledgeSearchDegrades() throws Exception {
+        when(knowledgeBaseService.search(eq(1L), eq("query"), eq(5)))
+                .thenThrow(new BusinessException(ErrorCode.EMBEDDING_ERROR, "404 - "));
+
+        KnowledgeSearchRequest req = new KnowledgeSearchRequest();
+        req.setKbId(1L);
+        req.setQuery("query");
+        req.setTopK(5);
+
+        mockMvc.perform(post("/kb/inner/search")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data").isEmpty());
+    }
+
+    @Test
     void search_emptyQuery() throws Exception {
         mockMvc.perform(post("/kb/search")
                 .contentType(MediaType.APPLICATION_JSON)

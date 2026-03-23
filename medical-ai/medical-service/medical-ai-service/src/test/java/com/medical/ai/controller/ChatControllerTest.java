@@ -90,7 +90,7 @@ public class ChatControllerTest {
 
     @Test
     void getMessages_success() throws Exception {
-        when(chatService.getSessionMessages(1L)).thenReturn(Collections.singletonList(new ChatMessageVO()));
+        when(chatService.getSessionMessages(1L, 1L)).thenReturn(Collections.singletonList(new ChatMessageVO()));
 
         mockMvc.perform(get("/chat/session/1/messages"))
                 .andExpect(status().isOk())
@@ -122,7 +122,7 @@ public class ChatControllerTest {
 
     @Test
     void endSession_success() throws Exception {
-        doNothing().when(chatService).endSession(1L);
+        doNothing().when(chatService).endSession(1L, 1L);
 
         mockMvc.perform(post("/chat/session/1/end"))
                 .andExpect(status().isOk());
@@ -130,7 +130,7 @@ public class ChatControllerTest {
 
     @Test
     void deleteSession_success() throws Exception {
-        doNothing().when(chatService).deleteSession(1L);
+        doNothing().when(chatService).deleteSession(1L, 1L);
 
         mockMvc.perform(delete("/chat/session/1"))
                 .andExpect(status().isOk());

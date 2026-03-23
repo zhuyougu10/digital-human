@@ -138,7 +138,7 @@ public class AppointmentControllerTest {
     void getAppointmentById_success() throws Exception {
         AppointmentVO vo = new AppointmentVO();
         vo.setId(1L);
-        when(appointmentService.getAppointmentDetail(1L)).thenReturn(vo);
+        when(appointmentService.getAppointmentDetail(1L, 1L)).thenReturn(vo);
 
         mockMvc.perform(get("/appointment/1"))
                 .andExpect(status().isOk())
@@ -147,7 +147,7 @@ public class AppointmentControllerTest {
 
     @Test
     void getAppointmentById_notFound() throws Exception {
-        when(appointmentService.getAppointmentDetail(999L)).thenThrow(new BusinessException(ErrorCode.FAIL, "Not found"));
+        when(appointmentService.getAppointmentDetail(999L, 1L)).thenThrow(new BusinessException(ErrorCode.FAIL, "Not found"));
 
         mockMvc.perform(get("/appointment/999"))
                 .andExpect(status().isOk())
@@ -212,5 +212,21 @@ public class AppointmentControllerTest {
                 .param("slotId", "3"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data").value(100));
+    }
+
+    @Test
+    void createAppointment_shouldReturnBusyMessageWhenHotspotBlocks() throws Exception {
+        when(appointmentService.createAppointment(any(CreateAppointmentDTO.class)))
+                .thenThrow(new BusinessException(ErrorCode.FAIL, "当前号源繁忙，请刷新后重试"));
+
+        CreateAppointmentDTO dto = new CreateAppointmentDTO();
+        dto.setDoctorId(1L);
+        dto.setSlotId(99L);
+
+        mockMvc.perform(post("/appointment")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.msg").value("当前号源繁忙，请刷新后重试"));
     }
 }

@@ -55,7 +55,7 @@ public class SummaryControllerTest {
     void getBySession_success() throws Exception {
         ConversationSummaryVO vo = new ConversationSummaryVO();
         vo.setId(1L);
-        when(summaryService.getSummaryBySession(1L)).thenReturn(vo);
+        when(summaryService.getSummaryBySession(1L, 1L)).thenReturn(vo);
 
         mockMvc.perform(get("/summary/session/1"))
                 .andExpect(status().isOk())
@@ -64,7 +64,7 @@ public class SummaryControllerTest {
 
     @Test
     void getBySession_notFound() throws Exception {
-        when(summaryService.getSummaryBySession(999L)).thenReturn(null);
+        when(summaryService.getSummaryBySession(999L, 1L)).thenReturn(null);
 
         mockMvc.perform(get("/summary/session/999"))
                 .andExpect(status().isOk())

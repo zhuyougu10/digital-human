@@ -1,5 +1,9 @@
 package com.medical.appointment.service.impl;
 
+import com.alibaba.csp.sentinel.Entry;
+import com.alibaba.csp.sentinel.EntryType;
+import com.alibaba.csp.sentinel.SphU;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.medical.api.doctor.RemoteDoctorService;
@@ -39,6 +43,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AppointmentServiceImpl implements AppointmentService {
 
+    public static final String CREATE_RESOURCE = "svc:appointment:create";
+    public static final String CREATE_BUSY_MESSAGE = "当前号源繁忙，请刷新后重试";
     private static final int STATUS_PENDING = 0;
     private static final int STATUS_CANCELLED = 2;
     private static final int MAX_SLOT_LOOKAHEAD_DAYS = 30;
@@ -51,6 +57,15 @@ public class AppointmentServiceImpl implements AppointmentService {
     @Override
     @Transactional
     public Long createAppointment(CreateAppointmentDTO dto) {
+        final Entry sentinelEntry;
+        try {
+            Object slotParam = dto == null ? null : dto.getSlotId();
+            sentinelEntry = SphU.entry(CREATE_RESOURCE, EntryType.IN, 1, slotParam);
+        } catch (BlockException e) {
+            throw new BusinessException(ErrorCode.FAIL, CREATE_BUSY_MESSAGE);
+        }
+
+        try {
         if (dto == null || dto.getPatientId() == null || dto.getDoctorId() == null
                 || dto.getDepartmentId() == null || dto.getSlotId() == null) {
             throw new BusinessException(ErrorCode.PARAM_ERROR);
@@ -97,6 +112,9 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointmentMapper.insert(appointment);
 
         return appointment.getId();
+        } finally {
+            sentinelEntry.exit();
+        }
     }
 
     @Override

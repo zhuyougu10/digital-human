@@ -15,6 +15,9 @@ spring:
       config:
         server-addr: ${NACOS_ADDR:localhost:8848}
         file-extension: yml
+    sentinel:
+      enabled: true
+      eager: true
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://${MYSQL_HOST:localhost}:3306/medical_appointment?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai

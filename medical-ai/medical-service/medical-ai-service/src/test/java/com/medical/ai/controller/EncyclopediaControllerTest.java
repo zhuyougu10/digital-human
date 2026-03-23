@@ -84,7 +84,7 @@ public class EncyclopediaControllerTest {
 
     @Test
     void getMessages_success() throws Exception {
-        when(chatService.getSessionMessages(1L)).thenReturn(Collections.singletonList(new ChatMessageVO()));
+        when(chatService.getSessionMessages(1L, 1L)).thenReturn(Collections.singletonList(new ChatMessageVO()));
 
         mockMvc.perform(get("/encyclopedia/session/1/messages"))
                 .andExpect(status().isOk())

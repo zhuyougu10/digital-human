@@ -1,5 +1,10 @@
 package com.medical.ai.service.impl;
 
+import com.alibaba.csp.sentinel.Entry;
+import com.alibaba.csp.sentinel.SphU;
+import com.alibaba.csp.sentinel.slots.block.RuleConstant;
+import com.alibaba.csp.sentinel.slots.block.flow.FlowRule;
+import com.alibaba.csp.sentinel.slots.block.flow.FlowRuleManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.medical.ai.agent.Agent;
 import com.medical.ai.agent.AgentFactory;
@@ -13,6 +18,8 @@ import com.medical.ai.service.TtsService;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,6 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -60,6 +68,7 @@ class ChatServiceImplTest {
 
     @BeforeEach
     void setUp() {
+        FlowRuleManager.loadRules(Collections.emptyList());
         chatService = new ChatServiceImpl(
             sessionMapper,
             messageMapper,
@@ -117,15 +126,57 @@ class ChatServiceImplTest {
         verify(messageMapper).updateById(argThat(hasTtsUrl("/ai/chat/tts/tts-file.mp3")));
     }
 
-    private static ChatResponse mockChatResponse(String content) {
-        Generation generation = mock(Generation.class);
-        AssistantMessage output = mock(AssistantMessage.class);
-        when(generation.getOutput()).thenReturn(output);
-        when(output.getContent()).thenReturn(content);
+    @Test
+    void chat_shouldReturnRateLimitErrorWhenSentinelBlocks() throws Exception {
+        ChatSession session = new ChatSession();
+        session.setId(1L);
+        session.setUserId(1L);
+        session.setAgentType("QA");
+        session.setTitle("新对话");
+        when(sessionMapper.selectById(1L)).thenReturn(session);
 
-        ChatResponse response = mock(ChatResponse.class);
-        when(response.getResult()).thenReturn(generation);
-        return response;
+        FlowRule rule = new FlowRule(ChatServiceImpl.CHAT_STREAM_RESOURCE);
+        rule.setGrade(RuleConstant.FLOW_GRADE_THREAD);
+        rule.setCount(1);
+        FlowRuleManager.loadRules(List.of(rule));
+
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        AtomicReference<Throwable> holderFailure = new AtomicReference<>();
+        Thread holder = new Thread(() -> {
+            try (Entry ignored = SphU.entry(ChatServiceImpl.CHAT_STREAM_RESOURCE)) {
+                entered.countDown();
+                release.await();
+            } catch (Throwable t) {
+                holderFailure.set(t);
+            }
+        });
+        holder.start();
+        entered.await();
+
+        List<SseMessageVO> events = chatService.chat(1L, 1L, "限流测试")
+                .onErrorResume(ex -> {
+                    SseMessageVO error = new SseMessageVO();
+                    error.setType("error");
+                    error.setContent(ex.getMessage());
+                    return Flux.just(error);
+                })
+                .collectList()
+                .block(Duration.ofSeconds(1));
+
+        release.countDown();
+        holder.join();
+
+        assertNull(holderFailure.get());
+        assertNotNull(events);
+        assertEquals(1, events.size());
+        assertEquals("error", events.get(0).getType());
+        assertEquals("请求过于频繁，请稍后再试", events.get(0).getContent());
+        verify(messageMapper, never()).insert(argThat((ChatMessage message) -> message != null && "user".equals(message.getRole())));
+    }
+
+    private static ChatResponse mockChatResponse(String content) {
+        return new ChatResponse(List.of(new Generation(new AssistantMessage(content))));
     }
 
     private static ArgumentMatcher<ChatMessage> hasTtsUrl(String expectedTtsUrl) {

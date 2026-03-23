@@ -1,5 +1,9 @@
 package com.medical.ai.service.impl;
 
+import com.alibaba.csp.sentinel.Entry;
+import com.alibaba.csp.sentinel.SphU;
+import com.alibaba.csp.sentinel.Tracer;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.alibaba.dashscope.audio.ttsv2.SpeechSynthesisParam;
 import com.alibaba.dashscope.audio.ttsv2.SpeechSynthesizer;
 import com.alibaba.dashscope.utils.Constants;
@@ -20,6 +24,8 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 public class TtsServiceImpl implements TtsService {
+
+    public static final String TTS_RESOURCE = "svc:ai:tts";
 
     @Value("${tts.cosyvoice.api-key:}")
     private String apiKey;
@@ -51,18 +57,29 @@ public class TtsServiceImpl implements TtsService {
 
     @Override
     public String synthesize(String text) {
+        final Entry sentinelEntry;
+        try {
+            sentinelEntry = SphU.entry(TTS_RESOURCE);
+        } catch (BlockException e) {
+            log.warn("TTS 熔断/限流触发: {}", e.getRule());
+            return null;
+        }
+
         if (text == null || text.isBlank()) {
+            sentinelEntry.exit();
             return null;
         }
 
         if (apiKey == null || apiKey.isBlank() || "your-dashscope-key".equals(apiKey)) {
             log.warn("TTS: DASHSCOPE_API_KEY 未配置，跳过语音合成");
+            sentinelEntry.exit();
             return null;
         }
 
         String processedText = text.length() > 300 ? text.substring(0, 300) : text;
         processedText = stripMarkdown(processedText);
         if (processedText.isBlank()) {
+            sentinelEntry.exit();
             return null;
         }
 
@@ -93,11 +110,15 @@ public class TtsServiceImpl implements TtsService {
             log.info("TTS: 合成成功，文件={}, 大小={}KB", fileName, audioBytes.length / 1024);
             return "/ai/chat/tts/" + fileName;
         } catch (TimeoutException e) {
+            Tracer.trace(e);
             log.error("TTS 合成超时: {}", e.getMessage(), e);
             return null;
         } catch (Exception e) {
+            Tracer.trace(e);
             log.error("TTS 合成失败: {}", e.getMessage(), e);
             return null;
+        } finally {
+            sentinelEntry.exit();
         }
     }
 

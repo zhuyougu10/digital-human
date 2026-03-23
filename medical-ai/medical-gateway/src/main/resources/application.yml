@@ -10,6 +10,9 @@ spring:
     nacos:
       discovery:
         server-addr: ${NACOS_ADDR:localhost:8848}
+    sentinel:
+      enabled: true
+      eager: true
     gateway:
       routes:
         - id: ai-service-sse
