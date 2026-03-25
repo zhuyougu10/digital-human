@@ -9,6 +9,8 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.medical.common.core.exception.BusinessException;
 import com.medical.common.core.exception.ErrorCode;
+import com.medical.common.redis.util.RedisUtil;
+import com.medical.doctor.constant.DoctorCacheConstants;
 import com.medical.doctor.domain.dto.ScheduleTemplateDTO;
 import com.medical.doctor.domain.entity.DoctorDepartment;
 import com.medical.doctor.domain.entity.DoctorProfile;
@@ -23,9 +25,13 @@ import com.medical.doctor.service.ScheduleService;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +50,7 @@ public class ScheduleServiceImpl implements ScheduleService {
     private final ScheduleSlotMapper scheduleSlotMapper;
     private final DoctorProfileMapper doctorProfileMapper;
     private final DoctorDepartmentMapper doctorDepartmentMapper;
+    private final RedisUtil redisUtil;
 
     @Override
     public List<ScheduleTemplate> getTemplatesByDoctor(Long doctorId) {
@@ -77,6 +84,7 @@ public class ScheduleServiceImpl implements ScheduleService {
             template.setMaxPatients(dto.getMaxPatients());
             template.setStatus(dto.getStatus() == null ? 0 : dto.getStatus());
             scheduleTemplateMapper.insert(template);
+            invalidateTemplateSlotCache(doctorId, dto.getDayOfWeek());
             return;
         }
         template.setStartTime(dto.getStartTime());
@@ -84,6 +92,7 @@ public class ScheduleServiceImpl implements ScheduleService {
         template.setMaxPatients(dto.getMaxPatients());
         template.setStatus(dto.getStatus() == null ? template.getStatus() : dto.getStatus());
         scheduleTemplateMapper.updateById(template);
+        invalidateTemplateSlotCache(doctorId, dto.getDayOfWeek());
     }
 
     private String resolvePeriod(ScheduleTemplateDTO dto) {
@@ -114,6 +123,7 @@ public class ScheduleServiceImpl implements ScheduleService {
                 .eq("period", template.getPeriod())
                 .gt("booked_slots", 0));
         scheduleTemplateMapper.deleteById(templateId);
+        invalidateTemplateSlotCache(template.getDoctorId(), template.getDayOfWeek());
     }
 
     @Override
@@ -130,6 +140,7 @@ public class ScheduleServiceImpl implements ScheduleService {
         }
         Map<Integer, List<ScheduleTemplate>> byDay = templates.stream()
                 .collect(Collectors.groupingBy(ScheduleTemplate::getDayOfWeek));
+        Set<String> cacheKeysToDelete = new LinkedHashSet<>();
 
         LocalDate date = startDate;
         while (!date.isAfter(endDate)) {
@@ -137,6 +148,7 @@ public class ScheduleServiceImpl implements ScheduleService {
             List<ScheduleTemplate> dayTemplates = byDay.get(day);
             if (dayTemplates != null && !dayTemplates.isEmpty()) {
                 for (ScheduleTemplate template : dayTemplates) {
+                    cacheKeysToDelete.add(buildScheduleSlotsCacheKey(template.getDoctorId(), date));
                     Long exists = scheduleSlotMapper.selectCount(
                             new LambdaQueryWrapper<ScheduleSlot>()
                                     .eq(ScheduleSlot::getDoctorId, template.getDoctorId())
@@ -159,6 +171,7 @@ public class ScheduleServiceImpl implements ScheduleService {
             }
             date = date.plusDays(1);
         }
+        deleteScheduleSlotCache(cacheKeysToDelete);
     }
 
     @Override
@@ -171,18 +184,30 @@ public class ScheduleServiceImpl implements ScheduleService {
         }
 
         try {
-        List<ScheduleSlot> slots = scheduleSlotMapper.selectList(
-                new LambdaQueryWrapper<ScheduleSlot>()
-                        .eq(ScheduleSlot::getDoctorId, doctorId)
-                        .eq(ScheduleSlot::getScheduleDate, date)
-                        .eq(ScheduleSlot::getStatus, 0)
-                        .orderByAsc(ScheduleSlot::getStartTime));
-        if (slots.isEmpty()) {
-            return Collections.emptyList();
-        }
-        DoctorProfile doctor = doctorProfileMapper.selectById(doctorId);
-        String doctorName = doctor == null ? "" : doctor.getName();
-        return slots.stream().map(slot -> toSlotVO(slot, doctorName)).collect(Collectors.toList());
+            String cacheKey = buildScheduleSlotsCacheKey(doctorId, date);
+            List<ScheduleSlotVO> cachedSlots = getCachedSlots(cacheKey);
+            if (cachedSlots != null) {
+                return cachedSlots;
+            }
+
+            List<ScheduleSlot> slots = scheduleSlotMapper.selectList(
+                    new LambdaQueryWrapper<ScheduleSlot>()
+                            .eq(ScheduleSlot::getDoctorId, doctorId)
+                            .eq(ScheduleSlot::getScheduleDate, date)
+                            .eq(ScheduleSlot::getStatus, 0)
+                            .orderByAsc(ScheduleSlot::getStartTime));
+            if (slots.isEmpty()) {
+                redisUtil.set(cacheKey, Collections.emptyList(),
+                        DoctorCacheConstants.SCHEDULE_SLOTS_TTL_SECONDS, TimeUnit.SECONDS);
+                return Collections.emptyList();
+            }
+            DoctorProfile doctor = doctorProfileMapper.selectById(doctorId);
+            String doctorName = doctor == null ? "" : doctor.getName();
+            List<ScheduleSlotVO> result = slots.stream()
+                    .map(slot -> toSlotVO(slot, doctorName))
+                    .collect(Collectors.toList());
+            redisUtil.set(cacheKey, result, DoctorCacheConstants.SCHEDULE_SLOTS_TTL_SECONDS, TimeUnit.SECONDS);
+            return result;
         } finally {
             sentinelEntry.exit();
         }
@@ -220,21 +245,29 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     @Override
     public boolean bookSlot(Long slotId) {
+        ScheduleSlot slot = scheduleSlotMapper.selectById(slotId);
         int rows = scheduleSlotMapper.update(null, new LambdaUpdateWrapper<ScheduleSlot>()
                 .setSql("booked_slots = booked_slots + 1, status = IF(booked_slots + 1 >= total_slots, 1, 0)")
                 .eq(ScheduleSlot::getId, slotId)
                 .apply("booked_slots < total_slots")
                 .eq(ScheduleSlot::getStatus, 0));
+        if (rows > 0) {
+            invalidateSlotCache(slot);
+        }
         return rows > 0;
     }
 
     @Override
     public boolean cancelSlot(Long slotId) {
+        ScheduleSlot slot = scheduleSlotMapper.selectById(slotId);
         int rows = scheduleSlotMapper.update(null, new LambdaUpdateWrapper<ScheduleSlot>()
                 .setSql("booked_slots = booked_slots - 1")
                 .set(ScheduleSlot::getStatus, 0)
                 .eq(ScheduleSlot::getId, slotId)
                 .gt(ScheduleSlot::getBookedSlots, 0));
+        if (rows > 0) {
+            invalidateSlotCache(slot);
+        }
         return rows > 0;
     }
 
@@ -264,5 +297,49 @@ public class ScheduleServiceImpl implements ScheduleService {
         vo.setAvailableSlots(slot.getTotalSlots() - slot.getBookedSlots());
         vo.setStatus(slot.getStatus());
         return vo;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<ScheduleSlotVO> getCachedSlots(String cacheKey) {
+        return redisUtil.get(cacheKey);
+    }
+
+    private void invalidateSlotCache(ScheduleSlot slot) {
+        if (slot == null || slot.getDoctorId() == null || slot.getScheduleDate() == null) {
+            return;
+        }
+        redisUtil.delete(buildScheduleSlotsCacheKey(slot.getDoctorId(), slot.getScheduleDate()));
+    }
+
+    private void invalidateTemplateSlotCache(Long doctorId, Integer dayOfWeek) {
+        if (doctorId == null || dayOfWeek == null) {
+            return;
+        }
+        LocalDate currentDate = LocalDate.now();
+        LocalDate endDate = currentDate.plusDays(DoctorCacheConstants.SCHEDULE_TEMPLATE_INVALIDATE_DAYS);
+        List<String> keys = new ArrayList<>();
+        while (!currentDate.isAfter(endDate)) {
+            if (convertDayOfWeek(currentDate.getDayOfWeek()) == dayOfWeek) {
+                keys.add(buildScheduleSlotsCacheKey(doctorId, currentDate));
+            }
+            currentDate = currentDate.plusDays(1);
+        }
+        deleteScheduleSlotCache(keys);
+    }
+
+    private void deleteScheduleSlotCache(Iterable<String> keys) {
+        List<String> keyList = new ArrayList<>();
+        for (String key : keys) {
+            if (key != null && !key.isBlank()) {
+                keyList.add(key);
+            }
+        }
+        if (!keyList.isEmpty()) {
+            redisUtil.delete(keyList);
+        }
+    }
+
+    private String buildScheduleSlotsCacheKey(Long doctorId, LocalDate date) {
+        return DoctorCacheConstants.SCHEDULE_SLOTS_KEY_PREFIX + doctorId + ":" + date;
     }
 }

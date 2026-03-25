@@ -6,7 +6,9 @@ import com.medical.common.core.domain.PageQuery;
 import com.medical.common.core.domain.PageResult;
 import com.medical.common.core.exception.BusinessException;
 import com.medical.common.core.exception.ErrorCode;
+import com.medical.common.redis.util.RedisUtil;
 import com.medical.common.security.util.SecurityUtil;
+import com.medical.doctor.constant.DoctorCacheConstants;
 import com.medical.doctor.domain.dto.DoctorProfileDTO;
 import com.medical.doctor.domain.entity.Department;
 import com.medical.doctor.domain.entity.DoctorDepartment;
@@ -24,6 +26,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -37,9 +41,16 @@ public class DoctorProfileServiceImpl implements DoctorProfileService {
     private final DoctorProfileMapper doctorProfileMapper;
     private final DoctorDepartmentMapper doctorDepartmentMapper;
     private final DepartmentMapper departmentMapper;
+    private final RedisUtil redisUtil;
 
     @Override
     public PageResult<DoctorVO> listByDepartment(Long departmentId, String keyword, PageQuery pageQuery) {
+        String cacheKey = buildDoctorListCacheKey(departmentId, keyword, pageQuery);
+        PageResult<DoctorVO> cachedResult = getCachedDoctorList(cacheKey);
+        if (cachedResult != null) {
+            return cachedResult;
+        }
+
         List<Long> doctorIds = null;
         if (departmentId != null) {
             doctorIds = doctorDepartmentMapper.selectList(
@@ -50,8 +61,10 @@ public class DoctorProfileServiceImpl implements DoctorProfileService {
                     .distinct()
                     .collect(Collectors.toList());
             if (doctorIds.isEmpty()) {
-                return PageResult.of(Collections.emptyList(), 0,
+                PageResult<DoctorVO> emptyResult = PageResult.of(Collections.emptyList(), 0,
                         pageQuery.getPageNum(), pageQuery.getPageSize());
+                cacheDoctorList(cacheKey, emptyResult);
+                return emptyResult;
             }
         }
 
@@ -67,8 +80,10 @@ public class DoctorProfileServiceImpl implements DoctorProfileService {
         List<DoctorVO> records = result.getRecords().stream()
                 .map(profile -> buildDoctorVO(profile, departmentMap))
                 .collect(Collectors.toList());
-        return PageResult.of(records, result.getTotal(),
+        PageResult<DoctorVO> pageResult = PageResult.of(records, result.getTotal(),
                 (int) result.getCurrent(), (int) result.getSize());
+        cacheDoctorList(cacheKey, pageResult);
+        return pageResult;
     }
 
     @Override
@@ -106,11 +121,18 @@ public class DoctorProfileServiceImpl implements DoctorProfileService {
 
     @Override
     public DoctorVO getById(Long id) {
+        DoctorVO cachedDoctor = getCachedDoctorDetail(id);
+        if (cachedDoctor != null) {
+            return cachedDoctor;
+        }
+
         DoctorProfile profile = doctorProfileMapper.selectById(id);
         if (profile == null) {
             throw new BusinessException(ErrorCode.DOCTOR_NOT_FOUND);
         }
-        return buildDoctorVO(profile);
+        DoctorVO result = buildDoctorVO(profile);
+        cacheDoctorDetail(id, result);
+        return result;
     }
 
     @Override
@@ -139,6 +161,7 @@ public class DoctorProfileServiceImpl implements DoctorProfileService {
         profile.setStatus(0);
         doctorProfileMapper.insert(profile);
         saveDoctorDepartments(profile.getId(), dto.getDepartmentIds());
+        redisUtil.increment(DoctorCacheConstants.DOCTOR_LIST_VERSION_KEY);
     }
 
     @Override
@@ -151,6 +174,7 @@ public class DoctorProfileServiceImpl implements DoctorProfileService {
         fillDoctorProfile(profile, dto);
         doctorProfileMapper.updateById(profile);
         resetDoctorDepartments(id, dto.getDepartmentIds());
+        invalidateDoctorCaches(id);
     }
 
     @Override
@@ -168,6 +192,7 @@ public class DoctorProfileServiceImpl implements DoctorProfileService {
         if (dto.getDepartmentIds() != null) {
             resetDoctorDepartments(profile.getId(), dto.getDepartmentIds());
         }
+        invalidateDoctorCaches(profile.getId());
     }
 
     @Override
@@ -179,6 +204,7 @@ public class DoctorProfileServiceImpl implements DoctorProfileService {
         doctorProfileMapper.deleteById(id);
         doctorDepartmentMapper.delete(new LambdaQueryWrapper<DoctorDepartment>()
                 .eq(DoctorDepartment::getDoctorId, id));
+        invalidateDoctorCaches(id);
     }
 
     private void fillDoctorProfile(DoctorProfile profile, DoctorProfileDTO dto) {
@@ -294,5 +320,55 @@ public class DoctorProfileServiceImpl implements DoctorProfileService {
         departmentVO.setStatus(department.getStatus());
         departmentVO.setCreateTime(department.getCreateTime());
         return departmentVO;
+    }
+
+    @SuppressWarnings("unchecked")
+    private PageResult<DoctorVO> getCachedDoctorList(String cacheKey) {
+        return redisUtil.get(cacheKey);
+    }
+
+    @SuppressWarnings("unchecked")
+    private DoctorVO getCachedDoctorDetail(Long doctorId) {
+        return redisUtil.get(buildDoctorDetailCacheKey(doctorId));
+    }
+
+    private String buildDoctorDetailCacheKey(Long doctorId) {
+        return DoctorCacheConstants.DOCTOR_DETAIL_KEY_PREFIX + doctorId;
+    }
+
+    private String buildDoctorListCacheKey(Long departmentId, String keyword, PageQuery pageQuery) {
+        String normalizedKeyword = keyword == null ? "" : keyword.trim();
+        long version = getDoctorListVersion();
+        return DoctorCacheConstants.DOCTOR_LIST_KEY_PREFIX
+                + "version:" + version
+                + ":department:" + departmentId
+                + ":page:" + pageQuery.getPageNum()
+                + ":size:" + pageQuery.getPageSize()
+                + ":keyword:" + normalizedKeyword;
+    }
+
+    private void cacheDoctorList(String cacheKey, PageResult<DoctorVO> pageResult) {
+        redisUtil.set(cacheKey, pageResult, buildJitteredDoctorTtlSeconds(DoctorCacheConstants.DOCTOR_LIST_TTL_MINUTES),
+                TimeUnit.SECONDS);
+    }
+
+    private void cacheDoctorDetail(Long doctorId, DoctorVO doctor) {
+        redisUtil.set(buildDoctorDetailCacheKey(doctorId), doctor,
+                buildJitteredDoctorTtlSeconds(DoctorCacheConstants.DOCTOR_DETAIL_TTL_MINUTES), TimeUnit.SECONDS);
+    }
+
+    private long buildJitteredDoctorTtlSeconds(long baseMinutes) {
+        return TimeUnit.MINUTES.toSeconds(baseMinutes)
+                + ThreadLocalRandom.current().nextLong(DoctorCacheConstants.CACHE_TTL_JITTER_SECONDS + 1);
+    }
+
+    private long getDoctorListVersion() {
+        Long version = redisUtil.get(DoctorCacheConstants.DOCTOR_LIST_VERSION_KEY);
+        return version == null ? 0L : version;
+    }
+
+    private void invalidateDoctorCaches(Long doctorId) {
+        redisUtil.delete(buildDoctorDetailCacheKey(doctorId));
+        redisUtil.increment(DoctorCacheConstants.DOCTOR_LIST_VERSION_KEY);
     }
 }

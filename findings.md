@@ -222,3 +222,29 @@
 - `publish_status=2` 同时承担崩溃恢复语义：如果实例在 claim 后宕机，其他实例会在 `medical.mq.publish-claim-timeout-seconds` 超时后重新 claim 并重发，因此该链路是 **at-least-once publish**，下游消费者必须保持幂等。
 - Notification / Audit 消费者现已把副作用表的唯一键冲突视为“副作用已落库”的成功回放：若第一次消费在副作用 insert 成功后、consume log 成功前崩溃，重放不会再因 duplicate key 进入 DLQ，而是补写 success consume log 并 ack。
 - 运营恢复语义：outbox 行长期停在 `publish_status=0` 代表 broker confirm 未闭环，可继续由定时任务自动重试；长期停在 `publish_status=2` 代表 claim 实例可能卡死/宕机，等待 claim timeout 后会被其他实例接管；消费者 DLQ 仍仅保留真正的不可恢复错误（如 JSON 反序列化失败或副作用/consume log 持续异常）。
+
+## Redis Discovery (2026-03-25)
+
+- 仓库已经具备基础 Redis 能力：公共模块 `medical-ai/medical-common/medical-common-redis` 提供 `RedisTemplate<String, Object>` 与 `RedisUtil`，5 个核心业务服务均已依赖该模块。
+- 当前业务代码里尚未发现成体系的缓存注解、热点缓存层或统一缓存键规范，说明 Redis 目前更偏基础设施可用、业务层未深用的状态。
+- 从现有链路看，Redis 最适合切入的热点区域包括：医生列表/详情、排班号源查询、知识检索结果、AI 会话短态，以及预约链路的去重/短期限流辅助状态。
+
+## Workspace Catchup (2026-03-25, planning-with-files)
+
+- 本次再次执行仓库内 `.opencode/skills/planning-with-files/scripts/session-catchup.py`，脚本仍无输出，说明没有额外待恢复的 session 文本上下文。
+- 当前 `git status --short` / `git diff --stat` 显示业务代码遗留改动已不在工作区，剩余差异收敛为 `task_plan.md`、`findings.md`、`progress.md` 三个规划文件自身，以及两份未跟踪 Redis 文档。
+- 新发现的未跟踪文档为 `docs/superpowers/specs/2026-03-25-redis-cache-and-concurrency-design.md` 与 `docs/superpowers/plans/2026-03-25-redis-cache-and-concurrency-implementation.md`，说明 Phase 33 已形成设计+实施双文档产物，但尚未纳入版本控制决策。
+
+## User Constraints (2026-03-25)
+
+- 后续验证避免使用 `pytest` 做满量回归；默认采用最小必要的定向验证命令。
+- 后续如需并行/委派工作，不使用 task-router MCP，改用内置子代理（`task` 工具）。
+- 子代理执行过程中同样禁止使用 task-router MCP；委派能力统一收敛到内置 `task`。
+
+## Redis Implementation Surface Review (2026-03-25)
+
+- `RedisUtil` 当前已有 `set/get/delete(String)/hasKey/expire/increment/decrement`，但缺少本轮实现需要的 `setIfAbsent(String,Object,long,TimeUnit)` 与 `delete(Collection<String>)`；`getExpire` 不是首批必需项。
+- `doctor-service` / `appointment-service` 已依赖 `medical-common-redis`，接入 `RedisUtil` 不需要新增模块依赖；Redis 公共配置已注册 `Jackson2JsonRedisSerializer` + `JavaTimeModule`，缓存 VO / `PageResult` / 日期时间对象可行。
+- 精确方法面：`DoctorProfileServiceImpl.listByDepartment(...)`、`getById(Long)`、`update(Long, DoctorProfileDTO)`、`updateMyProfile(Long, DoctorProfileDTO)`；`DepartmentServiceImpl.list(String)`、`create/update/delete/toggleStatus`；`ScheduleServiceImpl.getAvailableSlots(...)`、`getAvailableSlotsByDepartment(...)`、`saveTemplate/deleteTemplate/generateSlots/bookSlot/cancelSlot`；`AppointmentServiceImpl.createAppointment(CreateAppointmentDTO)`。
+- 计划修正点：doctor 列表缓存 key 必须带 `departmentId`，否则会串缓存；department 列表当前有 `keyword` 查询能力，首版更稳妥的边界是只缓存空 `keyword` 列表；schedule 当前有两个查询面，首版建议只缓存 `getAvailableSlots(doctorId,date)`；appointment 防重不要早于基础参数校验，以免产生 `null` key。
+- 已有直接相关测试主要是 `AppointmentServiceImplTest`、`ScheduleServiceImplTest` 与 controller tests；`DoctorProfileServiceImplTest`、`DepartmentServiceImplTest` 当前不存在，新增缓存构造注入时需同步补 mock。

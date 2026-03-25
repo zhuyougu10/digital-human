@@ -12,6 +12,7 @@ import com.medical.api.doctor.dto.DoctorInfoDTO;
 import com.medical.api.doctor.dto.SlotInfoDTO;
 import com.medical.api.user.RemoteUserService;
 import com.medical.api.user.dto.UserInfoDTO;
+import com.medical.appointment.constant.AppointmentCacheConstants;
 import com.medical.appointment.domain.dto.AppointmentQueryDTO;
 import com.medical.appointment.domain.dto.CreateAppointmentDTO;
 import com.medical.appointment.domain.entity.Appointment;
@@ -25,6 +26,7 @@ import com.medical.common.core.domain.PageResult;
 import com.medical.common.core.domain.R;
 import com.medical.common.core.exception.BusinessException;
 import com.medical.common.core.exception.ErrorCode;
+import com.medical.common.redis.util.RedisUtil;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -35,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.apache.seata.spring.annotation.GlobalTransactional;
@@ -56,6 +59,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     private final RemoteScheduleService remoteScheduleService;
     private final RemoteUserService remoteUserService;
     private final AppointmentEventOutboxService appointmentEventOutboxService;
+    private final RedisUtil redisUtil;
 
     @Override
     @GlobalTransactional(name = "createAppointment", rollbackFor = Exception.class)
@@ -70,53 +74,70 @@ public class AppointmentServiceImpl implements AppointmentService {
         }
 
         try {
-        if (dto == null || dto.getPatientId() == null || dto.getDoctorId() == null
-                || dto.getDepartmentId() == null || dto.getSlotId() == null) {
-            throw new BusinessException(ErrorCode.PARAM_ERROR);
-        }
+            if (dto == null || dto.getPatientId() == null || dto.getDoctorId() == null
+                    || dto.getDepartmentId() == null || dto.getSlotId() == null) {
+                throw new BusinessException(ErrorCode.PARAM_ERROR);
+            }
 
-        Long duplicateCount = appointmentMapper.selectCount(
-                new LambdaQueryWrapper<Appointment>()
-                        .eq(Appointment::getPatientId, dto.getPatientId())
-                        .eq(Appointment::getSlotId, dto.getSlotId())
-                        .eq(Appointment::getDeleted, 0));
-        if (duplicateCount != null && duplicateCount > 0) {
-            throw new BusinessException(ErrorCode.APPOINTMENT_ALREADY_EXISTS);
-        }
+            String dedupKey = buildDedupKey(dto.getPatientId(), dto.getSlotId());
+            Boolean locked = redisUtil.setIfAbsent(
+                    dedupKey,
+                    1,
+                    AppointmentCacheConstants.APPOINTMENT_DEDUP_TTL_SECONDS,
+                    TimeUnit.SECONDS);
+            if (!Boolean.TRUE.equals(locked)) {
+                throw new BusinessException(ErrorCode.FAIL, "请勿重复提交预约请求");
+            }
 
-        R<DoctorInfoDTO> doctorResp = remoteDoctorService.getDoctorById(dto.getDoctorId());
-        if (doctorResp == null || !doctorResp.isSuccess() || doctorResp.getData() == null) {
-            throw new BusinessException(ErrorCode.DOCTOR_NOT_FOUND);
-        }
+            boolean success = false;
+            try {
+                Long duplicateCount = appointmentMapper.selectCount(
+                        new LambdaQueryWrapper<Appointment>()
+                                .eq(Appointment::getPatientId, dto.getPatientId())
+                                .eq(Appointment::getSlotId, dto.getSlotId())
+                                .eq(Appointment::getDeleted, 0));
+                if (duplicateCount != null && duplicateCount > 0) {
+                    throw new BusinessException(ErrorCode.APPOINTMENT_ALREADY_EXISTS);
+                }
 
-        SlotInfoDTO slotInfo = findSlotInfo(dto.getDoctorId(), dto.getSlotId());
+                R<DoctorInfoDTO> doctorResp = remoteDoctorService.getDoctorById(dto.getDoctorId());
+                if (doctorResp == null || !doctorResp.isSuccess() || doctorResp.getData() == null) {
+                    throw new BusinessException(ErrorCode.DOCTOR_NOT_FOUND);
+                }
 
-        R<Boolean> lockResp = remoteScheduleService.bookSlot(dto.getSlotId());
-        if (lockResp == null || !lockResp.isSuccess() || !Boolean.TRUE.equals(lockResp.getData())) {
-            throw new BusinessException(ErrorCode.SLOT_NOT_AVAILABLE);
-        }
+                SlotInfoDTO slotInfo = findSlotInfo(dto.getDoctorId(), dto.getSlotId());
 
-        Long currentCount = appointmentMapper.selectCount(
-                new LambdaQueryWrapper<Appointment>()
-                        .eq(Appointment::getSlotId, dto.getSlotId())
-                        .eq(Appointment::getDeleted, 0));
+                R<Boolean> lockResp = remoteScheduleService.bookSlot(dto.getSlotId());
+                if (lockResp == null || !lockResp.isSuccess() || !Boolean.TRUE.equals(lockResp.getData())) {
+                    throw new BusinessException(ErrorCode.SLOT_NOT_AVAILABLE);
+                }
 
-        Appointment appointment = new Appointment();
-        appointment.setPatientId(dto.getPatientId());
-        appointment.setDoctorId(dto.getDoctorId());
-        appointment.setDepartmentId(dto.getDepartmentId());
-        appointment.setSlotId(dto.getSlotId());
-        appointment.setSessionId(dto.getSessionId());
-        appointment.setAppointmentDate(slotInfo == null ? LocalDate.now() : slotInfo.getScheduleDate());
-        appointment.setPeriod(slotInfo == null ? "morning" : slotInfo.getPeriod());
-        appointment.setStartTime(slotInfo == null ? LocalTime.of(9, 0) : slotInfo.getStartTime());
-        appointment.setEndTime(slotInfo == null ? LocalTime.of(9, 30) : slotInfo.getEndTime());
-        appointment.setQueueNumber((int) ((currentCount == null ? 0 : currentCount) + 1));
-        appointment.setStatus(STATUS_PENDING);
-        appointmentMapper.insert(appointment);
-        appointmentEventOutboxService.saveCreatedEvent(appointment);
+                Long currentCount = appointmentMapper.selectCount(
+                        new LambdaQueryWrapper<Appointment>()
+                                .eq(Appointment::getSlotId, dto.getSlotId())
+                                .eq(Appointment::getDeleted, 0));
 
-        return appointment.getId();
+                Appointment appointment = new Appointment();
+                appointment.setPatientId(dto.getPatientId());
+                appointment.setDoctorId(dto.getDoctorId());
+                appointment.setDepartmentId(dto.getDepartmentId());
+                appointment.setSlotId(dto.getSlotId());
+                appointment.setSessionId(dto.getSessionId());
+                appointment.setAppointmentDate(slotInfo == null ? LocalDate.now() : slotInfo.getScheduleDate());
+                appointment.setPeriod(slotInfo == null ? "morning" : slotInfo.getPeriod());
+                appointment.setStartTime(slotInfo == null ? LocalTime.of(9, 0) : slotInfo.getStartTime());
+                appointment.setEndTime(slotInfo == null ? LocalTime.of(9, 30) : slotInfo.getEndTime());
+                appointment.setQueueNumber((int) ((currentCount == null ? 0 : currentCount) + 1));
+                appointment.setStatus(STATUS_PENDING);
+                appointmentMapper.insert(appointment);
+                appointmentEventOutboxService.saveCreatedEvent(appointment);
+                success = true;
+                return appointment.getId();
+            } finally {
+                if (!success) {
+                    redisUtil.delete(dedupKey);
+                }
+            }
         } finally {
             sentinelEntry.exit();
         }
@@ -394,5 +415,9 @@ public class AppointmentServiceImpl implements AppointmentService {
             return null;
         }
         return userResp.getData();
+    }
+
+    private String buildDedupKey(Long patientId, Long slotId) {
+        return AppointmentCacheConstants.APPOINTMENT_DEDUP_KEY_PREFIX + patientId + ":" + slotId;
     }
 }

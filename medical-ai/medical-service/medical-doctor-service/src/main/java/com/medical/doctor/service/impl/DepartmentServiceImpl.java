@@ -4,12 +4,15 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.medical.common.core.constant.UserConstants;
 import com.medical.common.core.exception.BusinessException;
 import com.medical.common.core.exception.ErrorCode;
+import com.medical.common.redis.util.RedisUtil;
+import com.medical.doctor.constant.DoctorCacheConstants;
 import com.medical.doctor.domain.dto.DepartmentDTO;
 import com.medical.doctor.domain.entity.Department;
 import com.medical.doctor.domain.vo.DepartmentVO;
 import com.medical.doctor.mapper.DepartmentMapper;
 import com.medical.doctor.service.DepartmentService;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,15 +23,31 @@ import org.springframework.util.StringUtils;
 public class DepartmentServiceImpl implements DepartmentService {
 
     private final DepartmentMapper departmentMapper;
+    private final RedisUtil redisUtil;
 
     @Override
     public List<DepartmentVO> list(String keyword) {
+        if (!StringUtils.hasText(keyword)) {
+            List<DepartmentVO> cachedDepartments = getCachedDepartmentList();
+            if (cachedDepartments != null) {
+                return cachedDepartments;
+            }
+        }
+
         LambdaQueryWrapper<Department> wrapper = new LambdaQueryWrapper<>();
         wrapper.like(StringUtils.hasText(keyword), Department::getName, keyword)
                 .orderByAsc(Department::getSort)
                 .orderByAsc(Department::getId);
         List<Department> departments = departmentMapper.selectList(wrapper);
-        return departments.stream().map(this::toDepartmentVO).collect(Collectors.toList());
+        List<DepartmentVO> result = departments.stream().map(this::toDepartmentVO).collect(Collectors.toList());
+        if (!StringUtils.hasText(keyword)) {
+            redisUtil.set(
+                    DoctorCacheConstants.DEPARTMENT_LIST_KEY,
+                    result,
+                    DoctorCacheConstants.DEPARTMENT_LIST_TTL_MINUTES,
+                    TimeUnit.MINUTES);
+        }
+        return result;
     }
 
     @Override
@@ -49,6 +68,7 @@ public class DepartmentServiceImpl implements DepartmentService {
         department.setSort(dto.getSort() == null ? 0 : dto.getSort());
         department.setStatus(UserConstants.STATUS_NORMAL);
         departmentMapper.insert(department);
+        invalidateDepartmentAndDoctorListCaches();
     }
 
     @Override
@@ -70,6 +90,7 @@ public class DepartmentServiceImpl implements DepartmentService {
             department.setSort(dto.getSort());
         }
         departmentMapper.updateById(department);
+        invalidateDepartmentAndDoctorListCaches();
     }
 
     @Override
@@ -79,6 +100,7 @@ public class DepartmentServiceImpl implements DepartmentService {
             throw new BusinessException(ErrorCode.DEPARTMENT_NOT_FOUND);
         }
         departmentMapper.deleteById(id);
+        invalidateDepartmentAndDoctorListCaches();
     }
 
     @Override
@@ -90,6 +112,7 @@ public class DepartmentServiceImpl implements DepartmentService {
         department.setStatus(department.getStatus() == UserConstants.STATUS_NORMAL
                 ? UserConstants.STATUS_DISABLED : UserConstants.STATUS_NORMAL);
         departmentMapper.updateById(department);
+        invalidateDepartmentAndDoctorListCaches();
     }
 
     private DepartmentVO toDepartmentVO(Department department) {
@@ -102,5 +125,15 @@ public class DepartmentServiceImpl implements DepartmentService {
         vo.setStatus(department.getStatus());
         vo.setCreateTime(department.getCreateTime());
         return vo;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<DepartmentVO> getCachedDepartmentList() {
+        return redisUtil.get(DoctorCacheConstants.DEPARTMENT_LIST_KEY);
+    }
+
+    private void invalidateDepartmentAndDoctorListCaches() {
+        redisUtil.delete(DoctorCacheConstants.DEPARTMENT_LIST_KEY);
+        redisUtil.increment(DoctorCacheConstants.DOCTOR_LIST_VERSION_KEY);
     }
 }

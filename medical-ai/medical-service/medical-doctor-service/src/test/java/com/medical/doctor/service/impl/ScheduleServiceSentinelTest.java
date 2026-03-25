@@ -10,6 +10,7 @@ import com.alibaba.csp.sentinel.slots.block.flow.param.ParamFlowRule;
 import com.alibaba.csp.sentinel.slots.block.flow.param.ParamFlowRuleManager;
 import com.medical.common.core.exception.BusinessException;
 import com.medical.common.core.exception.ErrorCode;
+import com.medical.common.redis.util.RedisUtil;
 import com.medical.doctor.mapper.DoctorDepartmentMapper;
 import com.medical.doctor.mapper.DoctorProfileMapper;
 import com.medical.doctor.mapper.ScheduleSlotMapper;
@@ -30,7 +31,8 @@ class ScheduleServiceSentinelTest {
                 mock(ScheduleTemplateMapper.class),
                 mock(ScheduleSlotMapper.class),
                 mock(DoctorProfileMapper.class),
-                mock(DoctorDepartmentMapper.class));
+                mock(DoctorDepartmentMapper.class),
+                mock(RedisUtil.class));
     }
 
     @Test

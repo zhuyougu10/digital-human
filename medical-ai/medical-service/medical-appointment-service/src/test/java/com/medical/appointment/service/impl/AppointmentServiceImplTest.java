@@ -19,6 +19,7 @@ import com.medical.api.doctor.RemoteScheduleService;
 import com.medical.api.doctor.dto.DoctorInfoDTO;
 import com.medical.api.doctor.dto.SlotInfoDTO;
 import com.medical.api.user.RemoteUserService;
+import com.medical.appointment.constant.AppointmentCacheConstants;
 import com.medical.appointment.domain.dto.CreateAppointmentDTO;
 import com.medical.appointment.domain.entity.Appointment;
 import com.medical.appointment.mapper.AppointmentMapper;
@@ -26,9 +27,11 @@ import com.medical.appointment.service.AppointmentEventOutboxService;
 import com.medical.common.core.domain.R;
 import com.medical.common.core.exception.BusinessException;
 import com.medical.common.core.exception.ErrorCode;
+import com.medical.common.redis.util.RedisUtil;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -40,6 +43,7 @@ class AppointmentServiceImplTest {
     private RemoteDoctorService remoteDoctorService;
     private RemoteScheduleService remoteScheduleService;
     private AppointmentEventOutboxService appointmentEventOutboxService;
+    private RedisUtil redisUtil;
 
     @BeforeEach
     void setUp() {
@@ -48,12 +52,14 @@ class AppointmentServiceImplTest {
         remoteDoctorService = mock(RemoteDoctorService.class);
         remoteScheduleService = mock(RemoteScheduleService.class);
         appointmentEventOutboxService = mock(AppointmentEventOutboxService.class);
+        redisUtil = mock(RedisUtil.class);
         appointmentService = new AppointmentServiceImpl(
                 appointmentMapper,
                 remoteDoctorService,
                 remoteScheduleService,
                 mock(RemoteUserService.class),
-                appointmentEventOutboxService);
+                appointmentEventOutboxService,
+                redisUtil);
     }
 
     @Test
@@ -95,6 +101,8 @@ class AppointmentServiceImplTest {
         slotInfo.setStartTime(LocalTime.of(9, 0));
         slotInfo.setEndTime(LocalTime.of(9, 30));
 
+        when(redisUtil.setIfAbsent("appointment:dedup:1:4", 1, AppointmentCacheConstants.APPOINTMENT_DEDUP_TTL_SECONDS,
+                TimeUnit.SECONDS)).thenReturn(Boolean.TRUE);
         when(appointmentMapper.selectCount(any())).thenReturn(0L, 0L);
         when(remoteDoctorService.getDoctorById(2L)).thenReturn(R.ok(doctorInfo));
         when(remoteScheduleService.getAvailableSlots(eq(2L), anyString())).thenReturn(R.ok(List.of(slotInfo)));
@@ -110,8 +118,74 @@ class AppointmentServiceImplTest {
         assertEquals(100L, appointmentId);
         ArgumentCaptor<Appointment> captor = ArgumentCaptor.forClass(Appointment.class);
         verify(appointmentEventOutboxService).saveCreatedEvent(captor.capture());
+        verify(redisUtil, never()).delete("appointment:dedup:1:4");
         assertEquals(100L, captor.getValue().getId());
         assertEquals(4L, captor.getValue().getSlotId());
+    }
+
+    @Test
+    void createAppointment_shouldRejectDuplicateSubmitWhenDedupKeyAlreadyExists() {
+        CreateAppointmentDTO dto = new CreateAppointmentDTO();
+        dto.setPatientId(1L);
+        dto.setDoctorId(2L);
+        dto.setDepartmentId(3L);
+        dto.setSlotId(4L);
+
+        when(redisUtil.setIfAbsent("appointment:dedup:1:4", 1, AppointmentCacheConstants.APPOINTMENT_DEDUP_TTL_SECONDS,
+                TimeUnit.SECONDS)).thenReturn(Boolean.FALSE);
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> appointmentService.createAppointment(dto));
+
+        assertEquals(ErrorCode.FAIL.getCode(), ex.getCode());
+        assertEquals("请勿重复提交预约请求", ex.getMessage());
+        verify(appointmentMapper, never()).selectCount(any());
+        verify(appointmentEventOutboxService, never()).saveCreatedEvent(any());
+    }
+
+    @Test
+    void createAppointment_shouldDeleteDedupKeyWhenCreateFails() {
+        CreateAppointmentDTO dto = new CreateAppointmentDTO();
+        dto.setPatientId(1L);
+        dto.setDoctorId(2L);
+        dto.setDepartmentId(3L);
+        dto.setSlotId(4L);
+
+        DoctorInfoDTO doctorInfo = new DoctorInfoDTO();
+        SlotInfoDTO slotInfo = new SlotInfoDTO();
+        slotInfo.setId(4L);
+        slotInfo.setScheduleDate(LocalDate.of(2026, 3, 27));
+
+        when(redisUtil.setIfAbsent("appointment:dedup:1:4", 1, AppointmentCacheConstants.APPOINTMENT_DEDUP_TTL_SECONDS,
+                TimeUnit.SECONDS)).thenReturn(Boolean.TRUE);
+        when(appointmentMapper.selectCount(any())).thenReturn(0L);
+        when(remoteDoctorService.getDoctorById(2L)).thenReturn(R.ok(doctorInfo));
+        when(remoteScheduleService.getAvailableSlots(eq(2L), anyString())).thenReturn(R.ok(List.of(slotInfo)));
+        when(remoteScheduleService.bookSlot(4L)).thenReturn(R.ok(Boolean.FALSE));
+
+        assertThrows(BusinessException.class, () -> appointmentService.createAppointment(dto));
+
+        verify(redisUtil).delete("appointment:dedup:1:4");
+        verify(appointmentEventOutboxService, never()).saveCreatedEvent(any());
+    }
+
+    @Test
+    void createAppointment_shouldDeleteDedupKeyWhenDatabaseDuplicateExistsAfterLock() {
+        CreateAppointmentDTO dto = new CreateAppointmentDTO();
+        dto.setPatientId(1L);
+        dto.setDoctorId(2L);
+        dto.setDepartmentId(3L);
+        dto.setSlotId(4L);
+
+        when(redisUtil.setIfAbsent("appointment:dedup:1:4", 1, AppointmentCacheConstants.APPOINTMENT_DEDUP_TTL_SECONDS,
+                TimeUnit.SECONDS)).thenReturn(Boolean.TRUE);
+        when(appointmentMapper.selectCount(any())).thenReturn(1L);
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> appointmentService.createAppointment(dto));
+
+        assertEquals(ErrorCode.APPOINTMENT_ALREADY_EXISTS.getCode(), ex.getCode());
+        verify(redisUtil).delete("appointment:dedup:1:4");
+        verify(remoteDoctorService, never()).getDoctorById(any());
+        verify(appointmentEventOutboxService, never()).saveCreatedEvent(any());
     }
 
     @Test
@@ -122,6 +196,23 @@ class AppointmentServiceImplTest {
         assertThrows(BusinessException.class, () -> appointmentService.createAppointment(dto));
 
         verify(appointmentEventOutboxService, never()).saveCreatedEvent(any());
+    }
+
+    @Test
+    void createAppointment_shouldUseThirtySecondDedupTtl() {
+        CreateAppointmentDTO dto = new CreateAppointmentDTO();
+        dto.setPatientId(1L);
+        dto.setDoctorId(2L);
+        dto.setDepartmentId(3L);
+        dto.setSlotId(4L);
+
+        when(redisUtil.setIfAbsent("appointment:dedup:1:4", 1, AppointmentCacheConstants.APPOINTMENT_DEDUP_TTL_SECONDS,
+                TimeUnit.SECONDS)).thenReturn(Boolean.FALSE);
+
+        assertThrows(BusinessException.class, () -> appointmentService.createAppointment(dto));
+
+        verify(redisUtil).setIfAbsent("appointment:dedup:1:4", 1,
+                AppointmentCacheConstants.APPOINTMENT_DEDUP_TTL_SECONDS, TimeUnit.SECONDS);
     }
 
     @Test

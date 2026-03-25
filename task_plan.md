@@ -4,7 +4,7 @@
 构建基于 Spring Cloud + Spring AI + RAG + AI Agents + Vue3 + UniApp 的 AI 数字人医疗小助手系统（毕业设计）
 
 ## Current Phase
-Phase 32 — RabbitMQ async side effects implementation (Chunk 5) — complete
+Phase 34 — Redis 缓存与高并发支撑实现 (Chunk 1-3) — in_progress
 
 ## Current Session Checklist
 
@@ -51,6 +51,8 @@ Phase 32 — RabbitMQ async side effects implementation (Chunk 5) — complete
 | 29 | Sentinel 限流与熔断降级保护 | 完成 gateway 入口限流、AI/知识检索熔断降级、预约/号源热点保护的首批本地规则落地 | complete |
 | 30 | Seata 分布式事务设计与实施计划 | 完成 AT 模式方案设计、spec review 与实施计划编写 | complete |
 | 32 | RabbitMQ 异步副作用实现与运行态验收 | 完成预约 create/cancel 的 outbox 发布、副作用消费者落地、Docker/pytest 运行态验证 | complete |
+| 33 | Redis 缓存与高并发支撑设计 | 完成缓存优先、并发保护辅助的 Redis 方案设计 | complete |
+| 34 | Redis 缓存与高并发支撑实现 | 医生/科室/号源缓存 + 预约防重复提交 | in_progress |
 
 ## Key Decisions
 
@@ -62,6 +64,8 @@ Phase 32 — RabbitMQ async side effects implementation (Chunk 5) — complete
 | PixiJS v6 + Ticker 注册 | pixi-live2d-display 兼容性 |
 | SSE complete 与 TTS 解耦 | 防止 TTS 阻塞文字流 |
 | H5 直连后端 SSE | 绕过 postMessage 不实时的限制 |
+| 后续验证避免使用 pytest 满量回归 | 按用户要求改为最小必要验证，优先定向检查 |
+| 后续复杂工作不用 task-router MCP 派发 | 按用户要求改用内置子代理协作 |
 
 ## Critical Errors Reference
 
@@ -96,4 +100,9 @@ Phase 32 — RabbitMQ async side effects implementation (Chunk 5) — complete
 - 2026-03-25 Phase 32 完成：`tests/test_11_rabbitmq_side_effects.py` 已可单文件独立运行；本轮运行态额外发现 RabbitMQ 副作用表除业务字段外还必须补齐 `BaseEntity` 的 `create_by/update_by/deleted` 等审计列，否则 `AppointmentEventPublisherImpl` 的定时扫描会因 MyBatis-Plus 默认查询字段报 `Unknown column 'create_by'`。
 - 2026-03-25 Phase 32 运行态补充：当前 Nacos 中已存在 `SEATA_GROUP/service.vgroupMapping.medical_tx_group=default`，本轮无需再次补写；旧 MySQL volume 仍需手工执行 `/docker-entrypoint-initdb.d/rabbitmq-outbox-init.sql` 才会创建/刷新 RabbitMQ 副作用表。
 - 2026-03-25 Phase 32 follow-up：RabbitMQ 副作用链路已补齐可靠性 hardening——outbox 改为 claim/CAS + publisher confirm/returns 闭环，`publish_status=2` 表示可超时接管的 publishing 中间态；notification/audit duplicate side-effect replay 视为 success，不再误入 DLQ。
+- 2026-03-25 Phase 33 完成：已产出 `docs/superpowers/specs/2026-03-25-redis-cache-and-concurrency-design.md`，明确 Redis 采用缓存优先、并发保护辅助、旁路缓存策略。
+- 2026-03-25 catchup（planning-with-files）：再次执行 repo-local `session-catchup.py` 仍无输出；当前 `git status --short` / `git diff --stat` 显示工作区已收敛为规划文件自身变更，以及未跟踪的 Redis 设计/实施文档 `docs/superpowers/specs/2026-03-25-redis-cache-and-concurrency-design.md`、`docs/superpowers/plans/2026-03-25-redis-cache-and-concurrency-implementation.md`。
+- 2026-03-25 用户新增约束：后续不要用 `pytest` 做满测试；不要用 task-router MCP 派发任务，改用内置子代理。
+- 2026-03-25 Phase 34 启动：先执行 Chunk 1-3 的最小落地，按“RedisUtil/常量类 → appointment 防重复 → schedule 号源缓存 → department/doctor 读缓存”顺序推进；已知实现边界包括 doctor 列表 key 必须带 `departmentId`、department 列表仅建议首版缓存空 keyword 场景、`getAvailableSlotsByDepartment` 可首版暂不缓存。
+- 2026-03-25 用户补充约束：子代理也不许用 task-router MCP；仅允许使用内置 `task` 子代理。
 - Update phase status as you progress: pending → in_progress → complete

@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
+import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 
 @Component
@@ -20,6 +21,10 @@ public class RedisUtil {
         redisTemplate.opsForValue().set(key, value, timeout, unit);
     }
 
+    public Boolean setIfAbsent(String key, Object value, long timeout, TimeUnit unit) {
+        return redisTemplate.opsForValue().setIfAbsent(key, value, timeout, unit);
+    }
+
     @SuppressWarnings("unchecked")
     public <T> T get(String key) {
         return (T) redisTemplate.opsForValue().get(key);
@@ -27,6 +32,10 @@ public class RedisUtil {
 
     public Boolean delete(String key) {
         return redisTemplate.delete(key);
+    }
+
+    public Long delete(Collection<String> keys) {
+        return redisTemplate.delete(keys);
     }
 
     public Boolean hasKey(String key) {

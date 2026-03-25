@@ -18,6 +18,23 @@
 | 03-08 | 13 | 小程序 UI 重构 + Live2D 位姿 + 全量 H5 |
 | 03-20 | 14-24 | 导诊修复 + 医生数据 + MP API 对接 + CORS + UI 优化 + TTS 集成 + 功能增强 |
 | 03-21 | 25 | SSE+TTS 卡死修复 (本次) |
+| 03-25 | 33 | Redis 缓存与高并发支撑设计：缓存优先、并发辅助、按三层分批推进 |
+
+## Session: 2026-03-25 (Phase 33 — Redis 缓存与高并发支撑设计)
+
+### 目标
+- 为系统设计 Redis 使用方案，以缓存优先、高并发保护辅助为主线，覆盖医生/排班/知识检索查询与预约防重复提交等热点场景。
+
+### 过程
+- 检查仓库现状，确认项目已经具备 `medical-common-redis` 公共模块与 `RedisTemplate` / `RedisUtil` 能力，但业务层尚未形成统一缓存策略。
+- 与用户逐步确认边界：采用“缓存优先、高并发保护辅助”，并选定“旁路缓存 + TTL + 写后删缓存”为基础策略。
+- 结合现有服务边界，将 Redis 的落点拆为三层：读缓存、并发辅助、AI 会话短态。
+- 编写设计文档 `docs/superpowers/specs/2026-03-25-redis-cache-and-concurrency-design.md`。
+
+### 结论
+- 第一优先级是 `doctor-service` 和 `knowledge-service` 的查询缓存，以及 `appointment-service` 的防重复提交 key。
+- 本轮不把 Redis 用作预约主交易一致性组件；Redis 只承担热点加速与短期状态。
+- 推荐后续实施顺序：医生/科室/号源缓存 → 预约防重 → 知识检索缓存 → AI 短态缓存。
 
 ## Session: 2026-03-21 (Phase 25 — SSE+TTS 卡死修复)
 
@@ -409,3 +426,51 @@
 | `tests/test_11_rabbitmq_side_effects.py` 初版 patient 用户名超长（>30）导致注册返回 `用户长度为3-30位` | 缩短命名规则，并改为每个测试独立注册 patient |
 | `_create_appointment()` 初版在构造 JSON 时先读取了 `state.doctor_profile_id`，导致第一次请求 `doctorId` 仍为 `null` | 在发起请求前先显式调用 `_ensure_doctor_context()` 与 `_ensure_slot_id()` |
 | 第一次 Docker 运行态中副作用表缺失 / 字段不全，`AppointmentEventPublisherImpl` 定时任务报 `Table ... doesn't exist` 与 `Unknown column 'create_by'` | 手工执行更新后的 `rabbitmq-outbox-init.sql`，并重建 4 张副作用表 |
+
+## Session: 2026-03-25 (Planning with Files catchup)
+
+### 操作
+- 读取现有 `task_plan.md`、`findings.md`、`progress.md`，确认继续沿用项目根目录规划文件。
+- 首次按 PowerShell 形式调用 catchup 命令时，在当前 Bash 执行环境因 `(Get-Location)` 语法失败。
+- 改为执行仓库内 `.opencode/skills/planning-with-files/scripts/session-catchup.py`；脚本无输出。
+- 执行 `git diff --stat` 与 `git status --short`，同步最新工作区状态。
+
+### 当前工作区状态
+- 已修改：`task_plan.md`
+- 已修改：`findings.md`
+- 已修改：`progress.md`
+- 未跟踪：`docs/superpowers/specs/2026-03-25-redis-cache-and-concurrency-design.md`
+- 未跟踪：`docs/superpowers/plans/2026-03-25-redis-cache-and-concurrency-implementation.md`
+
+### 结论
+- 本次 catchup 未发现新的 session 残留，上下文已通过规划文件保持连续。
+- 当前需要后续决策的非规划类差异只剩两份 Redis 设计/实施文档是否纳入版本控制。
+
+### Errors
+| Error | Resolution |
+|-------|------------|
+| 在 Bash 工具中直接执行 PowerShell 风格的 catchup 命令失败 | 改为使用仓库内 repo-local `session-catchup.py` 并传入 `"$(pwd)"` |
+
+### 用户新增约束
+- 不使用 `pytest` 做满测试；后续优先执行最小必要的定向验证。
+- 不使用 task-router MCP 派发任务；后续如需委派，统一改用内置子代理。
+- 子代理同样禁止使用 task-router MCP；仅允许使用内置 `task`。
+
+## Session: 2026-03-25 (Phase 34 — Redis 缓存与高并发支撑实现)
+
+### 目标
+- 按 Redis 实施计划先落地 Chunk 1-3：公共 Redis 能力、预约防重复提交、doctor-service 第一批读缓存。
+
+### 当前发现
+- 通过内置子代理完成实现面审查：`RedisUtil` 缺 `setIfAbsent` 与批量 `delete`；doctor/appointment 两个服务已具备接入 Redis 公共模块的依赖基础。
+- 计划执行时需要修正若干 key 设计边界：doctor 列表 key 必须带 `departmentId`，department 列表首版只宜缓存空 keyword，schedule 首版优先只缓存 `getAvailableSlots`。
+- 现有最适合优先落地的顺序是：`RedisUtil`/常量类 → `AppointmentServiceImpl` 防重 → `ScheduleServiceImpl` 号源缓存 → `DepartmentServiceImpl`/`DoctorProfileServiceImpl`。
+
+### Actions taken
+- 读取 Redis 设计文档、实施计划与当前规划文件，确认 Phase 34 从 Chunk 1-3 开始执行。
+- 使用内置子代理只读审查 Redis 相关实现面与测试面，提炼出首轮最小改动边界并落盘到 `findings.md`。
+
+### Files created/modified
+- `task_plan.md` (updated)
+- `findings.md` (updated)
+- `progress.md` (updated)
