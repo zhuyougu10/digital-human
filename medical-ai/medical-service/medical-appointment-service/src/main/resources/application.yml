@@ -28,6 +28,19 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
+    listener:
+      simple:
+        acknowledge-mode: manual
+        prefetch: 10
 
 mybatis-plus:
   mapper-locations: classpath:mapper/**/*.xml
@@ -64,3 +77,16 @@ seata:
   client:
     tm:
       default-global-transaction-timeout: 30000
+
+medical:
+  mq:
+    enabled: true
+    exchange: medical.event
+    notification-queue: medical.notification.queue
+    notification-dlq: medical.notification.dlq
+    metrics-queue: medical.metrics.queue
+    metrics-dlq: medical.metrics.dlq
+    audit-queue: medical.audit.queue
+    audit-dlq: medical.audit.dlq
+    publish-claim-timeout-seconds: 120
+    publish-confirm-timeout-seconds: 10

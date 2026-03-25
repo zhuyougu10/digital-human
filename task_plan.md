@@ -4,10 +4,13 @@
 构建基于 Spring Cloud + Spring AI + RAG + AI Agents + Vue3 + UniApp 的 AI 数字人医疗小助手系统（毕业设计）
 
 ## Current Phase
-Planning Catchup — complete
+Phase 32 — RabbitMQ async side effects implementation (Chunk 5) — complete
 
 ## Current Session Checklist
 
+- [x] Chunk 5 / Task 10：补齐 `tests/test_11_rabbitmq_side_effects.py`，支持单文件独立准备 patient/doctor/slot 上下文并验证 create/cancel 的 outbox→notification/audit 副作用
+- [x] Chunk 5 / Task 11：完成 Python 语法检查、`medical-appointment-service` 单测回归、全量 Maven 打包
+- [x] Chunk 5 / Task 12：完成 Docker 运行态验证，手工补齐旧 MySQL volume 的 RabbitMQ 副作用表结构后执行 `pytest tests/test_11_rabbitmq_side_effects.py -v`
 - [x] 盘点运行中的服务、容器、路由与业务模块数量
 - [x] 识别核心接口与已有测试/脚本入口
 - [x] 测量核心接口响应时间、SSE 首包/全程耗时、知识检索表现
@@ -47,6 +50,7 @@ Planning Catchup — complete
 | 28 | 知识检索 5003/404 排障 | 定位并修复 knowledge-service DashScope embedding `base-url` 缺少 `/v1` 的问题 | complete |
 | 29 | Sentinel 限流与熔断降级保护 | 完成 gateway 入口限流、AI/知识检索熔断降级、预约/号源热点保护的首批本地规则落地 | complete |
 | 30 | Seata 分布式事务设计与实施计划 | 完成 AT 模式方案设计、spec review 与实施计划编写 | complete |
+| 32 | RabbitMQ 异步副作用实现与运行态验收 | 完成预约 create/cancel 的 outbox 发布、副作用消费者落地、Docker/pytest 运行态验证 | complete |
 
 ## Key Decisions
 
@@ -89,4 +93,7 @@ Planning Catchup — complete
 - `medical-ai/docker/mysql/init/*.sql` 通过 `/docker-entrypoint-initdb.d` 仅在 MySQL 首次初始化或新 volume 时自动执行；已有 volume 需手动补 SQL 或重建 volume。
 - `tests/test_10_seata.py` 当前定位为集成冒烟/一致性检查，不单独证明故障注入下的 Seata 回滚语义。
 - 2026-03-25 运行态验证补充：已在 Docker 环境手动补齐 Nacos `service.vgroupMapping.medical_tx_group=default` 与现有 MySQL volume 的 `undo_log` 表后，`pytest tests/test_10_seata.py -v` 实测 `3 passed`
+- 2026-03-25 Phase 32 完成：`tests/test_11_rabbitmq_side_effects.py` 已可单文件独立运行；本轮运行态额外发现 RabbitMQ 副作用表除业务字段外还必须补齐 `BaseEntity` 的 `create_by/update_by/deleted` 等审计列，否则 `AppointmentEventPublisherImpl` 的定时扫描会因 MyBatis-Plus 默认查询字段报 `Unknown column 'create_by'`。
+- 2026-03-25 Phase 32 运行态补充：当前 Nacos 中已存在 `SEATA_GROUP/service.vgroupMapping.medical_tx_group=default`，本轮无需再次补写；旧 MySQL volume 仍需手工执行 `/docker-entrypoint-initdb.d/rabbitmq-outbox-init.sql` 才会创建/刷新 RabbitMQ 副作用表。
+- 2026-03-25 Phase 32 follow-up：RabbitMQ 副作用链路已补齐可靠性 hardening——outbox 改为 claim/CAS + publisher confirm/returns 闭环，`publish_status=2` 表示可超时接管的 publishing 中间态；notification/audit duplicate side-effect replay 视为 success，不再误入 DLQ。
 - Update phase status as you progress: pending → in_progress → complete

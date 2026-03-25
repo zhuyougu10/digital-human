@@ -18,6 +18,7 @@ import com.medical.appointment.domain.entity.Appointment;
 import com.medical.appointment.domain.vo.AppointmentListVO;
 import com.medical.appointment.domain.vo.AppointmentVO;
 import com.medical.appointment.mapper.AppointmentMapper;
+import com.medical.appointment.service.AppointmentEventOutboxService;
 import com.medical.appointment.service.AppointmentService;
 import com.medical.common.core.domain.PageQuery;
 import com.medical.common.core.domain.PageResult;
@@ -54,6 +55,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     private final RemoteDoctorService remoteDoctorService;
     private final RemoteScheduleService remoteScheduleService;
     private final RemoteUserService remoteUserService;
+    private final AppointmentEventOutboxService appointmentEventOutboxService;
 
     @Override
     @GlobalTransactional(name = "createAppointment", rollbackFor = Exception.class)
@@ -112,6 +114,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointment.setQueueNumber((int) ((currentCount == null ? 0 : currentCount) + 1));
         appointment.setStatus(STATUS_PENDING);
         appointmentMapper.insert(appointment);
+        appointmentEventOutboxService.saveCreatedEvent(appointment);
 
         return appointment.getId();
         } finally {
@@ -142,6 +145,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointment.setStatus(STATUS_CANCELLED);
         appointment.setCancelReason("cancelled by patient");
         appointmentMapper.updateById(appointment);
+        appointmentEventOutboxService.saveCancelledEvent(appointment);
     }
 
     @Override

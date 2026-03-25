@@ -11,6 +11,7 @@ services:
       - mysql-data:/var/lib/mysql
       - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
       - ./mysql/init/seata-init.sql:/docker-entrypoint-initdb.d/seata-init.sql
+      - ./mysql/init/rabbitmq-outbox-init.sql:/docker-entrypoint-initdb.d/rabbitmq-outbox-init.sql
       - ./mysql/init/undo-log-init.sql:/docker-entrypoint-initdb.d/undo-log-init.sql
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --init-connect='SET NAMES utf8mb4'
     healthcheck:
@@ -26,6 +27,23 @@ services:
       - "6379:6379"
     volumes:
       - redis-data:/data
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: medical-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
 
   nacos:
     image: nacos/nacos-server:v2.3.2
@@ -214,6 +232,8 @@ services:
         condition: service_started
       nacos:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
       seata-server:
         condition: service_healthy
     environment:
@@ -223,6 +243,10 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root123}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
+      RABBITMQ_HOST: ${RABBITMQ_HOST:-rabbitmq}
+      RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
+      RABBITMQ_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
 
   knowledge-service:
     build: ../medical-service/medical-knowledge-service
@@ -262,6 +286,7 @@ services:
 volumes:
   mysql-data:
   redis-data:
+  rabbitmq-data:
   etcd-data:
   minio-data:
   milvus-data:

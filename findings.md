@@ -209,3 +209,16 @@
 - `medical-ai/docker/mysql/init/*.sql` 通过 `/docker-entrypoint-initdb.d` 仅在 MySQL 首次初始化或新 volume 时自动执行；已有 volume 需要手工执行 `undo-log-init.sql` 或重建数据卷，否则 Seata AT 数据源代理会报 `undo_log table not exist`。
 - `tests/test_10_seata.py` 已调整为可单文件独立运行，会自行准备 patient/doctor/slot 上下文；当前覆盖的是预约/号源一致性冒烟验证，不是故障注入式回滚证明。
 - 完整运行态验证结果：在 Docker Compose + Seata Server + Nacos + MySQL 环境下，`pytest tests/test_10_seata.py -v` 实测 `3 passed`。
+
+## RabbitMQ Async Side Effects Runtime Notes (2026-03-25)
+
+- `AppointmentEventPublisherImpl` 必须使用 outbox 行里的 `routingKey`（`appointment.created` / `appointment.cancelled`）投递消息；若错误使用 `eventType`（`APPOINTMENT_CREATED` / `APPOINTMENT_CANCELLED`），将无法命中 `appointment.#` 的 Topic Binding，消费者侧永远观察不到通知/审计副作用。
+- RabbitMQ 副作用 4 张表都继承了 `BaseEntity` 语义，运行态 SQL 不仅需要业务字段，还必须包含 `create_time/create_by/update_time/update_by/deleted`；否则 MyBatis-Plus 默认查询会直接报 `Unknown column 'create_by'`，定时 outbox 发布任务无法工作。
+- `medical-ai/docker/mysql/init/rabbitmq-outbox-init.sql` 只会在 MySQL 新 volume 初始化时自动执行；已有 `mysql-data` volume 需要手工在运行中的 `medical-mysql` 上执行该 SQL，或先 drop 旧表再重建，才能让 RabbitMQ 副作用链路真正可用。
+- `medical-ai/docker/docker-compose.yml` 中 `appointment-service` 运行 RabbitMQ 版实现时必须显式依赖 `rabbitmq` healthy，并注入 `RABBITMQ_HOST/RABBITMQ_PORT/RABBITMQ_USER/RABBITMQ_PASSWORD`；否则容器内默认连 `localhost:5672`，消息发布器与消费者都不会连到 Compose 内的 broker。
+- 本轮环境中，Seata 所需的 Nacos 配置 `SEATA_GROUP/service.vgroupMapping.medical_tx_group=default` 已经存在，因此 RabbitMQ 运行态验收无需再额外补写 Nacos。
+- `tests/test_11_rabbitmq_side_effects.py` 已调整为单文件独立运行：测试会自行注册独立 patient、准备 doctor/slot 上下文，并通过 `docker exec medical-mysql mysql ...` 轮询 outbox / notification / audit 表来验证 create 与 cancel 两条副作用链路。
+- Outbox 发布语义现已明确为 **claim -> publish -> broker confirm/return -> finalize**：先用 CAS 把 `publish_status` 从 `0=pending` 原子切到 `2=publishing`，只有拿到 publisher confirm `ack=true` 且没有 return 时才切到 `1=published`；任何 nack / return / timeout / send exception 都会把行恢复成 `0=pending` 并累加 `retry_count`。
+- `publish_status=2` 同时承担崩溃恢复语义：如果实例在 claim 后宕机，其他实例会在 `medical.mq.publish-claim-timeout-seconds` 超时后重新 claim 并重发，因此该链路是 **at-least-once publish**，下游消费者必须保持幂等。
+- Notification / Audit 消费者现已把副作用表的唯一键冲突视为“副作用已落库”的成功回放：若第一次消费在副作用 insert 成功后、consume log 成功前崩溃，重放不会再因 duplicate key 进入 DLQ，而是补写 success consume log 并 ack。
+- 运营恢复语义：outbox 行长期停在 `publish_status=0` 代表 broker confirm 未闭环，可继续由定时任务自动重试；长期停在 `publish_status=2` 代表 claim 实例可能卡死/宕机，等待 claim timeout 后会被其他实例接管；消费者 DLQ 仍仅保留真正的不可恢复错误（如 JSON 反序列化失败或副作用/consume log 持续异常）。

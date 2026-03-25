@@ -218,6 +218,29 @@
 ### 实现范围
 - `medical-gateway`：Sentinel gateway 依赖、API 分组规则、本地 block 响应
 - `medical-ai-service`：`chatStream`、`tts` 资源限流/熔断与降级
+
+## Session: 2026-03-25 (Phase 32 follow-up — RabbitMQ side-effects reliability hardening)
+
+### 问题描述
+- 代码审查指出 RabbitMQ 副作用链路还存在 4 个可靠性缺口：outbox 行在 broker confirm 前就被标记 published、并发实例会重复扫描同一 pending 行、notification/audit 消费者在“副作用已插入但 success log 未落库”崩溃场景下会因 duplicate key 被打进 DLQ、当前 failure/DLQ/replay 语义没有落盘。
+
+### 根因
+- `AppointmentEventPublisherImpl` 只要 `convertAndSend(...)` 没抛异常就直接 `updateById` 标记 published，没有等待 Spring AMQP publisher confirm，也没有处理 returned message。
+- Outbox 扫描只按 `publish_status=pending` 查表，没有 claim/CAS，多个实例可以同时读到并同时发送同一行。
+- Notification/Audit 消费者把 side-effect insert 与 consume log insert 视为一个不可分割成功路径；一旦进程在 side-effect insert 成功后崩溃，重放时唯一键冲突会被当作失败写入 consume log 并 `basicNack(..., requeue=false)`。
+
+### 修复
+- `AppointmentEventPublisherImpl` 改为 claim 后发布：先通过 mapper 自定义 SQL 把 outbox 行从 `0=pending` CAS 到 `2=publishing`，再携带 `CorrelationData` 发送并同步等待 confirm future；只有 confirm ack 且没有 return 时才切到 `1=published`，否则回退到 `0=pending` 并递增 `retry_count`。
+- `application.yml` 开启 `spring.rabbitmq.publisher-confirm-type=correlated`、`publisher-returns=true`、`template.mandatory=true`，并新增 claim/confirm timeout 配置，和实现逻辑保持一致。
+- Notification/Audit 消费者把 side-effect 表 duplicate key 视为“副作用已存在”的成功回放，随后补写 success consume log 并 ack；consume log 自身的唯一键冲突也会回查现有记录后改走 update，避免并发/重放场景再被误打失败。
+- `findings.md` 已补充运行态恢复语义：`publish_status=2` 表示已 claim 未闭环，claim timeout 后可被其他实例接管；整体发布保证为 at-least-once，下游消费者依赖幂等表兜底。
+
+### 验证
+- `mvn test -pl medical-service/medical-appointment-service -f medical-ai/pom.xml -Dtest=AppointmentEventPublisherImplTest,AppointmentNotificationConsumerTest,AppointmentAuditConsumerTest` → `BUILD SUCCESS`，`Tests run: 12, Failures: 0, Errors: 0, Skipped: 0`
+
+### 运行/恢复语义
+- Outbox 自动恢复：`publish_status=0` 会继续被定时任务重试；`publish_status=2` 若超过 `publish-claim-timeout-seconds` 仍未完成，下一轮会被其他实例重新 claim 并重发。
+- Consumer 自动恢复：side-effect 表 duplicate key 现在视为“之前那次已经成功落库”，不会再错误 DLQ；真正进入 DLQ 的应只剩 payload 不合法、数据库持续异常等不可恢复问题。
 - `medical-knowledge-service`：`search`、`embed` 资源限流/熔断与内外部差异化降级
 - `medical-appointment-service`：`slotId` 热点参数保护
 - `medical-doctor-service`：`doctorId:date` 热点参数保护
@@ -355,3 +378,34 @@
 | `doctor-service` / `appointment-service` 启动报 `service.vgroupMapping.medical_tx_group configuration item is required` | 通过 Nacos OpenAPI 写入 `SEATA_GROUP/service.vgroupMapping.medical_tx_group=default` |
 | `doctor-service` / `appointment-service` 启动报 `undo_log table not exist` | 对运行中的 `medical-mysql` 手工执行 `/docker-entrypoint-initdb.d/undo-log-init.sql` |
 | `tests/test_10_seata.py` 单独执行时缺少 `patient_username` / doctor 上下文 | 调整测试为自准备 patient/doctor/slot 前置状态 |
+
+## Session: 2026-03-25 (Phase 32 — RabbitMQ 异步副作用实现 Chunk 5)
+
+### 范围
+- 在 worktree `rabbitmq-side-effects` 内完成 Chunk 5（Tasks 10-12）：补齐独立可运行的 `tests/test_11_rabbitmq_side_effects.py`，完成 appointment-service / 全量打包回归，并在 Docker 环境验证 create/cancel 的 outbox→notification/audit 副作用链路。
+
+### 实现
+- 新增 `tests/test_11_rabbitmq_side_effects.py`：测试会单文件自行注册 2 个 patient、准备 doctor/slot 上下文，并通过 `docker exec medical-mysql mysql ...` 轮询 `appointment_event_outbox`、`appointment_notification_record`、`appointment_audit_record` 验证 create/cancel 两条消息链路。
+- 修正 `AppointmentEventPublisherImpl`：发布 RabbitMQ 消息时改用 outbox 的 `routingKey`，避免 `APPOINTMENT_CREATED` / `APPOINTMENT_CANCELLED` 无法匹配 `appointment.#` 的 Topic Binding。
+- 修正 `AppointmentEventPublisherImplTest`：同步断言 routing key 行为，保持单测与运行态一致。
+- 修正 `medical-ai/docker/docker-compose.yml`：为 `appointment-service` 增加 `rabbitmq` healthy 依赖与 `RABBITMQ_*` 环境变量，确保容器内连接 Compose broker 而不是 `localhost`。
+- 修正 `medical-ai/docker/mysql/init/rabbitmq-outbox-init.sql`：表结构改为与实体字段对齐，并补齐 `BaseEntity` 审计列（`create_by/update_by/deleted` 等），否则 MyBatis-Plus 默认查询会在运行态直接失败。
+
+### 验证
+- `python -m py_compile tests/test_11_rabbitmq_side_effects.py`：PASS。
+- `mvn test -pl medical-service/medical-appointment-service -f medical-ai/pom.xml`：**BUILD SUCCESS**，`Tests run: 31, Failures: 0, Errors: 0, Skipped: 0`。
+- `mvn clean package -DskipTests -f medical-ai/pom.xml`：**BUILD SUCCESS**。
+- `docker compose -f medical-ai/docker/docker-compose.yml up -d --build`：成功拉起 RabbitMQ / appointment-service 及依赖容器。
+- `pytest tests/test_11_rabbitmq_side_effects.py -v`：**2 passed**，总耗时 `281.87s`。
+
+### 运行态发现
+- 旧 `mysql-data` volume 不会自动执行新增的 `rabbitmq-outbox-init.sql`；首次运行态验证前，`appointment_event_outbox` 等表根本不存在，必须手工在 `medical-mysql` 上执行该 SQL。
+- 仅创建业务字段仍不够：由于实体继承 `BaseEntity`，少了 `create_by` 等审计列后，`AppointmentOutboxPublishJob` 会在定时扫描时持续报 `Unknown column 'create_by' in 'field list'`；本轮通过 drop 重建 4 张副作用表解决。
+- 当前 Nacos 中已经存在 `SEATA_GROUP/service.vgroupMapping.medical_tx_group=default`，本轮 RabbitMQ 运行态未再遇到 Seata 配置缺口。
+
+### Errors
+| Error | Resolution |
+|-------|------------|
+| `tests/test_11_rabbitmq_side_effects.py` 初版 patient 用户名超长（>30）导致注册返回 `用户长度为3-30位` | 缩短命名规则，并改为每个测试独立注册 patient |
+| `_create_appointment()` 初版在构造 JSON 时先读取了 `state.doctor_profile_id`，导致第一次请求 `doctorId` 仍为 `null` | 在发起请求前先显式调用 `_ensure_doctor_context()` 与 `_ensure_slot_id()` |
+| 第一次 Docker 运行态中副作用表缺失 / 字段不全，`AppointmentEventPublisherImpl` 定时任务报 `Table ... doesn't exist` 与 `Unknown column 'create_by'` | 手工执行更新后的 `rabbitmq-outbox-init.sql`，并重建 4 张副作用表 |
