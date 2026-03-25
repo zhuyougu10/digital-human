@@ -10,6 +10,8 @@ services:
     volumes:
       - mysql-data:/var/lib/mysql
       - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./mysql/init/seata-init.sql:/docker-entrypoint-initdb.d/seata-init.sql
+      - ./mysql/init/undo-log-init.sql:/docker-entrypoint-initdb.d/undo-log-init.sql
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --init-connect='SET NAMES utf8mb4'
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p${MYSQL_ROOT_PASSWORD:-root123}"]
@@ -87,6 +89,43 @@ services:
       - milvus-data:/var/lib/milvus
     command: ["milvus", "run", "standalone"]
 
+  seata-server:
+    image: apache/seata-server:2.1.0
+    container_name: seata-server
+    ports:
+      - "8091:8091"
+      - "7091:7091"
+    environment:
+      - SEATA_STORE_MODE=db
+      - SEATA_STORE_DB_DATASOURCE=druid
+      - SEATA_STORE_DB_DB_TYPE=mysql
+      - SEATA_STORE_DB_DRIVER_CLASS_NAME=com.mysql.cj.jdbc.Driver
+      - SEATA_STORE_DB_URL=jdbc:mysql://mysql:3306/seata?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+      - SEATA_STORE_DB_USER=${MYSQL_USER:-root}
+      - SEATA_STORE_DB_PASSWORD=${MYSQL_PASSWORD:-root123}
+      - SEATA_PORT=8091
+      - CONSOLE_PORT=7091
+      - SEATA_REGISTRY_TYPE=nacos
+      - SEATA_REGISTRY_NACOS_SERVER_ADDR=nacos:8848
+      - SEATA_REGISTRY_NACOS_GROUP=SEATA_GROUP
+      - SEATA_REGISTRY_NACOS_CLUSTER=default
+      - SEATA_REGISTRY_NACOS_NAMESPACE=
+      - SEATA_CONFIG_TYPE=nacos
+      - SEATA_CONFIG_NACOS_SERVER_ADDR=nacos:8848
+      - SEATA_CONFIG_NACOS_GROUP=SEATA_GROUP
+      - SEATA_CONFIG_NACOS_NAMESPACE=
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:7091/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
   gateway:
     build: ../medical-gateway
     container_name: medical-gateway
@@ -128,6 +167,8 @@ services:
       mysql:
         condition: service_healthy
       nacos:
+        condition: service_healthy
+      seata-server:
         condition: service_healthy
     environment:
       NACOS_ADDR: ${NACOS_ADDR:-nacos:8848}
@@ -172,6 +213,8 @@ services:
       redis:
         condition: service_started
       nacos:
+        condition: service_healthy
+      seata-server:
         condition: service_healthy
     environment:
       NACOS_ADDR: ${NACOS_ADDR:-nacos:8848}

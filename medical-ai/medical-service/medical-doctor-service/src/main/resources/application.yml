@@ -41,3 +41,26 @@ sa-token:
   is-share: true
   is-read-cookie: false
   is-read-header: true
+
+seata:
+  enabled: true
+  application-id: ${spring.application.name}
+  tx-service-group: medical_tx_group
+  service:
+    vgroupMapping:
+      medical_tx_group: default
+  registry:
+    type: nacos
+    nacos:
+      server-addr: ${NACOS_ADDR:localhost:8848}
+      group: SEATA_GROUP
+      namespace: ""
+  config:
+    type: nacos
+    nacos:
+      server-addr: ${NACOS_ADDR:localhost:8848}
+      group: SEATA_GROUP
+      namespace: ""
+  client:
+    tm:
+      default-global-transaction-timeout: 30000

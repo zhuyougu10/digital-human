@@ -36,6 +36,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.apache.seata.spring.annotation.GlobalTransactional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -55,6 +56,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     private final RemoteUserService remoteUserService;
 
     @Override
+    @GlobalTransactional(name = "createAppointment", rollbackFor = Exception.class)
     @Transactional
     public Long createAppointment(CreateAppointmentDTO dto) {
         final Entry sentinelEntry;
@@ -118,6 +120,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     @Override
+    @GlobalTransactional(name = "cancelAppointment", rollbackFor = Exception.class)
     @Transactional
     public void cancelAppointment(Long appointmentId, Long userId) {
         Appointment appointment = appointmentMapper.selectById(appointmentId);
