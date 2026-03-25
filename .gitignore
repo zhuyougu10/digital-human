@@ -34,3 +34,5 @@ tts-audio/
 .mcp/task-router/work/
 
 .mcp/task-router/node_modules/
+
+.worktrees/

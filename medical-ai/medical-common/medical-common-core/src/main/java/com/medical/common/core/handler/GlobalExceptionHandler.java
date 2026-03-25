@@ -69,6 +69,16 @@ public class GlobalExceptionHandler {
         return R.fail(ErrorCode.PARAM_ERROR.getCode(), "参数类型错误: " + e.getName());
     }
 
+    /**
+     * 客户端断开连接（SSE 流中途关闭 / 页面跳转）—— 静默处理，无需写响应
+     */
+    @ExceptionHandler(org.springframework.web.context.request.async.AsyncRequestNotUsableException.class)
+    public void handleClientDisconnect(
+            org.springframework.web.context.request.async.AsyncRequestNotUsableException e,
+            HttpServletRequest request) {
+        log.warn("客户端断开连接: URI: {}", request.getRequestURI());
+    }
+
     @ExceptionHandler(Exception.class)
     public R<Void> handleException(Exception e, HttpServletRequest request) {
         log.error("系统异常: {} URI: {}", e.getMessage(), request.getRequestURI(), e);
