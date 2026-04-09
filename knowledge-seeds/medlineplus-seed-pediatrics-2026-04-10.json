@@ -1,0 +1,81 @@
+{
+  "kbId": 1,
+  "kbName": "公开医学文献精选",
+  "source": "MedlinePlus",
+  "department": "儿科",
+  "importedAt": "2026-04-10",
+  "chunks": [
+    {
+      "title": "[儿科] 儿童哮喘定义与常见表现",
+      "content": "儿童哮喘是儿童期最常见的慢性疾病之一，本质是气道长期炎症和狭窄，可引起喘鸣、咳嗽、胸闷和呼吸困难，症状常在夜间或清晨加重。来源：MedlinePlus Asthma in Children，https://medlineplus.gov/asthmainchildren.html"
+    },
+    {
+      "title": "[儿科] 儿童哮喘诱因与管理要点",
+      "content": "儿童哮喘诱因包括尘螨、霉菌、宠物、花粉、冷空气、感冒和流感、空气污染、烟草烟雾以及运动等。管理重点是识别并避免诱因，准备急救药物，必要时规律使用控制药物。来源：MedlinePlus Asthma in Children，https://medlineplus.gov/asthmainchildren.html"
+    },
+    {
+      "title": "[儿科] 儿童中耳炎高发与识别",
+      "content": "中耳炎是儿童就诊最常见原因之一，大约四分之三的儿童在 3 岁前至少经历过一次。不会表达耳痛的小孩可能表现为揪耳朵、哭闹增多、睡眠差、耳内流液、平衡或听力问题。来源：MedlinePlus Ear Infections，https://medlineplus.gov/earinfections.html"
+    },
+    {
+      "title": "[儿科] 儿童中耳炎处理原则",
+      "content": "儿童中耳炎通常发生在中耳积液和黏液潴留后，部分病例可自行缓解，轻症以止痛为主；婴幼儿或严重感染可能需要抗生素，反复发作者有时需置入鼓膜通气管。来源：MedlinePlus Ear Infections，https://medlineplus.gov/earinfections.html"
+    },
+    {
+      "title": "[儿科] 儿童发热的常见原因与阈值",
+      "content": "发热是机体对疾病或感染的反应，儿童腋温达到 37.2°C、口温 37.5°C 或肛温 38°C 及以上可视为发热。多数发热由感染引起，轻度病毒感染也可能出现较高体温。来源：MedlinePlus Fever，https://medlineplus.gov/ency/article/003090.htm"
+    },
+    {
+      "title": "[儿科] 儿童发热居家处理与警示信号",
+      "content": "儿童发热时应补液、避免过度捂热，可按年龄与体重规范使用对乙酰氨基酚或布洛芬，儿童不应自行使用阿司匹林。若出现持续高热、精神差、呼吸困难、抽搐、颈部僵硬或 3 月龄以下婴儿发热，应立即就医。来源：MedlinePlus Fever，https://medlineplus.gov/ency/article/003090.htm"
+    },
+    {
+      "title": "[儿科] 儿童湿疹定义与特征",
+      "content": "湿疹也称特应性皮炎，是婴幼儿和儿童常见的慢性炎症性皮肤病，可表现为皮肤干燥、瘙痒、红斑和反复发作的皮疹，常见于面部、肘窝、膝后及四肢。来源：MedlinePlus Eczema，https://medlineplus.gov/eczema.html"
+    },
+    {
+      "title": "[儿科] 儿童湿疹护理与诱因避免",
+      "content": "儿童湿疹管理强调每日保湿、缩短洗澡时间、避免刺激性洗护用品和抓挠，必要时在医生指导下使用外用激素或其他抗炎药。冷干空气、刺激物、过热出汗、过敏原和感染都可能诱发加重。来源：MedlinePlus Atopic dermatitis - children - homecare，https://medlineplus.gov/ency/patientinstructions/000939.htm"
+    },
+    {
+      "title": "[儿科] 手足口病定义与传播方式",
+      "content": "手足口病是儿童常见病毒感染，最常由柯萨奇病毒 A16 引起，10 岁以下儿童最常见。病毒可经咳嗽喷嚏飞沫、被污染物体，以及接触患儿粪便或疱液传播。来源：MedlinePlus Hand-foot-mouth disease，https://medlineplus.gov/ency/article/000965.htm"
+    },
+    {
+      "title": "[儿科] 手足口病表现与照护",
+      "content": "手足口病典型表现包括发热、咽痛、口腔溃疡，以及手、足和尿布区出现小疱疹。治疗以对症支持为主，抗生素无效，应重点补液、缓解疼痛，并警惕高热惊厥或脱水等并发症。来源：MedlinePlus Hand-foot-mouth disease，https://medlineplus.gov/ency/article/000965.htm"
+    },
+    {
+      "title": "[儿科] 儿童腹泻风险与补液原则",
+      "content": "儿童腹泻常由胃肠道感染引起，也可能与抗生素等药物有关。腹泻最重要的风险是脱水，补液是处理核心，可使用日常液体、口服补液液、稀释果汁、汤水或适量果冻冰棒等帮助补水。来源：MedlinePlus When your child has diarrhea，https://medlineplus.gov/ency/patientinstructions/000693.htm"
+    },
+    {
+      "title": "[儿科] 儿童腹泻饮食与就医提示",
+      "content": "儿童腹泻期间通常不必完全禁食，可少量多餐，选择较温和、易消化食物，如米饭、面条、香蕉、苹果泥、熟蔬菜和低脂奶制品。若出现眼窝凹陷、口干无泪、尿量明显减少、血便、持续发热或腹痛，应及时就医。来源：MedlinePlus When your child has diarrhea，https://medlineplus.gov/ency/patientinstructions/000693.htm"
+    },
+    {
+      "title": "[儿科] 婴幼儿便秘的常见表现",
+      "content": "婴幼儿便秘指排便困难或粪便干硬，常见表现包括排便疼痛、腹胀、每周排便次数减少、便中带血、憋便动作增多等。婴儿并非每天排便才算正常，关键在于大便性状和排出是否困难。来源：MedlinePlus Constipation in infants and children，https://medlineplus.gov/ency/article/003125.htm"
+    },
+    {
+      "title": "[儿科] 婴幼儿便秘干预要点",
+      "content": "婴幼儿便秘的处理以增加液体、调整饮食纤维、建立排便习惯为主；较大儿童应增加蔬果和全谷物，必要时在医生指导下使用软便剂或轻泻剂。若婴儿长期不排便并伴呕吐、烦躁或便血，应尽快就医。来源：MedlinePlus Constipation in infants and children，https://medlineplus.gov/ency/article/003125.htm"
+    },
+    {
+      "title": "[儿科] 儿童流感症状与高风险提示",
+      "content": "流感是由流感病毒引起的呼吸道疾病，儿童容易感染。常见症状包括发热、咽痛、咳嗽、流涕、肌肉酸痛、头痛、乏力，部分儿童还会有腹泻和呕吐；婴幼儿及合并基础病儿童更易出现并发症。来源：MedlinePlus Your child and the flu，https://medlineplus.gov/ency/article/007445.htm；MedlinePlus Your baby and the flu，https://medlineplus.gov/ency/article/007444.htm"
+    },
+    {
+      "title": "[儿科] 儿童流感预防与就医建议",
+      "content": "6 月龄及以上儿童应接种流感疫苗，首次接种且不足 9 岁者通常需按程序补第 2 针。儿童流感期间要重视补液、退热和观察呼吸状态，若出现呼吸困难、精神反应差、无泪哭泣或尿量减少，应立即就医。来源：MedlinePlus Your child and the flu，https://medlineplus.gov/ency/article/007445.htm；MedlinePlus Your baby and the flu，https://medlineplus.gov/ency/article/007444.htm"
+    },
+    {
+      "title": "[儿科] 儿童社区获得性肺炎常见病因",
+      "content": "儿童社区获得性肺炎是由细菌、病毒或真菌引起的肺部感染，其中婴幼儿最常见病因为病毒。年龄小于 6 个月、早产、先天性心肺疾病、免疫功能低下等会增加发病和重症风险。来源：MedlinePlus Pneumonia in children - community acquired，https://medlineplus.gov/ency/article/007690.htm"
+    },
+    {
+      "title": "[儿科] 儿童肺炎症状与治疗原则",
+      "content": "儿童肺炎常见症状包括发热、咳嗽、呼吸急促、鼻翼扇动、胸痛、精神差和食欲下降，重症可出现口唇发绀或难以唤醒。细菌性肺炎常需抗生素，病毒性肺炎以支持治疗为主，病情重或年龄过小者可能需要住院吸氧和静脉治疗。来源：MedlinePlus Pneumonia in children - community acquired，https://medlineplus.gov/ency/article/007690.htm"
+    }
+  ]
+}
