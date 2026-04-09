@@ -1,0 +1,73 @@
+{
+  "kbId": 1,
+  "kbName": "公开医学文献精选",
+  "source": "MedlinePlus",
+  "department": "内科",
+  "importedAt": "2026-04-10",
+  "chunks": [
+    {
+      "title": "[内科] 慢阻肺定义与机制",
+      "content": "慢阻肺是一组会让呼吸越来越困难的慢性肺病，主要包括肺气肿和慢性支气管炎。其特点是气道和肺泡弹性下降、气道炎症增厚、痰液增多，从而造成气流受限。来源：MedlinePlus COPD 专题，https://medlineplus.gov/copd.html"
+    },
+    {
+      "title": "[内科] 慢阻肺危险因素与治疗",
+      "content": "吸烟是慢阻肺最主要危险因素，长期暴露于二手烟、空气污染和化学粉尘也会增加风险。治疗重点包括戒烟、避免刺激物、支气管扩张剂、疫苗接种、氧疗及肺康复。来源：MedlinePlus COPD 专题，https://medlineplus.gov/copd.html"
+    },
+    {
+      "title": "[内科] 心力衰竭定义与类型",
+      "content": "心力衰竭是指心脏无法泵出足够的富氧血液满足身体需要，并不等于心脏停止跳动。它可累及左心、右心或双侧，其中左心衰更常见。来源：MedlinePlus Heart Failure 专题，https://medlineplus.gov/heartfailure.html"
+    },
+    {
+      "title": "[内科] 心力衰竭常见病因与症状",
+      "content": "冠心病、高血压、心肌病、心律失常、糖尿病、慢性肾病和甲状腺疾病等都可能导致心力衰竭。常见表现包括气短、乏力、咳嗽、水肿、平卧困难和体重增加。来源：MedlinePlus Heart Failure 专题，https://medlineplus.gov/heartfailure.html"
+    },
+    {
+      "title": "[内科] 胃食管反流定义与高危因素",
+      "content": "胃食管反流病是胃内容物反流到食管并引起不适或食管损伤的慢性疾病。肥胖、妊娠、吸烟、食管下端括约肌功能异常以及食管裂孔疝等因素会增加发病风险。来源：MedlinePlus GERD 专题，https://medlineplus.gov/gerd.html"
+    },
+    {
+      "title": "[内科] 胃食管反流症状与处理",
+      "content": "胃食管反流最常见症状是烧心，也可表现为反酸、慢性咳嗽、声音嘶哑和吞咽困难。治疗多从生活方式调整和药物开始，如少量多餐、餐后避免立刻躺下、减重和戒烟。来源：MedlinePlus GERD 专题，https://medlineplus.gov/gerd.html"
+    },
+    {
+      "title": "[内科] 贫血定义与常见原因",
+      "content": "贫血是血液携氧能力不足的状态，最常见原因是缺铁。贫血还可由失血、红细胞生成不足或红细胞破坏过快引起，相关情况包括月经过多、妊娠、溃疡、营养缺乏、遗传性血液病和慢性疾病。来源：MedlinePlus Anemia 专题，https://medlineplus.gov/anemia.html"
+    },
+    {
+      "title": "[内科] 贫血症状与诊疗",
+      "content": "贫血常见表现包括疲劳、怕冷、头晕、烦躁、气短和头痛。诊断通常依赖体格检查和血液检测，治疗方案取决于具体贫血类型和病因。来源：MedlinePlus Anemia 专题，https://medlineplus.gov/anemia.html"
+    },
+    {
+      "title": "[内科] 甲状腺疾病概览",
+      "content": "甲状腺位于颈前部，负责分泌调节能量代谢的激素。甲状腺疾病可表现为激素分泌过多或过少，常见问题包括甲亢、甲减、甲状腺肿、甲状腺炎和甲状腺结节。来源：MedlinePlus Thyroid Diseases 专题，https://medlineplus.gov/thyroiddiseases.html"
+    },
+    {
+      "title": "[内科] 甲状腺疾病诊断与治疗",
+      "content": "甲状腺疾病的诊断通常结合病史、体检和甲状腺功能检查，必要时可做活检。治疗方式因病种而异，可能包括药物、放射性碘治疗或手术。来源：MedlinePlus Thyroid Diseases 专题，https://medlineplus.gov/thyroiddiseases.html"
+    },
+    {
+      "title": "[内科] 消化性溃疡病因与表现",
+      "content": "消化性溃疡是胃或十二指肠黏膜出现溃破，最常见症状是烧灼样胃痛，常在餐间或夜间出现。常见病因包括幽门螺杆菌感染和长期使用阿司匹林、布洛芬等非甾体抗炎药。来源：MedlinePlus Peptic Ulcer 专题，https://medlineplus.gov/pepticulcer.html"
+    },
+    {
+      "title": "[内科] 消化性溃疡诊断与治疗",
+      "content": "消化性溃疡可通过幽门螺杆菌检测、内镜或影像检查来诊断。治疗通常包括抑酸药、根除幽门螺杆菌的抗生素方案，以及戒烟限酒；拖延治疗会使病情恶化。来源：MedlinePlus Peptic Ulcer 专题，https://medlineplus.gov/pepticulcer.html"
+    },
+    {
+      "title": "[内科] 慢性肾病定义与高危因素",
+      "content": "慢性肾病是肾脏长期受损、过滤血液能力下降的状态。糖尿病和高血压是最常见病因，病情通常进展缓慢，很多人在早期没有明显症状。来源：MedlinePlus Chronic Kidney Disease 专题，https://medlineplus.gov/chronickidneydisease.html"
+    },
+    {
+      "title": "[内科] 慢性肾病管理重点",
+      "content": "慢性肾病虽然通常不能根治，但可通过控制血压、血糖和胆固醇来延缓进展。限盐、戒烟、控制体重、规律活动和限制饮酒也有助于保护肾功能；发展到肾衰竭时可能需要透析或肾移植。来源：MedlinePlus Chronic Kidney Disease 专题，https://medlineplus.gov/chronickidneydisease.html"
+    },
+    {
+      "title": "[内科] 肺炎定义与病原类型",
+      "content": "肺炎是一个或两个肺部发生感染，导致肺泡充满液体或脓液。病原可为细菌、病毒或真菌，细菌性肺炎最常见，病毒性感染后也可能继发细菌感染。来源：MedlinePlus Pneumonia 专题，https://medlineplus.gov/pneumonia.html"
+    },
+    {
+      "title": "[内科] 肺炎高危因素与症状",
+      "content": "婴幼儿、老年人、吸烟者、住院患者以及合并心肺疾病、糖尿病、肝病或肾病的人更易发生肺炎。常见症状包括发热、寒战、咳痰、气短、胸痛，重症时可出现呼吸衰竭等并发症。来源：MedlinePlus Pneumonia 专题，https://medlineplus.gov/pneumonia.html"
+    }
+  ]
+}
