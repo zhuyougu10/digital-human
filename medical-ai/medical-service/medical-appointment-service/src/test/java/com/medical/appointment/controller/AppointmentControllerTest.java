@@ -32,6 +32,7 @@ import java.util.Collections;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -138,7 +139,7 @@ public class AppointmentControllerTest {
     void getAppointmentById_success() throws Exception {
         AppointmentVO vo = new AppointmentVO();
         vo.setId(1L);
-        when(appointmentService.getAppointmentDetail(1L, 1L)).thenReturn(vo);
+        when(appointmentService.getAppointmentDetail(eq(1L), anyLong())).thenReturn(vo);
 
         mockMvc.perform(get("/appointment/1"))
                 .andExpect(status().isOk())
@@ -147,7 +148,7 @@ public class AppointmentControllerTest {
 
     @Test
     void getAppointmentById_notFound() throws Exception {
-        when(appointmentService.getAppointmentDetail(999L, 1L)).thenThrow(new BusinessException(ErrorCode.FAIL, "Not found"));
+        when(appointmentService.getAppointmentDetail(eq(999L), anyLong())).thenThrow(new BusinessException(ErrorCode.FAIL, "Not found"));
 
         mockMvc.perform(get("/appointment/999"))
                 .andExpect(status().isOk())
