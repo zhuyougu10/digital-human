@@ -1,0 +1,69 @@
+{
+  "kbId": 1,
+  "kbName": "公开医学文献精选",
+  "source": "MedlinePlus",
+  "department": "神经内科",
+  "importedAt": "2026-04-10",
+  "chunks": [
+    {
+      "title": "[神经内科] 脑卒中定义与紧急性",
+      "content": "脑卒中是脑部血流突然中断，脑细胞会在数分钟内因缺氧缺养受损，可导致永久性脑损伤、长期残疾甚至死亡。怀疑卒中时应立即呼叫急救。来源：MedlinePlus 脑卒中专题，https://medlineplus.gov/stroke.html"
+    },
+    {
+      "title": "[神经内科] 脑卒中主要类型",
+      "content": "脑卒中主要分为缺血性卒中和出血性卒中。缺血性卒中由血栓阻塞脑血管引起，出血性卒中由脑内血管破裂出血引起。来源：MedlinePlus 脑卒中专题，https://medlineplus.gov/stroke.html"
+    },
+    {
+      "title": "[神经内科] 脑卒中危险因素与 FAST 识别",
+      "content": "脑卒中重要危险因素包括高血压、糖尿病、心脏病、吸烟、高胆固醇、肥胖和缺乏运动。识别可记 FAST：面部歪斜、手臂无力、言语异常、立刻求救。来源：MedlinePlus 脑卒中专题，https://medlineplus.gov/stroke.html"
+    },
+    {
+      "title": "[神经内科] 短暂性脑缺血发作定义",
+      "content": "短暂性脑缺血发作（TIA）是脑部血供短暂阻断导致的短时卒中样发作，症状通常在 1 小时内消失，但可持续至 24 小时。由于无法仅凭症状区分 TIA 和真正卒中，因此应立即就医。来源：MedlinePlus TIA 专题，https://medlineplus.gov/transientischemicattack.html"
+    },
+    {
+      "title": "[神经内科] 短暂性脑缺血发作的警示意义",
+      "content": "TIA 常是未来卒中的警示信号。降低风险的重点包括按医嘱使用抗栓类药物、必要时手术干预，以及戒烟、限酒、健康饮食、运动并控制血压和胆固醇。来源：MedlinePlus TIA 专题，https://medlineplus.gov/transientischemicattack.html"
+    },
+    {
+      "title": "[神经内科] 偏头痛定义与常见表现",
+      "content": "偏头痛是一种反复发作的头痛，常表现为中重度、搏动样或跳痛，多位于头部一侧，并常伴恶心、乏力、畏光或怕声音。部分患者还会出现先兆症状。来源：MedlinePlus Migraine 专题，https://medlineplus.gov/migraine.html"
+    },
+    {
+      "title": "[神经内科] 偏头痛诱因与管理",
+      "content": "偏头痛常见诱因包括压力、焦虑、激素变化、强光、噪声、气味、睡眠不足或过多、天气变化、咖啡因波动、漏餐和药物过度使用。治疗重点是尽早止痛并识别和规避诱因，必要时做预防性治疗。来源：MedlinePlus Migraine 专题，https://medlineplus.gov/migraine.html"
+    },
+    {
+      "title": "[神经内科] 癫痫定义与常见病因",
+      "content": "癫痫是导致反复癫痫发作的脑部疾病，本质是脑内神经元异常放电。可能病因包括疾病、脑损伤和脑发育异常，但很多病例病因并不明确。来源：MedlinePlus Epilepsy 专题，https://medlineplus.gov/epilepsy.html"
+    },
+    {
+      "title": "[神经内科] 癫痫诊断与治疗原则",
+      "content": "癫痫诊断常结合脑部影像和其他检查。虽然癫痫通常无法根治，但多数患者可通过抗癫痫药物控制发作；药物控制不佳时可考虑手术、迷走神经刺激装置或特殊饮食治疗。来源：MedlinePlus Epilepsy 专题，https://medlineplus.gov/epilepsy.html"
+    },
+    {
+      "title": "[神经内科] 帕金森病定义与核心症状",
+      "content": "帕金森病是一种运动障碍性疾病，与脑内多巴胺不足有关。症状常从一侧开始，逐渐累及双侧，典型表现包括震颤、肌强直、动作迟缓以及平衡和协调能力下降。来源：MedlinePlus Parkinson's Disease 专题，https://medlineplus.gov/parkinsonsdisease.html"
+    },
+    {
+      "title": "[神经内科] 帕金森病诊疗要点",
+      "content": "帕金森病目前没有根治方法，诊断主要依赖病史和神经系统检查。药物常可明显改善症状，重症患者可考虑脑深部电刺激等手术方式。来源：MedlinePlus Parkinson's Disease 专题，https://medlineplus.gov/parkinsonsdisease.html"
+    },
+    {
+      "title": "[神经内科] 阿尔茨海默病定义与进展",
+      "content": "阿尔茨海默病是老年人最常见的痴呆类型，会严重影响记忆、思维和日常功能。疾病通常缓慢起病并持续进展，不属于正常衰老现象。来源：MedlinePlus Alzheimer's Disease 专题，https://medlineplus.gov/alzheimersdisease.html"
+    },
+    {
+      "title": "[神经内科] 阿尔茨海默病风险与管理",
+      "content": "年龄是阿尔茨海默病最重要风险因素，家族史、听力下降、抑郁、轻度认知障碍和脑外伤也会增加风险。现有治疗不能阻止疾病，但部分药物可在一定时间内延缓症状恶化，生活方式干预也有助于脑健康。来源：MedlinePlus Alzheimer's Disease 专题，https://medlineplus.gov/alzheimersdisease.html"
+    },
+    {
+      "title": "[神经内科] 头晕与眩晕概念",
+      "content": "头晕可表现为头重脚轻、恍惚或定向感差；如果感觉自己或周围环境在旋转，则属于眩晕。这类症状会影响平衡，病因很多。来源：MedlinePlus Dizziness and Vertigo 专题，https://medlineplus.gov/dizzinessandvertigo.html"
+    },
+    {
+      "title": "[神经内科] 头晕眩晕常见原因与就诊建议",
+      "content": "头晕和眩晕常见原因包括脱水、血压骤降、药物影响和内耳问题。老年人因合并疾病和用药较多更容易出现平衡问题；如果反复头晕，应及时就医查明原因。来源：MedlinePlus Dizziness and Vertigo 专题，https://medlineplus.gov/dizzinessandvertigo.html"
+    }
+  ]
+}
