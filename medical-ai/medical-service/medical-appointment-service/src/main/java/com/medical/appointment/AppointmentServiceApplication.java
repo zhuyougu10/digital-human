@@ -7,7 +7,7 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = "com.medical")
 @EnableDiscoveryClient
 @MapperScan("com.medical.appointment.mapper")
 @EnableFeignClients(basePackages = "com.medical.api")
