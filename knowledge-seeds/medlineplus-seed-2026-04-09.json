@@ -1,0 +1,44 @@
+{
+  "kbId": 1,
+  "kbName": "公开医学文献精选",
+  "source": "MedlinePlus",
+  "importedAt": "2026-04-09",
+  "chunks": [
+    {
+      "title": "高血压定义与分级",
+      "content": "高血压指血液持续以较高压力冲击动脉壁。成人血压可粗分为正常、升高、1级高血压和2级高血压；若高于 180/120，应立即就医。来源：MedlinePlus 高血压专题，https://www.medlineplus.gov/highbloodpressure.html"
+    },
+    {
+      "title": "高血压常见类型与危害",
+      "content": "高血压分原发性和继发性两类。长期高血压会增加心肌梗死、脑卒中、心力衰竭和肾衰竭风险。来源：MedlinePlus 高血压专题，https://www.medlineplus.gov/highbloodpressure.html"
+    },
+    {
+      "title": "高血压筛查与治疗原则",
+      "content": "高血压常常没有明显症状，因此需要定期测量血压。治疗通常包括健康饮食、运动、体重管理，以及在需要时使用降压药。来源：MedlinePlus 高血压专题，https://www.medlineplus.gov/highbloodpressure.html"
+    },
+    {
+      "title": "2型糖尿病定义与机制",
+      "content": "2型糖尿病是血糖持续升高的疾病，常从胰岛素抵抗开始。随着时间推移，机体分泌的胰岛素不足以维持正常血糖。来源：MedlinePlus 2型糖尿病专题，https://medlineplus.gov/diabetestype2.html"
+    },
+    {
+      "title": "2型糖尿病风险因素与症状",
+      "content": "2型糖尿病风险因素包括超重、缺乏运动、家族史、年龄增长和糖尿病前期。常见表现可有口渴增多、尿频、疲劳、视物模糊和伤口不易愈合。来源：MedlinePlus 2型糖尿病专题，https://medlineplus.gov/diabetestype2.html"
+    },
+    {
+      "title": "2型糖尿病诊断与管理",
+      "content": "2型糖尿病可通过 A1C、空腹血糖或随机血糖检测诊断。管理重点包括饮食、运动、规律监测血糖，以及按需使用口服药或胰岛素。来源：MedlinePlus 2型糖尿病专题，https://medlineplus.gov/diabetestype2.html"
+    },
+    {
+      "title": "胆固醇与脂蛋白基础概念",
+      "content": "胆固醇是人体必需的脂样物质，但过多会形成动脉斑块。HDL 常被称为好胆固醇，LDL 和 VLDL 升高则更容易促进动脉粥样硬化。来源：MedlinePlus 胆固醇专题，https://medlineplus.gov/cholesterol.html"
+    },
+    {
+      "title": "高胆固醇常见成因与危险因素",
+      "content": "高胆固醇常见原因包括高饱和脂肪饮食、久坐、吸烟、压力和过量饮酒。年龄增加、家族史、肥胖及糖尿病等疾病也会升高风险。来源：MedlinePlus 胆固醇专题，https://medlineplus.gov/cholesterol.html"
+    },
+    {
+      "title": "高胆固醇并发症与干预",
+      "content": "高胆固醇若长期未控制，可引发冠心病、心肌梗死、脑卒中和外周动脉疾病。干预基础是健康饮食、体重管理、规律运动，必要时使用他汀等降脂药。来源：MedlinePlus 胆固醇专题，https://medlineplus.gov/cholesterol.html"
+    }
+  ]
+}
