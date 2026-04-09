@@ -363,8 +363,8 @@ public class DoctorProfileServiceImpl implements DoctorProfileService {
     }
 
     private long getDoctorListVersion() {
-        Long version = redisUtil.get(DoctorCacheConstants.DOCTOR_LIST_VERSION_KEY);
-        return version == null ? 0L : version;
+        Number version = redisUtil.get(DoctorCacheConstants.DOCTOR_LIST_VERSION_KEY);
+        return version == null ? 0L : version.longValue();
     }
 
     private void invalidateDoctorCaches(Long doctorId) {
