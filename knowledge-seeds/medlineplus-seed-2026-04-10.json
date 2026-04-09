@@ -1,0 +1,40 @@
+{
+  "kbId": 1,
+  "kbName": "公开医学文献精选",
+  "source": "MedlinePlus",
+  "importedAt": "2026-04-10",
+  "chunks": [
+    {
+      "title": "冠心病定义与机制",
+      "content": "冠心病是最常见的心脏病类型，指供应心肌的冠状动脉因斑块堆积而变窄或变硬，导致心肌供血供氧不足，可引起心绞痛或心肌梗死。来源：MedlinePlus 冠心病专题，https://medlineplus.gov/coronaryarterydisease.html"
+    },
+    {
+      "title": "冠心病常见后果",
+      "content": "随着冠心病进展，持续缺血不仅可能诱发心肌梗死，还可能削弱心肌功能，增加心力衰竭和心律失常风险。来源：MedlinePlus 冠心病专题，https://medlineplus.gov/coronaryarterydisease.html"
+    },
+    {
+      "title": "脑卒中定义与紧急性",
+      "content": "脑卒中是脑部某一区域血流突然中断，脑细胞在数分钟内就可能因缺氧缺养死亡，可造成永久性脑损伤、长期残疾甚至死亡。怀疑卒中时应立即呼叫急救。来源：MedlinePlus 脑卒中专题，https://medlineplus.gov/stroke.html"
+    },
+    {
+      "title": "脑卒中主要类型",
+      "content": "脑卒中主要分为缺血性卒中和出血性卒中。缺血性卒中由血栓阻塞脑血管引起，约占多数；出血性卒中由脑内血管破裂出血引起。短暂性脑缺血发作虽然症状可短暂恢复，但提示后续卒中风险明显升高。来源：MedlinePlus 脑卒中专题，https://medlineplus.gov/stroke.html"
+    },
+    {
+      "title": "脑卒中危险因素与 FAST 识别",
+      "content": "脑卒中重要危险因素包括高血压、糖尿病、心脏病、吸烟、高胆固醇、肥胖和缺乏运动。识别可记 FAST：面部歪斜、手臂无力、言语异常、立即拨打急救电话。来源：MedlinePlus 脑卒中专题，https://medlineplus.gov/stroke.html"
+    },
+    {
+      "title": "哮喘定义与典型表现",
+      "content": "哮喘是一种慢性气道疾病，气道可发生炎症和狭窄，常见表现包括喘鸣、咳嗽、胸闷和呼吸困难。症状突然明显加重时可形成哮喘急性发作。来源：MedlinePlus 哮喘专题，https://medlineplus.gov/asthma.html"
+    },
+    {
+      "title": "哮喘诱因与高风险因素",
+      "content": "哮喘诱因可包括尘螨、霉菌、宠物、花粉、冷空气、感染、烟草烟雾、空气污染、运动以及职业性化学刺激。家族史、过敏、肥胖和儿童期反复病毒感染等因素会增加患病风险。来源：MedlinePlus 哮喘专题，https://medlineplus.gov/asthma.html"
+    },
+    {
+      "title": "哮喘诊断与治疗原则",
+      "content": "哮喘诊断常结合病史、体格检查和肺功能检查，如肺通气功能测定。治疗核心包括避开诱因、随身使用快速缓解药，以及按日常方案使用控制药减少气道炎症和发作风险。来源：MedlinePlus 哮喘专题，https://medlineplus.gov/asthma.html"
+    }
+  ]
+}
