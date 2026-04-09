@@ -1,0 +1,65 @@
+{
+  "kbId": 1,
+  "kbName": "公开医学文献精选",
+  "source": "MedlinePlus",
+  "department": "口腔科",
+  "importedAt": "2026-04-10",
+  "chunks": [
+    {
+      "title": "[口腔科] 龋齿形成机制",
+      "content": "龋齿是牙菌斑中的细菌分解食物中的糖和淀粉后产生酸，持续侵蚀牙釉质所致。早期可能无症状，但进展后会形成龋洞、疼痛甚至感染。来源：MedlinePlus Tooth Decay，https://medlineplus.gov/toothdecay.html"
+    },
+    {
+      "title": "[口腔科] 龋齿预防重点",
+      "content": "预防龋齿要重视含氟牙膏刷牙、使用牙线、控制高糖饮食、规律口腔检查和窝沟封闭。唾液减少和老年牙根暴露会增加风险。来源：MedlinePlus Tooth Decay，https://medlineplus.gov/toothdecay.html"
+    },
+    {
+      "title": "[口腔科] 牙龈炎与牙周病进展",
+      "content": "牙周病可从可逆的牙龈炎开始，进一步进展为牙周炎，导致牙龈退缩、牙周袋形成和牙槽骨破坏，严重时会掉牙。来源：MedlinePlus Gum Disease，https://medlineplus.gov/gumdisease.html"
+    },
+    {
+      "title": "[口腔科] 牙周病管理原则",
+      "content": "牙周病管理包括刷牙、使用牙线、定期洁治和必要时牙周专科治疗。越早干预越有机会逆转炎症或减缓破坏。来源：MedlinePlus Gum Disease，https://medlineplus.gov/gumdisease.html"
+    },
+    {
+      "title": "[口腔科] 常见口腔问题的范围",
+      "content": "口腔问题可包括口腔溃疡、鹅口疮、口臭、白斑、牙龈和牙齿问题、口干等。很多问题会影响进食、说话和吞咽。来源：MedlinePlus Mouth Disorders，https://medlineplus.gov/mouthdisorders.html"
+    },
+    {
+      "title": "[口腔科] 口腔病变何时需要警惕",
+      "content": "如果口腔溃疡反复不愈、白斑持续、口腔疼痛明显或伴吞咽困难，需要进一步排除感染、免疫性疾病或肿瘤。来源：MedlinePlus Mouth Disorders，https://medlineplus.gov/mouthdisorders.html"
+    },
+    {
+      "title": "[口腔科] 颞下颌关节紊乱常见表现",
+      "content": "颞下颌关节紊乱可引起张口疼痛、咀嚼肌痛、关节弹响、张口受限和面颈部放射痛。很多病例与肌肉紧张、压力或咬合习惯有关。来源：MedlinePlus Temporomandibular Disorders，https://medlineplus.gov/temporomandibulardisorders.html"
+    },
+    {
+      "title": "[口腔科] 颞下颌关节紊乱的保守治疗",
+      "content": "多数颞下颌关节问题可先行软食、冷热敷、NSAIDs、物理治疗和避免咬紧牙关等保守治疗。对于侵入性操作应谨慎评估收益与风险。来源：MedlinePlus Temporomandibular Disorders，https://medlineplus.gov/temporomandibulardisorders.html"
+    },
+    {
+      "title": "[口腔科] 唇腭裂对功能的影响",
+      "content": "唇裂和腭裂是先天畸形，可影响喂养、发音、听力和牙齿排列。多数患儿需要多学科长期管理。来源：MedlinePlus Cleft Lip and Palate，https://medlineplus.gov/cleftlipandpalate.html"
+    },
+    {
+      "title": "[口腔科] 唇腭裂治疗路径",
+      "content": "唇腭裂通常需要分阶段手术修复，并结合牙科、正畸和言语治疗。规范治疗后多数儿童可以获得较好生活质量。来源：MedlinePlus Cleft Lip and Palate，https://medlineplus.gov/cleftlipandpalate.html"
+    },
+    {
+      "title": "[口腔科] 口唇疱疹的特点",
+      "content": "口唇疱疹由单纯疱疹病毒引起，常在嘴唇周围出现疼痛性水疱，可反复发作。日晒、疲劳和感染可能诱发复发。来源：MedlinePlus Cold Sores，https://medlineplus.gov/coldsores.html"
+    },
+    {
+      "title": "[口腔科] 口干症的危害与处理",
+      "content": "口干会增加龋齿、口腔感染和吞咽说话困难风险，常见于药物副作用、放疗、糖尿病或唾液腺问题。处理重点是补水、刺激唾液分泌和口腔防龋。来源：MedlinePlus Dry Mouth，https://medlineplus.gov/drymouth.html"
+    },
+    {
+      "title": "[口腔科] 口腔癌的高危因素",
+      "content": "口腔癌多与烟草、酒精和 HPV 感染有关，常见症状包括持续不愈的口腔溃疡、红白斑、口腔或舌部肿块和吞咽疼痛。来源：MedlinePlus Oral Cancer，https://medlineplus.gov/oralcancer.html"
+    },
+    {
+      "title": "[口腔科] 口腔癌早筛的重要性",
+      "content": "口腔癌进展可能较快，症状持续超过两周就应及时评估。规律牙科检查有助于早期发现，提高治疗效果。来源：MedlinePlus Oral Cancer，https://medlineplus.gov/oralcancer.html"
+    }
+  ]
+}

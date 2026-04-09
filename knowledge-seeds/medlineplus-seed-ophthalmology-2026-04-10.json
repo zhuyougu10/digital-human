@@ -1,0 +1,69 @@
+{
+  "kbId": 1,
+  "kbName": "公开医学文献精选",
+  "source": "MedlinePlus",
+  "department": "眼科",
+  "importedAt": "2026-04-10",
+  "chunks": [
+    {
+      "title": "[眼科] 屈光不正的基本类型",
+      "content": "屈光不正包括近视、远视、散光和老视，本质是光线不能准确聚焦在视网膜上，导致看远或看近模糊。多数患者可通过验光和矫正镜片改善视力。来源：MedlinePlus Refractive Errors，https://medlineplus.gov/refractiveerrors.html"
+    },
+    {
+      "title": "[眼科] 屈光不正矫正方式",
+      "content": "屈光不正常用矫正方式包括框架眼镜、隐形眼镜和屈光手术。出现视力突然下降、眼痛或闪光感时，不能简单按屈光问题处理，应及时眼科评估。来源：MedlinePlus Refractive Errors，https://medlineplus.gov/refractiveerrors.html"
+    },
+    {
+      "title": "[眼科] 干眼综合征常见表现",
+      "content": "干眼常表现为异物感、烧灼感、发红、视疲劳和波动性视物模糊。年龄增长、屏幕使用过久、环境干燥和部分药物都可能诱发或加重。来源：MedlinePlus Dry eyes，https://medlineplus.gov/ency/article/000426.htm"
+    },
+    {
+      "title": "[眼科] 干眼综合征处理原则",
+      "content": "干眼治疗强调减少诱因、增加眨眼频率、使用人工泪液，并在需要时处理睑缘炎或炎症。长期症状明显者应规范随访。来源：MedlinePlus Dry eyes，https://medlineplus.gov/ency/article/000426.htm"
+    },
+    {
+      "title": "[眼科] 结膜炎的常见病因",
+      "content": "结膜炎俗称红眼病，可由病毒、细菌、过敏或刺激物引起。常见症状包括眼红、分泌物增多、流泪、异物感和晨起睫毛黏连。来源：MedlinePlus Pinkeye，https://medlineplus.gov/pinkeye.html；MedlinePlus Eye infections，https://medlineplus.gov/eyeinfections.html"
+    },
+    {
+      "title": "[眼科] 结膜炎的传播与护理",
+      "content": "感染性结膜炎具有传播性，应重视手卫生、避免共用毛巾和揉眼。若伴明显疼痛、畏光或视力下降，需要尽快排除角膜受累等更严重问题。来源：MedlinePlus Pinkeye，https://medlineplus.gov/pinkeye.html"
+    },
+    {
+      "title": "[眼科] 白内障的典型表现",
+      "content": "白内障是晶状体混浊导致的视力下降，常见表现有视物模糊、夜间眩光、颜色变暗和频繁更换眼镜度数。随着年龄增长发病更常见。来源：MedlinePlus Cataract，https://medlineplus.gov/ency/article/001001.htm"
+    },
+    {
+      "title": "[眼科] 白内障治疗时机",
+      "content": "早期白内障可通过改善照明和更新镜片缓解，但影响日常生活时通常需手术更换人工晶状体。手术一般效果较好，但仍需评估合并眼病。来源：MedlinePlus Cataract，https://medlineplus.gov/ency/article/001001.htm"
+    },
+    {
+      "title": "[眼科] 青光眼的隐匿性风险",
+      "content": "青光眼会损伤视神经，早期可无明显症状，却会逐渐造成不可逆视野缺损甚至失明。高眼压、年龄增长和家族史会增加风险。来源：MedlinePlus Glaucoma，https://medlineplus.gov/glaucoma.html；MedlinePlus Magazine Glaucoma，https://magazine.medlineplus.gov/article/glaucoma-what-you-need-to-know"
+    },
+    {
+      "title": "[眼科] 青光眼筛查与治疗",
+      "content": "青光眼治疗目标是降低眼压并尽量保护视神经，常用方式包括滴眼液、激光和手术。高危人群应规律眼科检查。来源：MedlinePlus Glaucoma，https://medlineplus.gov/glaucoma.html"
+    },
+    {
+      "title": "[眼科] 黄斑变性与中心视力下降",
+      "content": "年龄相关性黄斑变性主要影响中心视力，患者可能出现阅读困难、看人脸不清或直线变弯。它是老年人严重视力损害的重要原因之一。来源：MedlinePlus Macular Degeneration，https://medlineplus.gov/maculardegeneration.html"
+    },
+    {
+      "title": "[眼科] 黄斑变性的长期管理",
+      "content": "黄斑变性需根据类型采取不同管理，湿性类型常需眼内注药，干性类型强调监测和视觉康复。吸烟控制和规律复查很重要。来源：MedlinePlus Macular Degeneration，https://medlineplus.gov/maculardegeneration.html"
+    },
+    {
+      "title": "[眼科] 糖尿病眼病的主要危害",
+      "content": "糖尿病可损害视网膜血管并导致糖尿病视网膜病变、黄斑水肿、白内障和青光眼风险升高。早期往往没有明显症状，因此更需要定期眼底检查。来源：MedlinePlus Diabetic Eye Problems，https://medlineplus.gov/diabeticeyeproblems.html"
+    },
+    {
+      "title": "[眼科] 糖尿病眼病预防重点",
+      "content": "控制血糖、血压和血脂，戒烟并定期散瞳检查，是降低糖尿病眼病进展风险的关键。视力改变或飞蚊骤增时应尽快就医。来源：MedlinePlus Diabetic Eye Problems，https://medlineplus.gov/diabeticeyeproblems.html"
+    },
+    {
+      "title": "[眼科] 飞蚊症与警示信号",
+      "content": "飞蚊症可表现为眼前飘动的黑点、线条或蜘蛛网样阴影，多数与玻璃体变化有关，但若突然明显增多并伴闪光感或视野遮挡，应警惕视网膜裂孔或脱离。来源：MedlinePlus Eye floaters，https://medlineplus.gov/ency/article/002085.htm"
+    }
+  ]
+}

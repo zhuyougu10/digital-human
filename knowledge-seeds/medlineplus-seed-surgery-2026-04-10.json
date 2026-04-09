@@ -1,0 +1,65 @@
+{
+  "kbId": 1,
+  "kbName": "公开医学文献精选",
+  "source": "MedlinePlus",
+  "department": "外科",
+  "importedAt": "2026-04-10",
+  "chunks": [
+    {
+      "title": "[外科] 阑尾炎的紧急性",
+      "content": "阑尾炎是阑尾腔阻塞后引起的炎症，典型症状包括右下腹痛、食欲下降、恶心呕吐和低热。若延误治疗，阑尾可能破裂并导致腹膜炎。来源：MedlinePlus Appendicitis，https://medlineplus.gov/appendicitis.html"
+    },
+    {
+      "title": "[外科] 阑尾炎治疗原则",
+      "content": "阑尾炎通常属于外科急症，多数患者需要手术切除阑尾。症状不典型也不能忽视，尤其是腹痛持续加重时。来源：MedlinePlus Appendicitis，https://medlineplus.gov/appendicitis.html"
+    },
+    {
+      "title": "[外科] 胆结石的常见表现",
+      "content": "胆结石是胆汁成分结晶形成的结石，常在进食后引起右上腹或上腹疼痛、恶心、背部放射痛等胆绞痛表现。来源：MedlinePlus Gallstones，https://medlineplus.gov/gallstones.html"
+    },
+    {
+      "title": "[外科] 胆结石的手术适应思路",
+      "content": "无症状胆结石常不需处理，但反复发作、合并胆囊炎或胆道梗阻时，胆囊切除是常见治疗方式。来源：MedlinePlus Gallstones，https://medlineplus.gov/gallstones.html"
+    },
+    {
+      "title": "[外科] 疝的基本概念",
+      "content": "疝是内脏或组织从肌肉薄弱处突出，常见于腹股沟、脐部、切口和食管裂孔部位。可表现为局部包块、疼痛或坠胀感。来源：MedlinePlus Hernia，https://medlineplus.gov/hernia.html"
+    },
+    {
+      "title": "[外科] 疝修补的意义",
+      "content": "多数疝最终需要手术修补，目的是防止疼痛、嵌顿或绞窄等并发症。出现包块无法回纳、剧痛或呕吐时需急诊处理。来源：MedlinePlus Hernia，https://medlineplus.gov/hernia.html"
+    },
+    {
+      "title": "[外科] 烧伤分度与风险",
+      "content": "烧伤可分为一度、二度和三度，严重程度取决于深度和面积。深部或大面积烧伤会造成感染、休克、瘢痕和营养液体丢失等问题。来源：MedlinePlus Burns，https://medlineplus.gov/burns.html"
+    },
+    {
+      "title": "[外科] 严重烧伤的治疗重点",
+      "content": "严重烧伤治疗往往需要清创、补液、感染控制、植皮和营养支持。伴吸入性损伤或电烧伤时风险更高。来源：MedlinePlus Burns，https://medlineplus.gov/burns.html"
+    },
+    {
+      "title": "[外科] 创伤与伤口处理原则",
+      "content": "创伤涵盖切割伤、穿刺伤、挫伤、骨折和电击伤等。严重或污染伤口应重视止血、清创、感染预防和必要时缝合处理。来源：MedlinePlus Wounds and Injuries，https://medlineplus.gov/woundsandinjuries.html"
+    },
+    {
+      "title": "[外科] 伤口感染与术后切口护理",
+      "content": "术后切口或开放伤口如果出现红肿热痛、渗液增多、裂开或发热，需要警惕感染。规范换药和伤口观察是外科恢复的重要环节。来源：MedlinePlus Wounds and Injuries，https://medlineplus.gov/woundsandinjuries.html"
+    },
+    {
+      "title": "[外科] 骨折的识别与固定",
+      "content": "骨折常由跌倒、车祸、运动伤或骨质疏松引起，表现可包括剧痛、畸形、肿胀和活动受限。诊断后常需夹板、石膏或手术固定。来源：MedlinePlus Fracture，https://medlineplus.gov/fractures.html"
+    },
+    {
+      "title": "[外科] 骨折手术适应证",
+      "content": "复杂骨折、开放骨折或移位明显时，可能需要钢板、螺钉或髓内固定等手术。康复训练同样影响最终功能恢复。来源：MedlinePlus Fracture，https://medlineplus.gov/fractures.html"
+    },
+    {
+      "title": "[外科] 甲状腺切除的常见适应证",
+      "content": "甲状腺切除可用于甲状腺癌、甲状腺结节、甲状腺肿或甲状腺毒症等情况。手术范围可为部分切除或全切。来源：MedlinePlus Thyroid gland removal，https://medlineplus.gov/ency/article/002933.htm"
+    },
+    {
+      "title": "[外科] 甲状腺手术风险提示",
+      "content": "甲状腺手术需警惕喉返神经损伤、出血和低钙血症等并发症，术前术后都应做好评估与监测。来源：MedlinePlus Thyroid gland removal，https://medlineplus.gov/ency/article/002933.htm"
+    }
+  ]
+}

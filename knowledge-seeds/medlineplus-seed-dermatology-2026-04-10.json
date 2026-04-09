@@ -1,0 +1,65 @@
+{
+  "kbId": 1,
+  "kbName": "公开医学文献精选",
+  "source": "MedlinePlus",
+  "department": "皮肤科",
+  "importedAt": "2026-04-10",
+  "chunks": [
+    {
+      "title": "[皮肤科] 痤疮的形成机制",
+      "content": "痤疮是毛囊皮脂腺单位堵塞和炎症导致的常见皮肤病，常见于面部、胸背部和肩部。青春期激素变化会增加发病风险。来源：MedlinePlus Acne，https://medlineplus.gov/acne.html"
+    },
+    {
+      "title": "[皮肤科] 痤疮护理与误区",
+      "content": "痤疮并非因为皮肤不干净，也不是巧克力或油腻食物对所有人都会直接导致。管理应注重温和清洁、避免挤压，并在需要时使用外用或口服药物。来源：MedlinePlus Acne，https://medlineplus.gov/acne.html"
+    },
+    {
+      "title": "[皮肤科] 湿疹的基本特征",
+      "content": "湿疹也称皮炎，常表现为皮肤干燥、瘙痒、红斑和反复发作的皮疹，抓挠会进一步加重炎症。常见于面部、肘窝、膝后和手足。来源：MedlinePlus Eczema，https://medlineplus.gov/eczema.html"
+    },
+    {
+      "title": "[皮肤科] 湿疹诱因与长期管理",
+      "content": "湿疹与遗传和环境因素有关，刺激性洗护用品、过敏原、冷干空气和压力都可能加重。治疗强调保湿、避免刺激物和必要时抗炎治疗。来源：MedlinePlus Eczema，https://medlineplus.gov/eczema.html；MedlinePlus Atopic dermatitis，https://medlineplus.gov/ency/article/000853.htm"
+    },
+    {
+      "title": "[皮肤科] 荨麻疹的常见诱因",
+      "content": "荨麻疹是皮肤上突然出现的红色瘙痒风团，常与药物、食物、感染或压力有关。多数会自行缓解，但部分患者会反复发作。来源：MedlinePlus Hives，https://medlineplus.gov/hives.html"
+    },
+    {
+      "title": "[皮肤科] 荨麻疹危险信号",
+      "content": "若荨麻疹伴喉头水肿、喘息或呼吸困难，提示可能发生严重过敏反应，需要紧急处理。普通病例则可在医生指导下使用抗过敏药物。来源：MedlinePlus Hives，https://medlineplus.gov/hives.html"
+    },
+    {
+      "title": "[皮肤科] 接触性皮炎的两大类型",
+      "content": "接触性皮炎可分为刺激性和过敏性两类，常因洗涤剂、化学品、金属、香精、染发剂或植物接触后发生。皮疹常出现在接触部位。来源：MedlinePlus Contact dermatitis，https://medlineplus.gov/ency/article/000869.htm"
+    },
+    {
+      "title": "[皮肤科] 接触性皮炎处理原则",
+      "content": "接触性皮炎治疗核心是尽快识别并避免致敏或刺激物，同时加强保湿，必要时短期使用外用激素或其他抗炎药物。顽固病例可做斑贴试验。来源：MedlinePlus Contact dermatitis，https://medlineplus.gov/ency/article/000869.htm"
+    },
+    {
+      "title": "[皮肤科] 带状疱疹的发病基础",
+      "content": "带状疱疹由水痘-带状疱疹病毒再激活引起，常见于中老年人和免疫功能低下者。典型表现为单侧疼痛和成簇疱疹。来源：MedlinePlus Shingles，https://medlineplus.gov/shingles.html"
+    },
+    {
+      "title": "[皮肤科] 带状疱疹并发症与预防",
+      "content": "带状疱疹可引起带状疱疹后神经痛、眼部受累甚至听力和平衡问题。50 岁及以上人群可按建议接种疫苗降低风险。来源：MedlinePlus Shingles，https://medlineplus.gov/shingles.html"
+    },
+    {
+      "title": "[皮肤科] 疣的病因与常见类型",
+      "content": "疣由 HPV 感染引起，可表现为寻常疣、跖疣、扁平疣等。儿童有时可自行消退，成人则更容易持续存在。来源：MedlinePlus Warts，https://medlineplus.gov/warts.html"
+    },
+    {
+      "title": "[皮肤科] 疣的处理方式",
+      "content": "疣如果疼痛、增多或影响功能，可采用角质剥脱、冷冻、手术或激光等方式处理。治疗前应与其他皮损鉴别。来源：MedlinePlus Warts，https://medlineplus.gov/warts.html"
+    },
+    {
+      "title": "[皮肤科] 真菌感染的高发部位",
+      "content": "真菌感染可累及皮肤、指甲、口腔和肺部，皮肤和甲部感染较常见。免疫功能低下、长期用抗生素和潮湿环境会增加风险。来源：MedlinePlus Fungal Infections，https://medlineplus.gov/fungalinfections.html"
+    },
+    {
+      "title": "[皮肤科] 常见皮肤问题的识别思路",
+      "content": "常见皮肤问题如荨麻疹、湿疹、接触性皮炎、银屑病和干皮病外观不同，持续瘙痒、破溃、感染或诊断不清时应由皮肤科进一步判断。来源：MedlinePlus Magazine Skin 101，https://magazine.medlineplus.gov/article/skin-101-identifying-common-conditions"
+    }
+  ]
+}

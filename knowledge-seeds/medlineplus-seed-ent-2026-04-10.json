@@ -1,0 +1,61 @@
+{
+  "kbId": 1,
+  "kbName": "公开医学文献精选",
+  "source": "MedlinePlus",
+  "department": "耳鼻喉科",
+  "importedAt": "2026-04-10",
+  "chunks": [
+    {
+      "title": "[耳鼻喉科] 过敏性鼻炎常见表现",
+      "content": "过敏性鼻炎也叫花粉热，常见症状包括打喷嚏、流清涕、鼻塞、鼻痒和眼痒流泪。花粉、尘螨、宠物皮屑和霉菌都是常见诱因。来源：MedlinePlus Hay Fever，https://medlineplus.gov/hayfever.html"
+    },
+    {
+      "title": "[耳鼻喉科] 过敏性鼻炎管理要点",
+      "content": "过敏性鼻炎治疗以减少过敏原暴露和药物控制为主，常见药物包括抗组胺药和鼻喷激素。症状反复或明显影响睡眠时应规范评估。来源：MedlinePlus Hay Fever，https://medlineplus.gov/hayfever.html"
+    },
+    {
+      "title": "[耳鼻喉科] 鼻窦炎的典型症状",
+      "content": "鼻窦炎常表现为面部压痛、鼻塞、脓性鼻涕、嗅觉下降、头痛和咳嗽。感冒后症状迁延不愈或加重时，需要考虑鼻窦炎。来源：MedlinePlus Sinusitis，https://medlineplus.gov/sinusitis.html"
+    },
+    {
+      "title": "[耳鼻喉科] 鼻窦炎处理原则",
+      "content": "鼻窦炎很多由病毒感染后继发炎症引起，部分病例会自行改善。若高热、严重面痛、症状持续较久或反复发作，应进一步就医判断是否需要抗菌或其他治疗。来源：MedlinePlus Sinusitis，https://medlineplus.gov/sinusitis.html"
+    },
+    {
+      "title": "[耳鼻喉科] 咽痛的常见病因",
+      "content": "咽痛可由病毒感染、链球菌感染、过敏、空气干燥或胃食管反流等引起。伴高热、吞咽明显困难或颈部肿块时需要及时评估。来源：MedlinePlus Sore Throat，https://medlineplus.gov/sorethroat.html"
+    },
+    {
+      "title": "[耳鼻喉科] 扁桃体炎识别与处理",
+      "content": "扁桃体炎常见于儿童和青少年，可表现为咽痛、发热、吞咽困难、口臭和颈部淋巴结肿大。病因可为病毒或细菌，治疗取决于病原和病情严重程度。来源：MedlinePlus Tonsillitis，https://medlineplus.gov/tonsillitis.html"
+    },
+    {
+      "title": "[耳鼻喉科] 耳鸣的表现与影响",
+      "content": "耳鸣是没有外界声源却感觉耳内有嗡嗡声、铃声或嘶嘶声，可能间断或持续存在。它会影响睡眠、注意力和情绪。来源：MedlinePlus Tinnitus，https://medlineplus.gov/tinnitus.html"
+    },
+    {
+      "title": "[耳鼻喉科] 耳鸣常见原因与就医建议",
+      "content": "耳鸣可与噪声暴露、年龄相关听力下降、耳垢堵塞、药物或耳部疾病有关。若耳鸣突发、单侧明显或伴听力下降、眩晕，应尽快就医。来源：MedlinePlus Tinnitus，https://medlineplus.gov/tinnitus.html"
+    },
+    {
+      "title": "[耳鼻喉科] 听力障碍的高风险因素",
+      "content": "听力障碍可由遗传、感染、老化、药物毒性、噪声暴露和外伤引起。持续噪声环境和未经保护的高音量耳机使用会显著增加风险。来源：MedlinePlus Hearing Disorders and Deafness，https://medlineplus.gov/hearingdisordersanddeafness.html"
+    },
+    {
+      "title": "[耳鼻喉科] 听力障碍干预方式",
+      "content": "听力障碍评估通常包括听力学检查，治疗可包括助听器、人工耳蜗、病因治疗及语言康复。越早识别越有利于沟通和功能保留。来源：MedlinePlus Hearing Disorders and Deafness，https://medlineplus.gov/hearingdisordersanddeafness.html"
+    },
+    {
+      "title": "[耳鼻喉科] 鼻部损伤与常见鼻部问题",
+      "content": "鼻部问题包括鼻出血、鼻塞、鼻部外伤和结构异常等。鼻骨受伤后如果明显肿胀、出血不止或外形改变，应及时评估是否骨折或血肿。来源：MedlinePlus Nose Injuries and Disorders，https://medlineplus.gov/noseinjuriesanddisorders.html"
+    },
+    {
+      "title": "[耳鼻喉科] 睡眠呼吸暂停的危险信号",
+      "content": "睡眠呼吸暂停常表现为打鼾、睡眠中呼吸暂停、白天嗜睡和晨起头痛。肥胖、上气道狭窄和扁桃体肥大是常见相关因素。来源：MedlinePlus Sleep Apnea，https://medlineplus.gov/sleepapnea.html"
+    },
+    {
+      "title": "[耳鼻喉科] 睡眠呼吸暂停管理重点",
+      "content": "睡眠呼吸暂停若长期未控制，可增加高血压、心血管事件和交通事故风险。治疗可包括减重、持续气道正压通气和部分上气道手术。来源：MedlinePlus Sleep Apnea，https://medlineplus.gov/sleepapnea.html"
+    }
+  ]
+}

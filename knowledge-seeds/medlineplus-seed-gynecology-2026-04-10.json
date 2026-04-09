@@ -1,0 +1,73 @@
+{
+  "kbId": 1,
+  "kbName": "公开医学文献精选",
+  "source": "MedlinePlus",
+  "department": "妇产科",
+  "importedAt": "2026-04-10",
+  "chunks": [
+    {
+      "title": "[妇产科] 妊娠基础与规律产检的重要性",
+      "content": "妊娠期间母体会出现一系列生理变化，规律产检有助于尽早发现胎儿发育异常、孕妇并发症和高危因素。出现阴道流血、剧烈腹痛、胎动明显减少等情况应及时就医。来源：MedlinePlus Pregnancy，https://medlineplus.gov/pregnancy.html"
+    },
+    {
+      "title": "[妇产科] 妊娠期健康管理要点",
+      "content": "孕期管理重点包括均衡饮食、补充叶酸、避免烟酒和部分药物、控制体重增长，并按建议接受血压、血糖和胎儿发育评估。来源：MedlinePlus Pregnancy，https://medlineplus.gov/pregnancy.html"
+    },
+    {
+      "title": "[妇产科] 妊娠期糖尿病风险与影响",
+      "content": "妊娠期糖尿病是孕期出现的高血糖状态，超重、家族史、既往妊娠糖尿病史等会增加风险。若控制不佳，可能增加巨大儿、难产和母婴并发症风险。来源：MedlinePlus Diabetes and Pregnancy，https://medlineplus.gov/diabetesandpregnancy.html"
+    },
+    {
+      "title": "[妇产科] 妊娠期糖尿病管理原则",
+      "content": "妊娠期糖尿病管理通常包括饮食调整、血糖监测、规律运动和必要时药物治疗。多数患者在分娩后血糖可改善，但未来发生 2 型糖尿病风险仍增高。来源：MedlinePlus Diabetes and Pregnancy，https://medlineplus.gov/diabetesandpregnancy.html"
+    },
+    {
+      "title": "[妇产科] 妊娠期高血压的危险性",
+      "content": "妊娠期高血压可表现为孕期新发高血压，严重时可进展为先兆子痫并危及母婴安全。头痛、视物模糊、上腹痛和突发水肿等症状需要及时评估。来源：MedlinePlus High Blood Pressure in Pregnancy，https://medlineplus.gov/highbloodpressureinpregnancy.html"
+    },
+    {
+      "title": "[妇产科] 妊娠期高血压监测与干预",
+      "content": "妊娠期高血压需要密切监测血压、尿蛋白和胎儿情况，治疗目标是降低母体并发症风险并兼顾胎儿安全。部分患者需要药物控制或提前分娩。来源：MedlinePlus High Blood Pressure in Pregnancy，https://medlineplus.gov/highbloodpressureinpregnancy.html"
+    },
+    {
+      "title": "[妇产科] 子宫内膜异位症常见表现",
+      "content": "子宫内膜异位症是类似子宫内膜的组织生长在子宫以外，引起痛经、慢性盆腔痛、性交痛和不孕等问题。症状轻重与病灶范围并不总是完全一致。来源：MedlinePlus Endometriosis，https://medlineplus.gov/endometriosis.html"
+    },
+    {
+      "title": "[妇产科] 子宫内膜异位症治疗思路",
+      "content": "子宫内膜异位症治疗需结合疼痛程度、生育需求和病灶范围，可采用止痛药、激素治疗或手术。目标是减轻症状、改善生活质量并尽量保留生育功能。来源：MedlinePlus Endometriosis，https://medlineplus.gov/endometriosis.html"
+    },
+    {
+      "title": "[妇产科] 阴道疾病与阴道炎常见诱因",
+      "content": "阴道不适、异常分泌物、异味、瘙痒和灼热感常见于阴道炎或其他阴道疾病。感染、激素变化、清洁方式不当和刺激物都可能是诱因。来源：MedlinePlus Vaginal Diseases，https://medlineplus.gov/vaginaldiseases.html；MedlinePlus Vulvovaginitis，https://medlineplus.gov/ency/article/000897.htm"
+    },
+    {
+      "title": "[妇产科] 阴道炎评估与处理原则",
+      "content": "阴道炎治疗应根据病因决定，细菌、真菌和寄生虫感染处理方式不同，不建议自行长期用药掩盖症状。反复发作、伴出血或盆腔痛时需进一步检查。来源：MedlinePlus Vaginal Diseases，https://medlineplus.gov/vaginaldiseases.html；MedlinePlus Vulvovaginitis，https://medlineplus.gov/ency/article/000897.htm"
+    },
+    {
+      "title": "[妇产科] 多囊卵巢综合征的核心特征",
+      "content": "多囊卵巢综合征常见表现包括月经不规则、排卵异常、高雄激素相关表现和不孕。它还与胰岛素抵抗、肥胖和代谢异常风险增加有关。来源：MedlinePlus Polycystic Ovary Syndrome，https://medlineplus.gov/polycysticovarysyndrome.html"
+    },
+    {
+      "title": "[妇产科] 多囊卵巢综合征长期管理",
+      "content": "多囊卵巢综合征管理强调体重控制、运动、月经周期管理和代谢风险评估，有生育需求者可接受促排卵等治疗。长期随访有助于降低糖尿病和心血管风险。来源：MedlinePlus Polycystic Ovary Syndrome，https://medlineplus.gov/polycysticovarysyndrome.html"
+    },
+    {
+      "title": "[妇产科] 子宫肌瘤常见表现与影响",
+      "content": "子宫肌瘤是常见的良性子宫肿瘤，可引起月经过多、盆腔压迫感、尿频、便秘或不孕。许多肌瘤无明显症状，但部分会显著影响生活质量。来源：MedlinePlus Uterine Fibroids，https://medlineplus.gov/uterinefibroids.html"
+    },
+    {
+      "title": "[妇产科] 子宫肌瘤治疗选择",
+      "content": "子宫肌瘤治疗取决于症状、年龄、肌瘤大小位置及生育计划，可选择观察、药物、微创介入或手术。症状明显或影响生育时需个体化处理。来源：MedlinePlus Uterine Fibroids，https://medlineplus.gov/uterinefibroids.html"
+    },
+    {
+      "title": "[妇产科] 痛经与继发性闭经的识别",
+      "content": "痛经可为原发性，也可能提示子宫内膜异位症等继发原因；继发性闭经指曾有月经后停经数月，需要排查妊娠、内分泌异常和器质性疾病。来源：MedlinePlus Period Pain，https://medlineplus.gov/periodpain.html；MedlinePlus Secondary amenorrhea，https://medlineplus.gov/ency/article/001219.htm"
+    },
+    {
+      "title": "[妇产科] 更年期常见症状与健康关注点",
+      "content": "更年期与围绝经期常出现潮热、睡眠障碍、情绪波动、阴道干涩和月经改变。长期还需关注骨质疏松和心血管健康，必要时进行激素或非激素干预。来源：MedlinePlus Magazine Menopause，https://magazine.medlineplus.gov/topic/menopause"
+    }
+  ]
+}

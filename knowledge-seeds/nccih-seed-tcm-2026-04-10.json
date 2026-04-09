@@ -1,0 +1,57 @@
+{
+  "kbId": 1,
+  "kbName": "公开医学文献精选",
+  "source": "NCCIH",
+  "department": "中医科",
+  "importedAt": "2026-04-10",
+  "chunks": [
+    {
+      "title": "[中医科] 传统中医的基本构成",
+      "content": "传统中医经过长期发展，常见实践方式包括针灸、太极以及中草药产品。现代使用时应把它们视为具体干预手段，而不是笼统等同于统一疗效。来源：NCCIH Traditional Chinese Medicine: What You Need To Know，https://www.nccih.nih.gov/health/traditional-chinese-medicine-what-you-need-to-know"
+    },
+    {
+      "title": "[中医科] 中医相关疗法的证据差异",
+      "content": "不同中医相关疗法的科学证据强弱并不一样。NCCIH 指出，针灸和太极在部分适应证上证据相对较多，而中草药对很多疾病的证据质量仍不足以下确定结论。来源：NCCIH Traditional Chinese Medicine: What You Need To Know，https://www.nccih.nih.gov/health/traditional-chinese-medicine-what-you-need-to-know"
+    },
+    {
+      "title": "[中医科] 针灸的基本方式",
+      "content": "针灸通常通过将细针刺入皮肤特定部位进行治疗，可手法操作，也可结合电刺激。它起源于传统中医，但现代研究主要按具体症状和结局来评估。来源：NCCIH Acupuncture: Effectiveness and Safety，https://www.nccih.nih.gov/health/acupuncture-effectiveness-and-safety"
+    },
+    {
+      "title": "[中医科] 针灸对慢性疼痛的证据",
+      "content": "研究显示，针灸对部分疼痛性疾病可能有帮助，如慢性腰背痛、颈痛、骨关节炎相关膝痛以及术后疼痛。与无治疗相比获益更明显，但与假针灸相比差异通常较小。来源：NCCIH Acupuncture: Effectiveness and Safety，https://www.nccih.nih.gov/health/acupuncture-effectiveness-and-safety"
+    },
+    {
+      "title": "[中医科] 针灸与头痛偏头痛管理",
+      "content": "中等质量证据提示，针灸可能减少偏头痛和紧张型头痛的发作频率，也有研究显示它在部分患者中的耐受性优于药物预防。实际应用仍需结合常规神经科评估。来源：NCCIH Acupuncture: Effectiveness and Safety，https://www.nccih.nih.gov/health/acupuncture-effectiveness-and-safety"
+    },
+    {
+      "title": "[中医科] 针灸安全性与就医边界",
+      "content": "针灸总体上相对安全，但前提是由训练合格人员使用无菌技术实施。若患者存在急腹症、创伤、肿瘤警示症状或严重感染，不能以针灸替代必要的现代医学诊治。来源：NCCIH Acupuncture: Effectiveness and Safety，https://www.nccih.nih.gov/health/acupuncture-effectiveness-and-safety"
+    },
+    {
+      "title": "[中医科] 太极的核心特点",
+      "content": "太极结合缓慢柔和动作、身体姿势、呼吸控制和专注状态，已从传统武术逐渐演变为健康促进与康复训练手段。来源：NCCIH Tai Chi: What You Need To Know，https://www.nccih.nih.gov/health/tai-chi-what-you-need-to-know"
+    },
+    {
+      "title": "[中医科] 太极与跌倒预防",
+      "content": "研究提示，太极可能改善平衡并减少老年人跌倒，也可能帮助帕金森病患者降低跌倒风险。对卒中后和部分其他疾病人群的证据仍需更多高质量研究。来源：NCCIH Tai Chi: What You Need To Know，https://www.nccih.nih.gov/health/tai-chi-what-you-need-to-know"
+    },
+    {
+      "title": "[中医科] 太极与慢性疼痛管理",
+      "content": "现有研究提示，太极可能改善膝骨关节炎疼痛和僵硬，并对纤维肌痛、慢性下背痛等症状有一定帮助。它更适合作为综合康复和运动处方的一部分。来源：NCCIH Tai Chi: What You Need To Know，https://www.nccih.nih.gov/health/tai-chi-what-you-need-to-know"
+    },
+    {
+      "title": "[中医科] 太极与慢病康复",
+      "content": "部分研究显示，太极可能改善慢阻肺患者运动能力和生活质量，也可能对心力衰竭患者的生活质量与情绪有益，但不同疾病证据强度并不一致。来源：NCCIH Traditional Chinese Medicine: What You Need To Know，https://www.nccih.nih.gov/health/traditional-chinese-medicine-what-you-need-to-know；NCCIH Tai Chi: What You Need To Know，https://www.nccih.nih.gov/health/tai-chi-what-you-need-to-know"
+    },
+    {
+      "title": "[中医科] 中草药产品的证据现状",
+      "content": "中草药产品已被研究用于卒中、心脏病、精神障碍和呼吸系统疾病等，但由于许多研究质量有限，目前通常无法对其疗效下确定结论。来源：NCCIH Traditional Chinese Medicine: What You Need To Know，https://www.nccih.nih.gov/health/traditional-chinese-medicine-what-you-need-to-know"
+    },
+    {
+      "title": "[中医科] 使用中草药产品的安全提醒",
+      "content": "草药并不等于绝对安全，不同产品的成分、纯度和相互作用风险可能不同。NCCIH 建议在使用草药或植物补充剂前关注潜在副作用、用药相互作用和来源可靠性。来源：NCCIH Herbs at a Glance，https://www.nccih.nih.gov/health/herbsataglance"
+    }
+  ]
+}
