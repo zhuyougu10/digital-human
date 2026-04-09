@@ -1,5 +1,6 @@
 FROM docker.m.daocloud.io/node:20-alpine AS build
 WORKDIR /app
+RUN npm config set registry https://registry.npmmirror.com
 COPY package*.json ./
 RUN npm install
 COPY . .
