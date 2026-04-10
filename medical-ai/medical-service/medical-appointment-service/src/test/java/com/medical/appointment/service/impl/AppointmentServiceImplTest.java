@@ -233,4 +233,63 @@ class AppointmentServiceImplTest {
         verify(appointmentMapper).updateById(appointment);
         verify(appointmentEventOutboxService).saveCancelledEvent(appointment);
     }
+
+    @Test
+    void getDoctorAppointments_shouldResolveDoctorProfileIdFromUserId() {
+        Appointment appointment = new Appointment();
+        appointment.setId(300L);
+        appointment.setDoctorId(2L);
+        appointment.setPatientId(38L);
+        appointment.setAppointmentDate(LocalDate.of(2026, 4, 11));
+        appointment.setStartTime(LocalTime.of(8, 0));
+        appointment.setEndTime(LocalTime.of(12, 0));
+        appointment.setStatus(0);
+
+        DoctorInfoDTO currentDoctor = new DoctorInfoDTO();
+        currentDoctor.setId(2L);
+        currentDoctor.setUserId(15L);
+        currentDoctor.setName("黄凯");
+
+        when(remoteDoctorService.getDoctorByUserId(15L)).thenReturn(R.ok(currentDoctor));
+        when(appointmentMapper.selectList(any())).thenReturn(List.of(appointment));
+        when(remoteDoctorService.getDoctorById(2L)).thenReturn(R.ok(currentDoctor));
+
+        var result = appointmentService.getDoctorAppointments(15L, LocalDate.of(2026, 4, 11));
+
+        assertEquals(1, result.size());
+        assertEquals(300L, result.get(0).getId());
+        assertEquals("黄凯", result.get(0).getDoctorName());
+    }
+
+    @Test
+    void getDoctorAppointments_shouldThrowWhenDoctorProfileDoesNotExist() {
+        when(remoteDoctorService.getDoctorByUserId(99L)).thenReturn(R.ok(null));
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> appointmentService.getDoctorAppointments(99L, LocalDate.of(2026, 4, 11)));
+
+        assertEquals(ErrorCode.DOCTOR_NOT_FOUND.getCode(), ex.getCode());
+    }
+
+    @Test
+    void getAppointmentDetail_shouldAllowDoctorUserWhoseProfileOwnsAppointment() {
+        Appointment appointment = new Appointment();
+        appointment.setId(301L);
+        appointment.setDoctorId(2L);
+        appointment.setPatientId(38L);
+        appointment.setAppointmentDate(LocalDate.of(2026, 4, 11));
+        appointment.setStartTime(LocalTime.of(8, 0));
+        appointment.setEndTime(LocalTime.of(12, 0));
+        appointment.setStatus(0);
+
+        DoctorInfoDTO doctorInfo = new DoctorInfoDTO();
+        doctorInfo.setId(2L);
+        doctorInfo.setUserId(15L);
+        doctorInfo.setName("黄凯");
+
+        when(appointmentMapper.selectById(301L)).thenReturn(appointment);
+        when(remoteDoctorService.getDoctorById(2L)).thenReturn(R.ok(doctorInfo));
+
+        assertEquals(301L, appointmentService.getAppointmentDetail(301L, 15L).getId());
+    }
 }

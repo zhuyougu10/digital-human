@@ -13,6 +13,9 @@ public interface RemoteDoctorService {
     @GetMapping("/inner/{doctorId}")
     R<DoctorInfoDTO> getDoctorById(@PathVariable("doctorId") Long doctorId);
 
+    @GetMapping("/inner/by-user/{userId}")
+    R<DoctorInfoDTO> getDoctorByUserId(@PathVariable("userId") Long userId);
+
     @GetMapping("/inner/search")
     R<List<DoctorInfoDTO>> searchBySymptom(@RequestParam("keywords") String keywords);
 }

@@ -76,6 +76,16 @@ public class DoctorController {
     @GetMapping("/inner/{doctorId}")
     public R<DoctorInfoDTO> getInnerById(@PathVariable Long doctorId) {
         DoctorVO vo = doctorProfileService.getById(doctorId);
+        return R.ok(toDoctorInfoDTO(vo));
+    }
+
+    @GetMapping("/inner/by-user/{userId}")
+    public R<DoctorInfoDTO> getInnerByUserId(@PathVariable Long userId) {
+        DoctorVO vo = doctorProfileService.getByUserId(userId);
+        return R.ok(toDoctorInfoDTO(vo));
+    }
+
+    private DoctorInfoDTO toDoctorInfoDTO(DoctorVO vo) {
         DoctorInfoDTO dto = new DoctorInfoDTO();
         dto.setId(vo.getId());
         dto.setUserId(vo.getUserId());
@@ -89,7 +99,7 @@ public class DoctorController {
                 .map(d -> d.getName() == null ? "" : d.getName())
                 .filter(s -> !s.isEmpty())
                 .collect(Collectors.joining(",")));
-        return R.ok(dto);
+        return dto;
     }
 
     @GetMapping("/inner/search")

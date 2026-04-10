@@ -187,10 +187,15 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     @Override
-    public List<AppointmentVO> getDoctorAppointments(Long doctorId, LocalDate date) {
+    public List<AppointmentVO> getDoctorAppointments(Long doctorUserId, LocalDate date) {
+        DoctorInfoDTO currentDoctor = fetchDoctorInfoByUserId(doctorUserId);
+        if (currentDoctor == null || currentDoctor.getId() == null) {
+            throw new BusinessException(ErrorCode.DOCTOR_NOT_FOUND);
+        }
+
         List<Appointment> appointments = appointmentMapper.selectList(
                 new LambdaQueryWrapper<Appointment>()
-                        .eq(Appointment::getDoctorId, doctorId)
+                        .eq(Appointment::getDoctorId, currentDoctor.getId())
                         .eq(date != null, Appointment::getAppointmentDate, date)
                         .eq(Appointment::getDeleted, 0)
                         .orderByAsc(Appointment::getStartTime));
@@ -206,7 +211,9 @@ public class AppointmentServiceImpl implements AppointmentService {
         if (appointment == null || Objects.equals(appointment.getDeleted(), 1)) {
             throw new BusinessException(ErrorCode.APPOINTMENT_NOT_FOUND);
         }
-        if (!Objects.equals(appointment.getPatientId(), userId) && !Objects.equals(appointment.getDoctorId(), userId)) {
+        boolean isPatientOwner = Objects.equals(appointment.getPatientId(), userId);
+        boolean isDoctorOwner = isAppointmentDoctorOwner(appointment, userId);
+        if (!isPatientOwner && !isDoctorOwner) {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
         return toVO(appointment);
@@ -404,6 +411,25 @@ public class AppointmentServiceImpl implements AppointmentService {
             return null;
         }
         return doctorResp.getData();
+    }
+
+    private DoctorInfoDTO fetchDoctorInfoByUserId(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        R<DoctorInfoDTO> doctorResp = remoteDoctorService.getDoctorByUserId(userId);
+        if (doctorResp == null || !doctorResp.isSuccess()) {
+            return null;
+        }
+        return doctorResp.getData();
+    }
+
+    private boolean isAppointmentDoctorOwner(Appointment appointment, Long userId) {
+        if (appointment == null || appointment.getDoctorId() == null || userId == null) {
+            return false;
+        }
+        DoctorInfoDTO doctorInfo = fetchDoctorInfo(appointment.getDoctorId());
+        return doctorInfo != null && Objects.equals(doctorInfo.getUserId(), userId);
     }
 
     private UserInfoDTO fetchUserInfo(Long userId) {
