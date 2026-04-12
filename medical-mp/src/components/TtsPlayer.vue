@@ -13,6 +13,14 @@ const props = defineProps<{
   ttsUrl: string
 }>()
 
+const emit = defineEmits<{
+  play: []
+  pause: []
+  stop: []
+  ended: []
+  error: []
+}>()
+
 const isPlaying = ref(false)
 let audioContext: UniApp.InnerAudioContext | null = null
 
@@ -31,22 +39,27 @@ const bindAudioEvents = () => {
   audioContext.onPlay(() => {
     isPlaying.value = true
     postLive2dMessage('START_LIPSYNC')
+    emit('play')
   })
   audioContext.onPause(() => {
     isPlaying.value = false
     postLive2dMessage('STOP_LIPSYNC')
+    emit('pause')
   })
   audioContext.onStop(() => {
     isPlaying.value = false
     postLive2dMessage('STOP_LIPSYNC')
+    emit('stop')
   })
   audioContext.onEnded(() => {
     isPlaying.value = false
     postLive2dMessage('STOP_LIPSYNC')
+    emit('ended')
   })
   audioContext.onError(() => {
     isPlaying.value = false
     postLive2dMessage('STOP_LIPSYNC')
+    emit('error')
     uni.showToast({ title: '语音播放失败', icon: 'none' })
   })
 }

@@ -192,8 +192,15 @@ class Container extends MiniEmitter {
 
 class Texture {}
 
+const urlResolve = (base, relative) => {
+  if (/^https?:\/\//i.test(relative) || /^\//i.test(relative)) return relative
+  const baseParts = base.split('/')
+  baseParts.pop() // remove filename
+  return baseParts.join('/') + '/' + relative
+}
+
 const createPixiShim = () => ({
-  utils: { EventEmitter: MiniEmitter },
+  utils: { EventEmitter: MiniEmitter, url: { resolve: urlResolve } },
   EventEmitter: MiniEmitter,
   Matrix,
   Transform,
@@ -257,7 +264,11 @@ export const setupWeappCanvasAdapter = async (canvas) => {
       ? canvas.cancelAnimationFrame.bind(canvas)
       : (id) => clearTimeout(id))
 
-    runtimePromise = import('./vendor/cubism4.js').then(() => globalThis.PIXI.live2d)
+    runtimePromise = new Promise((resolve) => {
+      require('./live2dcubismcore.min.js')
+      require('./vendor/cubism4.js')
+      resolve(globalThis.PIXI.live2d)
+    })
   } else {
     try { globalThis.document = createDocumentShim(canvas) } catch (e) { /* read-only */ }
   }

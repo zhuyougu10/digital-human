@@ -1,108 +1,76 @@
-# Task Plan: AI 数字人医疗小助手系统
+# Task Plan: 微信小程序原生 Canvas WebGL 渲染 Live2D
 
-## Goal
-构建基于 Spring Cloud + Spring AI + RAG + AI Agents + Vue3 + UniApp 的 AI 数字人医疗小助手系统（毕业设计）
+## 背景
+微信小程序个人开发者无法使用 `web-view` 组件。当前 `chat.vue` 通过 `web-view` 嵌入 `live2d-h5` 页面来渲染 Live2D 数字人并提供聊天 UI。需要将 Live2D 渲染和聊天 UI 全部迁移到小程序原生实现。
 
-## Current Phase
-Phase 34 — Redis 缓存与高并发支撑实现 (Chunk 1-3) — in_progress
+## 技术决策
+- 放弃 pixi.js + pixi-live2d-display 路线（对浏览器 DOM 依赖太深，shim 成本极高）
+- 改用 **Cubism SDK for Web 底层 WebGL 渲染** + 小程序 `<canvas type="webgl">` 直接绘制
+- 聊天 UI 从 H5 迁回小程序原生组件
 
-## Current Session Checklist
+## 当前模型信息
+- 格式：Cubism 4（`.model3.json` / `.moc3`）
+- 模型：`wariza.model3.json`
+- 纹理：`Wariza.4096/texture_00.png`（4096px）
+- 表情：7 个 `.exp3.json`
+- 动作：3 个 `.motion3.json`（idle + shake hand）
+- 物理：`Wariza.physics3.json`
+- Core SDK：`live2dcubismcore.min.js`（已有）
 
-- [x] Chunk 5 / Task 10：补齐 `tests/test_11_rabbitmq_side_effects.py`，支持单文件独立准备 patient/doctor/slot 上下文并验证 create/cancel 的 outbox→notification/audit 副作用
-- [x] Chunk 5 / Task 11：完成 Python 语法检查、`medical-appointment-service` 单测回归、全量 Maven 打包
-- [x] Chunk 5 / Task 12：完成 Docker 运行态验证，手工补齐旧 MySQL volume 的 RabbitMQ 副作用表结构后执行 `pytest tests/test_11_rabbitmq_side_effects.py -v`
-- [x] 盘点运行中的服务、容器、路由与业务模块数量
-- [x] 识别核心接口与已有测试/脚本入口
-- [x] 测量核心接口响应时间、SSE 首包/全程耗时、知识检索表现
-- [x] 验证导诊到挂号闭环成功率与稳定性压测结果
-- [x] 汇总部署效率、覆盖范围与证据来源
+## 阶段
 
-## Phase Summary
+### Phase 1: 前端 — 小程序 Canvas WebGL 适配层 + Live2D 渲染 [status: ready]
+**执行者：Codex**（这个任务核心是 JS/WebGL 底层适配，不是 UI 设计）
 
-| # | Phase | 描述 | Status |
-|---|-------|------|--------|
-| 1 | Requirements & Discovery | 架构方案对比、设计文档 | complete |
-| 2 | Planning & Task Decomposition | 12 个实施计划 (docs/plans/00~11) | complete |
-| 3 | Implementation | 01~11 全模块 TDD 开发 (~230 微任务) | complete |
-| 4 | Testing & Verification | 端到端联调 12/12 PASS | complete |
-| 5 | Delivery | README/部署/数据库/API/用户文档 | complete |
-| 6 | API 联调审查与修复 | 5 批审查 + 8 批修复 (C1~C11, M1~M9) | complete |
-| 7 | Mock 数据修复 | 9 项 mock→真实 API 替换 | complete |
-| 8 | Final Review & Polishing | UI/文档/临时文件清理 | complete |
-| 9 | 接口测试 | 109 用例全 GREEN (H2 隔离) | complete |
-| 10 | Admin UI 重构美化 | 「医疗级 SaaS」设计系统, 20 个 .vue | complete |
-| 11 | 真实接口集成测试 (Python) | 58 PASSED, 2 SKIPPED, 0 FAILED | complete |
-| 12 | Feature Enhancements | 用户/排班/知识库/百科/RAG/Markdown 等 16 轮修复 | complete |
-| 13 | 小程序 UI 重构与数字人集成 | 全量 H5 + Live2D + 口型同步 | complete |
-| 14 | 智能导诊功能修复 | patientId 注入 + SSE 解析 + 消息类型 | complete |
-| 15 | 医生数据补充与导诊闭环 | 10 医生/100 模板/120 号源, 5 轮 SSE 全通 | complete |
-| 16 | 小程序与服务端对接审查 | 4C+3M+2L 修复 | complete |
-| 17 | 数字人消息发送无响应 | H5 直连后端 SSE (绕过 postMessage) | complete |
-| 18 | H5 SSE 跨域被拦截 | OPTIONS 放行 + apiBase 透传 | complete |
-| 19 | H5 聊天界面优化 | 医疗蓝+绿双色系 redesign | complete |
-| 20 | 小程序全页面 UI 优化 | 4 批 Gemini 并行 | complete |
-| 21 | CosyVoice TTS 集成 | DashScope SDK 替换 NLS | complete |
-| 22 | TTS WebSocket 依赖修复 | 恢复 dashscope okhttp 传递依赖 | complete |
-| 23 | H5 TTS 无声修复 | 鉴权 fetch + blob 播放 + CORS 去重 | complete |
-| 24 | 小程序功能增强 | TTS 分段合成/历史记录/会话管理/音频队列 | complete |
-| 25 | SSE+TTS 卡死修复 | complete→tts 解耦 + 30s 超时 + AbortController | complete |
-| 27 | 系统指标盘点与验证 | 运行态规模、接口时延、SSE、闭环、稳定性、部署效率、覆盖证据汇总 | complete |
-| 28 | 知识检索 5003/404 排障 | 定位并修复 knowledge-service DashScope embedding `base-url` 缺少 `/v1` 的问题 | complete |
-| 29 | Sentinel 限流与熔断降级保护 | 完成 gateway 入口限流、AI/知识检索熔断降级、预约/号源热点保护的首批本地规则落地 | complete |
-| 30 | Seata 分布式事务设计与实施计划 | 完成 AT 模式方案设计、spec review 与实施计划编写 | complete |
-| 32 | RabbitMQ 异步副作用实现与运行态验收 | 完成预约 create/cancel 的 outbox 发布、副作用消费者落地、Docker/pytest 运行态验证 | complete |
-| 33 | Redis 缓存与高并发支撑设计 | 完成缓存优先、并发保护辅助的 Redis 方案设计 | complete |
-| 34 | Redis 缓存与高并发支撑实现 | 医生/科室/号源缓存 + 预约防重复提交 | in_progress |
+工作内容：
+1. 创建 `src/lib/weapp-canvas-adapter.js` — 小程序 canvas 环境 shim
+   - 模拟 `HTMLCanvasElement`、`Image`、`document.createElement` 等 Cubism SDK 依赖的浏览器 API
+   - 包装小程序 `wx.createOffscreenCanvas`、`wx.createImage` 等
+2. 创建 `src/lib/cubism-renderer.js` — 基于 Cubism SDK 原生 WebGL 渲染
+   - 加载 `.model3.json` → `.moc3` → 纹理 → 创建模型实例
+   - 每帧更新物理、动作、表情
+   - 渲染到小程序 WebGL canvas
+3. 创建 `src/lib/live2d-lip-sync.js` — 口型同步（从 H5 版 `tts-lip-sync.js` 迁移）
+4. 将 `live2dcubismcore.min.js` 复制到 `src/lib/`
+5. 模型资源从 `live2d-h5/public/models/` 复制到 `static/models/`
 
-## Key Decisions
+验收标准：
+- 小程序里 `<canvas type="webgl">` 能加载并渲染 Live2D 模型
+- idle 动作正常播放
+- 表情切换正常
+- 口型同步参数可驱动
 
-| Decision | Rationale |
-|----------|-----------|
-| 5 微服务拆分 (user/doctor/ai/appointment/knowledge) | 平衡毕设规模与微服务实践 |
-| Spring AI M5 手动注入 FunctionCallbackResolver | 自动配置不支持 tool 注册 |
-| 方案 A：全量 H5 聊天 UI | 解决 web-view 遮挡原生 UI |
-| PixiJS v6 + Ticker 注册 | pixi-live2d-display 兼容性 |
-| SSE complete 与 TTS 解耦 | 防止 TTS 阻塞文字流 |
-| H5 直连后端 SSE | 绕过 postMessage 不实时的限制 |
-| 后续验证避免使用 pytest 满量回归 | 按用户要求改为最小必要验证，优先定向检查 |
-| 后续复杂工作不用 task-router MCP 派发 | 按用户要求改用内置子代理协作 |
+### Phase 2: 前端 — 重写 chat.vue 原生聊天页 [status: ready]
+**执行者：Codex**（涉及小程序 canvas + SSE + 状态管理，属于全栈工作）
 
-## Critical Errors Reference
+工作内容：
+1. 重写 `src/pages/chat/chat.vue`
+   - 去掉 `web-view`
+   - 上半屏：`<canvas type="webgl">` 渲染 Live2D
+   - 下半屏：原生聊天消息列表 + 输入框
+2. SSE 聊天逻辑保持不变（复用现有 `createSSERequest`）
+3. TTS 播放保持不变（复用 `TtsPlayer` 组件）
+4. 聊天消息渲染复用 `ChatMessage` 组件
+5. 新会话、历史消息加载等逻辑从 H5 版迁移过来
 
-| Error | Resolution |
-|-------|------------|
-| Sa-Token `token-name` 同时作 HTTP header 和 Redis key 前缀 | 统一 5 服务 sa-token 配置 |
-| Milvus OkHttp/Kotlin classpath 冲突 | 排除 okhttp 传递依赖 |
-| Tika + Milvus Jetty 冲突 | 排除 jetty-client |
-| Spring AI M5 FunctionCallbackResolver | 手动注入到 OpenAiChatModel 构造器 |
-| DashScope TTS 需要 OkHttp WebSocket | 仅恢复 dashscope-sdk 的 okhttp 依赖 |
-| TTS 同步阻塞 SSE Flux | 拆分为 complete + 异步 tts 事件, 30s timeout |
-| Codex PowerShell 写 UTF-8 BOM | 合并后 Python 脚本批量移除 |
-| `.publishOn(Schedulers.boundedElastic())` 必须紧跟 `chatModel.stream()` | 否则 tool call 在 Netty IO 线程 block |
+验收标准：
+- 页面无 `web-view`
+- Live2D 渲染正常
+- 聊天发送、流式接收、TTS 播放均正常
+- 历史消息加载正常
+- 新会话创建正常
 
-## Notes
-- 项目 docs/plans/ 下有 12 个详细实施计划 (00-overview ~ 11-docker-deploy)
-- 全部 230+ 微任务已完成
-- 2026-03-23 catchup: 工作区存在 2 个未提交改动（全局异常处理、live2d-h5 `marked` CDN 版本固定）和 3 个 JVM 崩溃日志待清理/确认
-- 2026-03-23 规划文件复核：当前工作区除规划文件自身外，仍有 `GlobalExceptionHandler.java`、`medical-mp/live2d-h5/index.html` 两处代码改动，以及删除文件 `语音合成.md` 待确认是否需要恢复/保留删除
-- Phase 27 已完成：系统规模、路由、覆盖范围、核心接口时延、SSE 时延、预约闭环、稳定性与部署效率均已形成文字证据，唯一未闭合项为知识检索 `5003/404` 异常需单独排障
-- Phase 28 启动：按 systematic-debugging 流程先做复现、证据收集、变更对比和责任边界定位，再决定是否进入修复
-- Phase 28 已完成：`medical-knowledge-service` 的 DashScope `spring.ai.openai.base-url` 已从 `.../compatible-mode` 修正为 `.../compatible-mode/v1`，并通过配置比对与 `KnowledgeBaseControllerTest` (`18/18`) 验证
-- Phase 29 启动：Sentinel 采用混合方案，网关先做登录/AI对话/知识检索入口限流，服务内覆盖 chatStream、TTS、knowledge embedding、预约创建与号源热点保护
-- Phase 29 已完成：5 个模块已接入 Sentinel 依赖和基础配置，gateway 已落地统一 block 响应与首批 API 规则，`ai-service`/`knowledge-service`/`appointment-service`/`doctor-service` 已完成关键资源限流或熔断逻辑，并通过 5 组定向测试与跨模块 compile 验证
-- 2026-03-24 catchup：已按 `planning-with-files` 复核工作区；repo-local `session-catchup.py` 运行无输出，当前待同步改动仍主要集中在 `.gitignore`、`GlobalExceptionHandler.java`、`medical-mp/live2d-h5/index.html`、规划文件，以及删除项 `语音合成.md`
-- 2026-03-25 catchup：再次按 `planning-with-files` 复核工作区；repo-local `session-catchup.py` 仍无输出，但 `git status --short` 显示除规划文件外，仍存在 `.gitignore`、`GlobalExceptionHandler.java`、`medical-mp/live2d-h5/index.html`、删除项 `语音合成.md`，以及未跟踪目录 `docs/superpowers/`（含 Sentinel 设计/实施文档）待同步
-- 2026-03-25 Phase 30 完成：已产出 `docs/superpowers/specs/2026-03-25-seata-distributed-transaction-design.md` 与 `docs/superpowers/plans/2026-03-25-seata-distributed-transaction-implementation.md`，可在新窗口按计划执行 Seata 集成
-- 2026-03-25 catchup（本次会话）：再次执行 repo-local `session-catchup.py` 仍无输出；`git diff --stat` / `git status --short` 结果与上一轮一致，当前待同步改动仍集中在 `.gitignore`、`GlobalExceptionHandler.java`、`medical-mp/live2d-h5/index.html`、删除项 `语音合成.md` 与未跟踪目录 `docs/superpowers/`
-- `medical-ai/docker/mysql/init/*.sql` 通过 `/docker-entrypoint-initdb.d` 仅在 MySQL 首次初始化或新 volume 时自动执行；已有 volume 需手动补 SQL 或重建 volume。
-- `tests/test_10_seata.py` 当前定位为集成冒烟/一致性检查，不单独证明故障注入下的 Seata 回滚语义。
-- 2026-03-25 运行态验证补充：已在 Docker 环境手动补齐 Nacos `service.vgroupMapping.medical_tx_group=default` 与现有 MySQL volume 的 `undo_log` 表后，`pytest tests/test_10_seata.py -v` 实测 `3 passed`
-- 2026-03-25 Phase 32 完成：`tests/test_11_rabbitmq_side_effects.py` 已可单文件独立运行；本轮运行态额外发现 RabbitMQ 副作用表除业务字段外还必须补齐 `BaseEntity` 的 `create_by/update_by/deleted` 等审计列，否则 `AppointmentEventPublisherImpl` 的定时扫描会因 MyBatis-Plus 默认查询字段报 `Unknown column 'create_by'`。
-- 2026-03-25 Phase 32 运行态补充：当前 Nacos 中已存在 `SEATA_GROUP/service.vgroupMapping.medical_tx_group=default`，本轮无需再次补写；旧 MySQL volume 仍需手工执行 `/docker-entrypoint-initdb.d/rabbitmq-outbox-init.sql` 才会创建/刷新 RabbitMQ 副作用表。
-- 2026-03-25 Phase 32 follow-up：RabbitMQ 副作用链路已补齐可靠性 hardening——outbox 改为 claim/CAS + publisher confirm/returns 闭环，`publish_status=2` 表示可超时接管的 publishing 中间态；notification/audit duplicate side-effect replay 视为 success，不再误入 DLQ。
-- 2026-03-25 Phase 33 完成：已产出 `docs/superpowers/specs/2026-03-25-redis-cache-and-concurrency-design.md`，明确 Redis 采用缓存优先、并发保护辅助、旁路缓存策略。
-- 2026-03-25 catchup（planning-with-files）：再次执行 repo-local `session-catchup.py` 仍无输出；当前 `git status --short` / `git diff --stat` 显示工作区已收敛为规划文件自身变更，以及未跟踪的 Redis 设计/实施文档 `docs/superpowers/specs/2026-03-25-redis-cache-and-concurrency-design.md`、`docs/superpowers/plans/2026-03-25-redis-cache-and-concurrency-implementation.md`。
-- 2026-03-25 用户新增约束：后续不要用 `pytest` 做满测试；不要用 task-router MCP 派发任务，改用内置子代理。
-- 2026-03-25 Phase 34 启动：先执行 Chunk 1-3 的最小落地，按“RedisUtil/常量类 → appointment 防重复 → schedule 号源缓存 → department/doctor 读缓存”顺序推进；已知实现边界包括 doctor 列表 key 必须带 `departmentId`、department 列表仅建议首版缓存空 keyword 场景、`getAvailableSlotsByDepartment` 可首版暂不缓存。
-- 2026-03-25 用户补充约束：子代理也不许用 task-router MCP；仅允许使用内置 `task` 子代理。
-- Update phase status as you progress: pending → in_progress → complete
+### Phase 3: 集成测试与清理 [status: ready]
+**执行者：brain（主会话）**
+
+工作内容：
+1. 编译小程序，检查报错
+2. 验证完整聊天 + Live2D + TTS 流程
+3. 清理不再需要的 `web-view` 相关代码
+4. 更新 progress.md
+
+## 风险与注意事项
+- 小程序 canvas WebGL 支持有限，可能缺少某些 WebGL 扩展
+- `live2dcubismcore.min.js` 引用了 `WebAssembly`，小程序需确认 WASM 支持
+- 4096px 纹理在低端机可能需要降级
+- 小程序包大小限制（moc3 + 纹理约 1-2MB）

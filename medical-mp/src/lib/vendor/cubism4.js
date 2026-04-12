@@ -20,7 +20,8 @@ var __async = (__this, __arguments, generator) => {
   });
 };
 (function(global, factory) {
-  typeof exports === "object" && typeof module !== "undefined" ? factory(exports, require("@pixi/utils"), require("@pixi/math"), require("@pixi/core"), require("@pixi/display")) : typeof define === "function" && define.amd ? define(["exports", "@pixi/utils", "@pixi/math", "@pixi/core", "@pixi/display"], factory) : (global = typeof globalThis !== "undefined" ? globalThis : global || self, factory((global.PIXI = global.PIXI || {}, global.PIXI.live2d = global.PIXI.live2d || {}), global.PIXI.utils, global.PIXI, global.PIXI, global.PIXI));
+  global = typeof globalThis !== "undefined" ? globalThis : global || self;
+  factory((global.PIXI = global.PIXI || {}, global.PIXI.live2d = global.PIXI.live2d || {}), global.PIXI.utils || global.PIXI, global.PIXI, global.PIXI, global.PIXI);
 })(this, function(exports2, utils, math, core, display) {
   "use strict";
   class CubismBreath {

@@ -36,3 +36,4 @@ tts-audio/
 .mcp/task-router/node_modules/
 
 .worktrees/
+medical-mp/.tmp/
