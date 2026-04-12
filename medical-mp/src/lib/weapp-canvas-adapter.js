@@ -239,23 +239,27 @@ export const setupWeappCanvasAdapter = async (canvas) => {
   }
 
   if (!runtimePromise) {
-    globalThis.window = globalThis
-    globalThis.self = globalThis
-    globalThis.performance = globalThis.performance || { now: () => Date.now() }
-    globalThis.HTMLCanvasElement = globalThis.HTMLCanvasElement || function HTMLCanvasElement() {}
-    globalThis.HTMLImageElement = globalThis.HTMLImageElement || function HTMLImageElement() {}
-    globalThis.PIXI = globalThis.PIXI || createPixiShim()
-    globalThis.document = createDocumentShim(canvas)
-    globalThis.requestAnimationFrame = canvas.requestAnimationFrame
+    // Mini program globalThis.window is read-only, use try/catch for safety
+    const safeSet = (key, value) => {
+      try { globalThis[key] = value } catch (e) { /* read-only, skip */ }
+    }
+    safeSet('window', globalThis)
+    safeSet('self', globalThis)
+    if (!globalThis.performance) safeSet('performance', { now: () => Date.now() })
+    if (!globalThis.HTMLCanvasElement) safeSet('HTMLCanvasElement', function HTMLCanvasElement() {})
+    if (!globalThis.HTMLImageElement) safeSet('HTMLImageElement', function HTMLImageElement() {})
+    if (!globalThis.PIXI) safeSet('PIXI', createPixiShim())
+    safeSet('document', createDocumentShim(canvas))
+    safeSet('requestAnimationFrame', canvas.requestAnimationFrame
       ? canvas.requestAnimationFrame.bind(canvas)
-      : (cb) => setTimeout(() => cb(Date.now()), 16)
-    globalThis.cancelAnimationFrame = canvas.cancelAnimationFrame
+      : (cb) => setTimeout(() => cb(Date.now()), 16))
+    safeSet('cancelAnimationFrame', canvas.cancelAnimationFrame
       ? canvas.cancelAnimationFrame.bind(canvas)
-      : (id) => clearTimeout(id)
+      : (id) => clearTimeout(id))
 
     runtimePromise = import('./vendor/cubism4.js').then(() => globalThis.PIXI.live2d)
   } else {
-    globalThis.document = createDocumentShim(canvas)
+    try { globalThis.document = createDocumentShim(canvas) } catch (e) { /* read-only */ }
   }
 
   return runtimePromise
