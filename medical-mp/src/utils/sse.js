@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_BASE || 'http://localhost:8080/api'
+const BASE_URL = import.meta.env.VITE_API_BASE || 'http://192.168.31.210:8080/api'
 
 // 创建 TextDecoder 实例支持流式解码，防止 UTF-8 中文字符跨 chunk 产生乱码
 const textDecoder = new TextDecoder('utf-8')
