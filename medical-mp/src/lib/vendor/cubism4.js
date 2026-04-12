@@ -19,10 +19,16 @@ var __async = (__this, __arguments, generator) => {
     step((generator = generator.apply(__this, __arguments)).next());
   });
 };
-(function(global, factory) {
-  global = typeof globalThis !== "undefined" ? globalThis : global || self;
-  factory((global.PIXI = global.PIXI || {}, global.PIXI.live2d = global.PIXI.live2d || {}), global.PIXI.utils || global.PIXI, global.PIXI, global.PIXI, global.PIXI);
-})(this, function(exports2, utils, math, core, display) {
+;(function() {
+  var _g = typeof globalThis !== "undefined" ? globalThis : typeof self !== "undefined" ? self : this;
+  _g.PIXI = _g.PIXI || {};
+  _g.PIXI.live2d = _g.PIXI.live2d || {};
+  var exports2 = _g.PIXI.live2d;
+  var utils = _g.PIXI.utils || _g.PIXI;
+  var math = _g.PIXI;
+  var core = _g.PIXI;
+  var display = _g.PIXI;
+  {
   "use strict";
   class CubismBreath {
     constructor() {
@@ -5707,4 +5713,5 @@ var __async = (__this, __arguments, generator) => {
   exports2.vertexShaderSrcMasked = vertexShaderSrcMasked;
   exports2.vertexShaderSrcSetupMask = vertexShaderSrcSetupMask;
   Object.defineProperties(exports2, { __esModule: { value: true }, [Symbol.toStringTag]: { value: "Module" } });
-});
+  }
+})();
