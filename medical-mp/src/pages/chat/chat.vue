@@ -129,7 +129,7 @@ const initLive2D = () => {
 
     renderer = createCubismRenderer()
     renderer
-      .loadModel(canvasNode, 'static/models/doctor', 'wariza.model3.json')
+      .loadModel(canvasNode, 'models/doctor', 'wariza.model3.json')
       .then(() => {
         console.log('[Chat] Live2D 模型加载成功')
         lipSync = new Live2dLipSync((value) => renderer?.setMouthOpenY(value))
