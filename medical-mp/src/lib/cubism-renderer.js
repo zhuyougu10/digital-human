@@ -3,47 +3,45 @@ import { createCanvasImage, setupWeappCanvasAdapter } from './weapp-canvas-adapt
 const DEFAULT_MODEL_FILE = 'wariza.model3.json'
 const GL_CONTEXT_UID = 1
 
-const joinPath = (base, file = '') => {
+// 模型资源通过 HTTP 从 live2d-h5 容器或 CDN 加载
+const MODEL_BASE_URL = import.meta.env.VITE_LIVE2D_BASE || 'http://192.168.31.210:8090'
+
+const joinUrl = (base, file = '') => {
   const normalizedBase = base.replace(/\/+$/, '')
   const normalizedFile = file.replace(/^\/+/, '')
   return normalizedFile ? `${normalizedBase}/${normalizedFile}` : normalizedBase
 }
 
-const normalizeAssetPath = (path) => {
-  const cleaned = path.replace(/^\.?\//, '').replace(/^\/+/, '')
-  return cleaned.startsWith('static/') ? cleaned : `static/${cleaned}`
-}
-
-const readFile = (filePath, encoding) => {
-  const fs = wx.getFileSystemManager()
-  const fullPath = normalizeAssetPath(filePath)
-  return new Promise((resolve, reject) => {
-    fs.readFile({
-      filePath: fullPath,
-      encoding,
-      success: ({ data }) => resolve(data),
-      fail: (err) => {
-        // 如果相对路径失败，尝试加 / 前缀
-        fs.readFile({
-          filePath: '/' + fullPath,
-          encoding,
-          success: ({ data }) => resolve(data),
-          fail: reject
-        })
-      }
+const httpGet = (url, responseType = 'text') =>
+  new Promise((resolve, reject) => {
+    wx.request({
+      url,
+      method: 'GET',
+      responseType,
+      success: (res) => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          resolve(res.data)
+        } else {
+          reject(new Error(`HTTP ${res.statusCode}: ${url}`))
+        }
+      },
+      fail: reject
     })
   })
+
+const readJson = async (url) => {
+  const data = await httpGet(url)
+  return typeof data === 'string' ? JSON.parse(data) : data
 }
 
-const readJson = async (filePath) => JSON.parse(await readFile(filePath, 'utf8'))
-const readArrayBuffer = async (filePath) => readFile(filePath)
+const readArrayBuffer = async (url) => httpGet(url, 'arraybuffer')
 
-const loadImage = (canvas, filePath) =>
+const loadImage = (canvas, imageUrl) =>
   new Promise((resolve, reject) => {
     const image = createCanvasImage(canvas)
     image.onload = () => resolve(image)
     image.onerror = reject
-    image.src = `/${normalizeAssetPath(filePath)}`
+    image.src = imageUrl
   })
 
 const createTexture = (gl, image) => {
@@ -80,6 +78,7 @@ export class CubismRenderer {
     this.expressionCache = new Map()
     this.rafId = null
     this.lastTimestamp = 0
+    this.modelBaseUrl = ''
     this.world = {
       scale: 1,
       x: 0,
@@ -87,7 +86,7 @@ export class CubismRenderer {
     }
   }
 
-  async loadModel(canvasNode, modelPath, modelFile = DEFAULT_MODEL_FILE) {
+  async loadModel(canvasNode, modelDir, modelFile = DEFAULT_MODEL_FILE) {
     this.destroy()
 
     this.canvas = canvasNode
@@ -104,12 +103,17 @@ export class CubismRenderer {
     this.runtime = await setupWeappCanvasAdapter(canvasNode)
     await this.runtime.cubism4Ready()
 
-    const modelJsonPath = joinPath(modelPath, modelFile)
-    const json = await readJson(modelJsonPath)
-    json.url = modelJsonPath
+    // modelDir 可以是完整 URL 或相对路径
+    this.modelBaseUrl = modelDir.startsWith('http')
+      ? modelDir
+      : joinUrl(MODEL_BASE_URL, modelDir)
+
+    const modelJsonUrl = joinUrl(this.modelBaseUrl, modelFile)
+    const json = await readJson(modelJsonUrl)
+    json.url = modelJsonUrl
 
     const settings = new this.runtime.Cubism4ModelSettings(json)
-    settings.resolveURL = (file) => joinPath(modelPath, file)
+    settings.resolveURL = (file) => joinUrl(this.modelBaseUrl, file)
     this.settings = settings
 
     const mocBuffer = await readArrayBuffer(settings.resolveURL(settings.moc))
@@ -189,7 +193,9 @@ export class CubismRenderer {
 
   async bindTextures() {
     const images = await Promise.all(
-      this.settings.textures.map((texturePath) => loadImage(this.canvas, this.settings.resolveURL(texturePath)))
+      this.settings.textures.map((texturePath) =>
+        loadImage(this.canvas, this.settings.resolveURL(texturePath))
+      )
     )
 
     this.textures = images.map((image, index) => {

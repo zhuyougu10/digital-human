@@ -110,7 +110,7 @@ let currentAbortController = null
 let currentAiMessageIndex = -1
 let currentFullText = ''
 
-const apiBase = import.meta.env.VITE_API_BASE || 'http://localhost:8080/api'
+const apiBase = import.meta.env.VITE_API_BASE || 'http://192.168.31.210:8080/api'
 
 // =============== Live2D 初始化 ===============
 
@@ -129,7 +129,7 @@ const initLive2D = () => {
 
     renderer = createCubismRenderer()
     renderer
-      .loadModel(canvasNode, 'static/models/doctor', 'wariza.model3.json')
+      .loadModel(canvasNode, 'models/doctor', 'wariza.model3.json')
       .then(() => {
         console.log('[Chat] Live2D 模型加载成功')
         lipSync = new Live2dLipSync((value) => renderer?.setMouthOpenY(value))
