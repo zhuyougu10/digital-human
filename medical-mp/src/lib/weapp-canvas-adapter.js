@@ -1,4 +1,5 @@
 import './live2dcubismcore.min.js'
+import './vendor/cubism4.js'
 
 class MiniEmitter {
   constructor() {
@@ -264,11 +265,7 @@ export const setupWeappCanvasAdapter = async (canvas) => {
       ? canvas.cancelAnimationFrame.bind(canvas)
       : (id) => clearTimeout(id))
 
-    runtimePromise = new Promise((resolve) => {
-      require('./live2dcubismcore.min.js')
-      require('./vendor/cubism4.js')
-      resolve(globalThis.PIXI.live2d)
-    })
+    runtimePromise = Promise.resolve(globalThis.PIXI.live2d)
   } else {
     try { globalThis.document = createDocumentShim(canvas) } catch (e) { /* read-only */ }
   }
