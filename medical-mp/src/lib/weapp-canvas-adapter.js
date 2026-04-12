@@ -1,5 +1,4 @@
 import './live2dcubismcore.min.js'
-import './vendor/cubism4.js'
 
 class MiniEmitter {
   constructor() {
@@ -210,6 +209,15 @@ const createPixiShim = () => ({
   Texture,
   Container
 })
+
+// 在 import cubism4 之前设置 PIXI shim，否则 IIFE 执行时找不到父类
+if (!globalThis.PIXI) {
+  globalThis.PIXI = createPixiShim()
+}
+
+// 必须用 require 而非 import，因为 import 会被提升到文件顶部，
+// 导致 cubism4.js IIFE 在 PIXI shim 设置之前执行
+require('./vendor/cubism4.js')
 
 const createImageWrapper = (canvas) => {
   const image = canvas.createImage()
