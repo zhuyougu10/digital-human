@@ -16,12 +16,21 @@ const normalizeAssetPath = (path) => {
 
 const readFile = (filePath, encoding) => {
   const fs = wx.getFileSystemManager()
+  const fullPath = normalizeAssetPath(filePath)
   return new Promise((resolve, reject) => {
     fs.readFile({
-      filePath: normalizeAssetPath(filePath),
+      filePath: fullPath,
       encoding,
       success: ({ data }) => resolve(data),
-      fail: reject
+      fail: (err) => {
+        // 如果相对路径失败，尝试加 / 前缀
+        fs.readFile({
+          filePath: '/' + fullPath,
+          encoding,
+          success: ({ data }) => resolve(data),
+          fail: reject
+        })
+      }
     })
   })
 }
