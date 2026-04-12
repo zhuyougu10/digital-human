@@ -4,7 +4,7 @@ const DEFAULT_MODEL_FILE = 'wariza.model3.json'
 const GL_CONTEXT_UID = 1
 
 // 模型资源通过 HTTP 从 live2d-h5 容器或 CDN 加载
-const MODEL_BASE_URL = import.meta.env.VITE_LIVE2D_BASE || 'http://localhost:8090'
+const MODEL_BASE_URL = import.meta.env.VITE_LIVE2D_BASE || 'http://192.168.31.210:8090'
 
 const joinUrl = (base, file = '') => {
   const normalizedBase = base.replace(/\/+$/, '')

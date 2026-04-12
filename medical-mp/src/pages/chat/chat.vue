@@ -110,7 +110,7 @@ let currentAbortController = null
 let currentAiMessageIndex = -1
 let currentFullText = ''
 
-const apiBase = import.meta.env.VITE_API_BASE || 'http://localhost:8080/api'
+const apiBase = import.meta.env.VITE_API_BASE || 'http://192.168.31.210:8080/api'
 
 // =============== Live2D 初始化 ===============
 
