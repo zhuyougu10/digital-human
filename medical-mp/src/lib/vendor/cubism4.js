@@ -1,3 +1,4 @@
+import '../pixi-shim.js'
 var __pow = Math.pow;
 var __async = (__this, __arguments, generator) => {
   return new Promise((resolve, reject) => {
@@ -4858,7 +4859,7 @@ var __async = (__this, __arguments, generator) => {
     }
     set autoUpdate(autoUpdate) {
       var _a;
-      tickerRef || (tickerRef = (_a = window.PIXI) == null ? void 0 : _a.Ticker);
+      tickerRef || (tickerRef = (_a = globalThis.PIXI) == null ? void 0 : _a.Ticker);
       if (autoUpdate) {
         if (!this._destroyed) {
           if (tickerRef) {
@@ -5192,7 +5193,7 @@ var __async = (__this, __arguments, generator) => {
     return next();
   });
   Live2DFactory.live2DModelMiddlewares.unshift(ZipLoader.factory);
-  if (!window.Live2DCubismCore) {
+  if (!globalThis.Live2DCubismCore) {
     throw new Error("Could not find Cubism 4 runtime. This plugin requires live2dcubismcore.js to be loaded.");
   }
   class Cubism4ExpressionManager extends ExpressionManager {
