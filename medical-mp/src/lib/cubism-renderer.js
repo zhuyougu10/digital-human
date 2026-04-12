@@ -244,21 +244,20 @@ export class CubismRenderer {
     const canvasInfo = this.internalModel.coreModel?.canvasinfo
     const baseHeight = this.internalModel.height || this.internalModel.originalHeight || canvasInfo?.CanvasHeight || 1000
     const baseWidth = this.internalModel.width || this.internalModel.originalWidth || canvasInfo?.CanvasWidth || 1000
-    const targetHeight = sh * 2.8
-    const scale = targetHeight / baseHeight
-    const chestCenterFromFeet = targetHeight * 0.75
-    const screenVisualCenter = sh * 0.35
-    const feetY = screenVisualCenter + chestCenterFromFeet
+
+    // Live2D 模型原点在中心，先按高度适配缩放
+    const scaleX = sw / baseWidth
+    const scaleY = sh / baseHeight
+    const scale = Math.min(scaleX, scaleY) * 1.8 // 放大显示上半身
 
     this.world.scale = scale
-    this.world.x = sw / 2 - (baseWidth * scale) / 2
-    this.world.y = feetY - targetHeight
+    this.world.x = sw / 2        // 模型中心 → 画布水平中心
+    this.world.y = sh * 0.85     // 模型中心下移，露出头和上半身
 
     console.log('[Live2D][debug] fitToScreen', {
       canvas: { sw, sh },
       base: { baseWidth, baseHeight },
       world: this.world,
-      targetHeight,
       scale
     })
   }
@@ -276,7 +275,8 @@ export class CubismRenderer {
     world.tx = this.world.x
     world.ty = this.world.y
 
-    return matrix.append(world)
+    // PIXI 行向量约定: world.append(projection) = 先 world 再 projection
+    return world.append(matrix)
   }
 
   startLoop() {
