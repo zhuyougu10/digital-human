@@ -134,6 +134,24 @@ export class CubismRenderer {
     await this.bindTextures()
 
     this.internalModel.updateWebGLContext(this.gl, GL_CONTEXT_UID)
+    console.log('[Live2D][debug] model loaded', {
+      modelBaseUrl: this.modelBaseUrl,
+      canvas: { width: this.canvas.width, height: this.canvas.height },
+      internalModel: {
+        width: this.internalModel.width,
+        height: this.internalModel.height,
+        originalWidth: this.internalModel.originalWidth,
+        originalHeight: this.internalModel.originalHeight
+      },
+      coreCanvasInfo: this.internalModel.coreModel?.canvasinfo
+        ? {
+            CanvasWidth: this.internalModel.coreModel.canvasinfo.CanvasWidth,
+            CanvasHeight: this.internalModel.coreModel.canvasinfo.CanvasHeight,
+            PixelsPerUnit: this.internalModel.coreModel.canvasinfo.PixelsPerUnit
+          }
+        : null,
+      textures: this.settings.textures
+    })
     this.fitToScreen()
     this.startLoop()
     await this.playMotion('Idle', 0)
@@ -223,8 +241,9 @@ export class CubismRenderer {
 
     const sw = this.canvas.width
     const sh = this.canvas.height
-    const baseHeight = this.internalModel.height || this.internalModel.originalHeight || 1000
-    const baseWidth = this.internalModel.width || this.internalModel.originalWidth || 1000
+    const canvasInfo = this.internalModel.coreModel?.canvasinfo
+    const baseHeight = this.internalModel.height || this.internalModel.originalHeight || canvasInfo?.CanvasHeight || 1000
+    const baseWidth = this.internalModel.width || this.internalModel.originalWidth || canvasInfo?.CanvasWidth || 1000
     const targetHeight = sh * 2.8
     const scale = targetHeight / baseHeight
     const chestCenterFromFeet = targetHeight * 0.75
@@ -234,6 +253,14 @@ export class CubismRenderer {
     this.world.scale = scale
     this.world.x = sw / 2 - (baseWidth * scale) / 2
     this.world.y = feetY - targetHeight
+
+    console.log('[Live2D][debug] fitToScreen', {
+      canvas: { sw, sh },
+      base: { baseWidth, baseHeight },
+      world: this.world,
+      targetHeight,
+      scale
+    })
   }
 
   getProjectionMatrix() {
@@ -255,6 +282,7 @@ export class CubismRenderer {
   startLoop() {
     this.lastTimestamp = 0
 
+    let debugFrames = 0
     const tick = (timestamp) => {
       if (!this.internalModel || !this.gl) {
         return
@@ -270,8 +298,25 @@ export class CubismRenderer {
 
       this.internalModel.viewport = [0, 0, this.canvas.width, this.canvas.height]
       this.internalModel.update(delta, now)
-      this.internalModel.updateTransform(this.getProjectionMatrix())
+      const projection = this.getProjectionMatrix()
+      this.internalModel.updateTransform(projection)
       this.internalModel.draw(this.gl)
+
+      if (debugFrames < 3) {
+        debugFrames += 1
+        console.log('[Live2D][debug] frame', debugFrames, {
+          viewport: this.internalModel.viewport,
+          projection: {
+            a: projection.a,
+            b: projection.b,
+            c: projection.c,
+            d: projection.d,
+            tx: projection.tx,
+            ty: projection.ty
+          },
+          world: this.world
+        })
+      }
 
       this.rafId = this.canvas.requestAnimationFrame
         ? this.canvas.requestAnimationFrame(tick)
