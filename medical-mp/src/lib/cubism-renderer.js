@@ -165,6 +165,9 @@ export class CubismRenderer {
     this.startLoop()
     await this.playMotion('Idle', 0)
 
+    // 默认隐藏翅膀
+    this.hideWings()
+
     return this
   }
 
@@ -370,6 +373,17 @@ export class CubismRenderer {
     }
 
     this.internalModel.coreModel.setParameterValueById('ParamMouthOpenY', Math.max(0, Math.min(1, value)))
+  }
+
+  hideWings() {
+    if (!this.internalModel?.coreModel) {
+      return
+    }
+    try {
+      this.internalModel.coreModel.setParameterValueById('ParamWingsHide', 1)
+    } catch (e) {
+      console.warn('[Live2D] hideWings failed:', e)
+    }
   }
 
   destroy() {
