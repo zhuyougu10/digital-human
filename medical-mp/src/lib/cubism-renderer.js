@@ -117,7 +117,15 @@ export class CubismRenderer {
     this.settings = settings
 
     const mocBuffer = await readArrayBuffer(settings.resolveURL(settings.moc))
-    const moc = this.runtime.CubismMoc.create(mocBuffer)
+    console.log('[Live2D][debug] mocBuffer', {
+      type: typeof mocBuffer,
+      constructor: mocBuffer?.constructor?.name,
+      byteLength: mocBuffer?.byteLength,
+      isArrayBuffer: mocBuffer instanceof ArrayBuffer
+    })
+    // wx.request 可能返回 ArrayBuffer 或其他类型，确保是 ArrayBuffer
+    const mocData = mocBuffer instanceof ArrayBuffer ? mocBuffer : new Uint8Array(mocBuffer).buffer
+    const moc = this.runtime.CubismMoc.create(mocData)
     const coreModel = moc.createModel()
     coreModel.__moc = moc
 
