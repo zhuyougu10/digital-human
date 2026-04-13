@@ -260,4 +260,21 @@ class DoctorProfileServiceImplTest {
         assertEquals(8L, result.get(0).getId());
         assertEquals("耳鼻喉科", result.get(0).getDepartments().get(0).getName());
     }
+
+    @Test
+    void searchBySymptom_shouldFilterOutMappedDepartmentsMissingFromActiveDepartmentTable() {
+        Department surgery = new Department();
+        surgery.setId(2L);
+        surgery.setName("外科");
+        surgery.setStatus(0);
+
+        when(doctorProfileMapper.selectList(any())).thenReturn(List.of());
+        when(departmentMapper.selectList(any())).thenReturn(List.of(surgery), List.of());
+
+        List<DoctorVO> result = doctorProfileService.searchBySymptom("发烧");
+
+        assertTrue(result.isEmpty());
+        verify(doctorDepartmentMapper, never()).selectList(any());
+        verify(doctorProfileMapper, never()).selectBatchIds(any(Collection.class));
+    }
 }

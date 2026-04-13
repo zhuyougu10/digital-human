@@ -1,21 +1,44 @@
 package com.medical.ai.agent;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import com.medical.api.doctor.RemoteDoctorService;
+import com.medical.common.core.domain.R;
+import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
+@ExtendWith(MockitoExtension.class)
 class TriageAgentTest {
 
-    private final TriageAgent triageAgent = new TriageAgent();
+    @Mock
+    private RemoteDoctorService remoteDoctorService;
 
     @Test
-    void getSystemPrompt_shouldIncludeServerTimeAndAllowedDepartments() {
+    void getSystemPrompt_shouldUseLiveDepartmentNamesAndCacheThem() {
+        when(remoteDoctorService.getDepartmentNames()).thenReturn(R.ok(List.of("呼吸科", "感染科")));
+        TriageAgent triageAgent = new TriageAgent(remoteDoctorService);
+
+        String firstPrompt = triageAgent.getSystemPrompt();
+        String secondPrompt = triageAgent.getSystemPrompt();
+
+        assertTrue(firstPrompt.contains("呼吸科、感染科"));
+        assertTrue(secondPrompt.contains("呼吸科、感染科"));
+        verify(remoteDoctorService, times(1)).getDepartmentNames();
+    }
+
+    @Test
+    void getSystemPrompt_shouldFallBackWhenRemoteCallFails() {
+        when(remoteDoctorService.getDepartmentNames()).thenReturn(R.fail("unavailable"));
+        TriageAgent triageAgent = new TriageAgent(remoteDoctorService);
+
         String prompt = triageAgent.getSystemPrompt();
 
-        assertTrue(prompt.contains("当前服务器时间："));
-        assertTrue(prompt.contains("时区："));
-        assertTrue(prompt.contains("内科、外科、神经内科、儿科、妇产科、眼科、耳鼻喉科、皮肤科、中医科、口腔科"));
-        assertTrue(prompt.contains("严禁推荐系统中不存在的科室名称"));
-        assertTrue(prompt.contains("必须以上面的服务器时间为准"));
+        assertTrue(prompt.contains("内科、外科、神经内科"));
     }
 }

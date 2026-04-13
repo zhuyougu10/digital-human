@@ -8,7 +8,9 @@ import com.medical.common.core.exception.ErrorCode;
 import com.medical.common.core.handler.GlobalExceptionHandler;
 import com.medical.common.security.util.SecurityUtil;
 import com.medical.doctor.domain.dto.DoctorProfileDTO;
+import com.medical.doctor.domain.entity.Department;
 import com.medical.doctor.domain.vo.DoctorVO;
+import com.medical.doctor.mapper.DepartmentMapper;
 import com.medical.doctor.service.DoctorProfileService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,6 +49,8 @@ public class DoctorControllerTest {
 
     @MockBean
     private DoctorProfileService doctorProfileService;
+    @MockBean
+    private DepartmentMapper departmentMapper;
 
     private MockedStatic<SecurityUtil> securityUtilMock;
 
@@ -229,5 +233,24 @@ public class DoctorControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data").isArray())
                 .andExpect(jsonPath("$.data[0].name").value("Dr. Inner Search"));
+    }
+
+    @Test
+    void innerDepartmentNames_shouldReturnActiveDepartmentNames() throws Exception {
+        Department internalMedicine = new Department();
+        internalMedicine.setId(1L);
+        internalMedicine.setName("内科");
+
+        Department surgery = new Department();
+        surgery.setId(2L);
+        surgery.setName("外科");
+
+        when(departmentMapper.selectList(any())).thenReturn(List.of(internalMedicine, surgery));
+
+        mockMvc.perform(get("/doctor/inner/departments/names"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data[0]").value("内科"))
+                .andExpect(jsonPath("$.data[1]").value("外科"));
     }
 }

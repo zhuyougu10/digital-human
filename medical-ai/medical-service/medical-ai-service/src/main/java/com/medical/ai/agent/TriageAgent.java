@@ -1,18 +1,26 @@
 package com.medical.ai.agent;
 
+import com.medical.api.doctor.RemoteDoctorService;
+import com.medical.common.core.domain.R;
+import java.time.Duration;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Component
+@Slf4j
+@RequiredArgsConstructor
 public class TriageAgent implements Agent {
 
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy年MM月dd日 HH:mm:ss");
     private static final ZoneId SERVER_ZONE = ZoneId.systemDefault();
-    private static final List<String> AVAILABLE_DEPARTMENTS = List.of(
+    private static final Duration DEPARTMENT_CACHE_TTL = Duration.ofMinutes(5);
+    private static final List<String> FALLBACK_DEPARTMENTS = List.of(
             "内科", "外科", "神经内科", "儿科", "妇产科", "眼科", "耳鼻喉科", "皮肤科", "中医科", "口腔科"
     );
     private static final String SYSTEM_PROMPT_TEMPLATE = """
@@ -35,13 +43,19 @@ public class TriageAgent implements Agent {
             - 保持温和关切的语气
             """;
 
+    private final RemoteDoctorService remoteDoctorService;
+
+    private volatile List<String> cachedDepartmentNames = FALLBACK_DEPARTMENTS;
+    private volatile long cachedDepartmentNamesExpireAt;
+
     @Override
     public String getSystemPrompt() {
         LocalDateTime now = LocalDateTime.now(SERVER_ZONE);
+        List<String> departmentNames = getDepartmentNames();
         return SYSTEM_PROMPT_TEMPLATE.formatted(
                 now.format(DATE_TIME_FORMATTER),
                 SERVER_ZONE,
-                String.join("、", AVAILABLE_DEPARTMENTS)
+                String.join("、", departmentNames)
         );
     }
 
@@ -53,5 +67,39 @@ public class TriageAgent implements Agent {
     @Override
     public String getAgentType() {
         return "TRIAGE";
+    }
+
+    private List<String> getDepartmentNames() {
+        long now = System.currentTimeMillis();
+        if (now < cachedDepartmentNamesExpireAt && !cachedDepartmentNames.isEmpty()) {
+            return cachedDepartmentNames;
+        }
+        return refreshDepartmentNames(now);
+    }
+
+    private synchronized List<String> refreshDepartmentNames(long now) {
+        if (now < cachedDepartmentNamesExpireAt && !cachedDepartmentNames.isEmpty()) {
+            return cachedDepartmentNames;
+        }
+        try {
+            R<List<String>> response = remoteDoctorService.getDepartmentNames();
+            if (response != null && response.isSuccess() && response.getData() != null) {
+                List<String> departmentNames = response.getData().stream()
+                        .filter(name -> name != null && !name.isBlank())
+                        .distinct()
+                        .toList();
+                if (!departmentNames.isEmpty()) {
+                    cachedDepartmentNames = departmentNames;
+                    cachedDepartmentNamesExpireAt = now + DEPARTMENT_CACHE_TTL.toMillis();
+                    return departmentNames;
+                }
+            }
+            log.warn("Failed to load live department names for triage prompt, using fallback. response={}", response);
+        } catch (Exception e) {
+            log.error("Failed to load live department names for triage prompt, using fallback", e);
+        }
+        cachedDepartmentNames = FALLBACK_DEPARTMENTS;
+        cachedDepartmentNamesExpireAt = now + DEPARTMENT_CACHE_TTL.toMillis();
+        return cachedDepartmentNames;
     }
 }

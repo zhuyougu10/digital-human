@@ -348,6 +348,17 @@ public class DoctorProfileServiceImpl implements DoctorProfileService {
                 }
             }
         }
+        if (departmentNames.isEmpty()) {
+            return departmentNames;
+        }
+
+        Set<String> activeDepartmentNames = departmentMapper.selectList(new LambdaQueryWrapper<Department>()
+                        .eq(Department::getStatus, UserConstants.STATUS_NORMAL))
+                .stream()
+                .map(Department::getName)
+                .filter(StringUtils::hasText)
+                .collect(Collectors.toSet());
+        departmentNames.retainAll(activeDepartmentNames);
         return departmentNames;
     }
 

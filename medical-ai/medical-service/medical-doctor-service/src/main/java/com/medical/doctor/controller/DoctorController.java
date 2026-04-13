@@ -1,5 +1,6 @@
 package com.medical.doctor.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import cn.dev33.satoken.annotation.SaCheckRole;
 import com.medical.api.doctor.dto.DoctorInfoDTO;
 import com.medical.common.core.constant.UserConstants;
@@ -8,7 +9,9 @@ import com.medical.common.core.domain.PageResult;
 import com.medical.common.core.domain.R;
 import com.medical.common.security.util.SecurityUtil;
 import com.medical.doctor.domain.dto.DoctorProfileDTO;
+import com.medical.doctor.domain.entity.Department;
 import com.medical.doctor.domain.vo.DoctorVO;
+import com.medical.doctor.mapper.DepartmentMapper;
 import com.medical.doctor.service.DoctorProfileService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -29,6 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class DoctorController {
 
     private final DoctorProfileService doctorProfileService;
+    private final DepartmentMapper departmentMapper;
 
     @GetMapping("/list")
     public R<PageResult<DoctorVO>> list(@RequestParam(required = false) Long departmentId,
@@ -83,6 +87,19 @@ public class DoctorController {
     public R<DoctorInfoDTO> getInnerByUserId(@PathVariable Long userId) {
         DoctorVO vo = doctorProfileService.getByUserId(userId);
         return R.ok(toDoctorInfoDTO(vo));
+    }
+
+    @GetMapping("/inner/departments/names")
+    public R<List<String>> innerDepartmentNames() {
+        List<String> names = departmentMapper.selectList(new LambdaQueryWrapper<Department>()
+                        .eq(Department::getStatus, UserConstants.STATUS_NORMAL)
+                        .orderByAsc(Department::getSort)
+                        .orderByAsc(Department::getId))
+                .stream()
+                .map(Department::getName)
+                .filter(name -> name != null && !name.isBlank())
+                .toList();
+        return R.ok(names);
     }
 
     private DoctorInfoDTO toDoctorInfoDTO(DoctorVO vo) {
