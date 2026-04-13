@@ -229,6 +229,7 @@ services:
       ALIYUN_AK_ID: ${ALIYUN_AK_ID:-}
       ALIYUN_AK_SECRET: ${ALIYUN_AK_SECRET:-}
       ALIYUN_TTS_APPKEY: ${ALIYUN_TTS_APPKEY:-}
+      TTS_AUDIO_PATH: /app/tts-audio
 
   appointment-service:
     build:

@@ -96,7 +96,7 @@ public class ChatController {
     }
 
     @GetMapping("/tts/{fileName}")
-    public ResponseEntity<Resource> getTtsAudio(@PathVariable String fileName) {
+    public ResponseEntity<Resource> getTtsAudio(@PathVariable("fileName") String fileName) {
         try {
             if (fileName.contains("..") || fileName.contains("/") || fileName.contains("\\")) {
                 return ResponseEntity.badRequest().build();
