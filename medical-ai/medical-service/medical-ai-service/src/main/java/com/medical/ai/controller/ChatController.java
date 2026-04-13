@@ -53,9 +53,9 @@ public class ChatController {
     }
 
     @PostMapping(value = "/send", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<ServerSentEvent<SseMessageVO>> chat(@RequestBody ChatRequestDTO dto) {
+    public ResponseEntity<Flux<ServerSentEvent<SseMessageVO>>> chat(@RequestBody ChatRequestDTO dto) {
         Long userId = SecurityUtil.getUserId();
-        return chatService.chat(dto.getSessionId(), userId, dto.getMessage())
+        Flux<ServerSentEvent<SseMessageVO>> body = chatService.chat(dto.getSessionId(), userId, dto.getMessage())
             .map(msg -> ServerSentEvent.<SseMessageVO>builder()
                 .event(msg.getType())
                 .data(msg)
@@ -73,6 +73,12 @@ public class ChatController {
                     .data(errorMsg)
                     .build());
             });
+        return ResponseEntity.ok()
+            .header("X-Accel-Buffering", "no")
+            .header("Cache-Control", "no-cache, no-store, must-revalidate")
+            .header("Connection", "keep-alive")
+            .contentType(MediaType.TEXT_EVENT_STREAM)
+            .body(body);
     }
 
     @PostMapping("/session/{sessionId}/end")
