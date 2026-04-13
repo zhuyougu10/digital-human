@@ -123,8 +123,9 @@ export class CubismRenderer {
       byteLength: mocBuffer?.byteLength,
       isArrayBuffer: mocBuffer instanceof ArrayBuffer
     })
-    // wx.request 可能返回 ArrayBuffer 或其他类型，确保是 ArrayBuffer
-    const mocData = mocBuffer instanceof ArrayBuffer ? mocBuffer : new Uint8Array(mocBuffer).buffer
+    // wx.request 返回的 ArrayBuffer 可能与 WASM 内存不在同一 realm，强制拷贝
+    const mocData = new Uint8Array(new Uint8Array(mocBuffer)).buffer
+    console.log('[Live2D][debug] mocData copied', { byteLength: mocData.byteLength })
     const moc = this.runtime.CubismMoc.create(mocData)
     const coreModel = moc.createModel()
     coreModel.__moc = moc

@@ -2,35 +2,41 @@
 // 提供 cubism4.js IIFE 执行时需要的所有父类和工具
 
 // atob/btoa polyfill — 真机小程序没有这两个全局函数
+// 用 wx.arrayBufferToBase64 / wx.base64ToArrayBuffer 实现
 if (typeof atob === 'undefined') {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/='
-  globalThis.atob = (input) => {
-    const str = String(input).replace(/=+$/, '')
+  globalThis.atob = (b64) => {
+    // wx.base64ToArrayBuffer 返回 ArrayBuffer
+    if (typeof wx !== 'undefined' && wx.base64ToArrayBuffer) {
+      const buf = wx.base64ToArrayBuffer(b64)
+      const bytes = new Uint8Array(buf)
+      let result = ''
+      for (let i = 0; i < bytes.length; i++) {
+        result += String.fromCharCode(bytes[i])
+      }
+      return result
+    }
+    // 纯 JS fallback
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+    const str = String(b64).replace(/=+$/, '')
     let output = ''
-    for (let i = 0, bc = 0, bs = 0; (bs = str.charAt(i++));) {
-      bs = chars.indexOf(bs)
-      if (bs === -1) continue
-      bc = bc ? bc * 64 + bs : bs
-      if (i % 4) output += String.fromCharCode(255 & (bc >> ((-2 * (i % 4)) & 6)))
+    for (let i = 0; i < str.length; ) {
+      const a = chars.indexOf(str.charAt(i++)) & 0x3F
+      const b = chars.indexOf(str.charAt(i++)) & 0x3F
+      const c = chars.indexOf(str.charAt(i++)) & 0x3F
+      const d = chars.indexOf(str.charAt(i++)) & 0x3F
+      output += String.fromCharCode((a << 2) | (b >> 4))
+      if (c !== 64) output += String.fromCharCode(((b & 15) << 4) | (c >> 2))
+      if (d !== 64) output += String.fromCharCode(((c & 3) << 6) | d)
     }
     return output
   }
-  globalThis.btoa = (input) => {
-    const str = String(input)
-    let output = ''
-    for (let i = 0, block = 0, idx = 0; (idx = str.charCodeAt(i++));) {
-      block = (block << 8) | idx
-      if (i % 3 === 0) {
-        output += chars.charAt((block >> 18) & 63) + chars.charAt((block >> 12) & 63) +
-          chars.charAt((block >> 6) & 63) + chars.charAt(block & 63)
-        block = 0
-      }
+  globalThis.btoa = (str) => {
+    if (typeof wx !== 'undefined' && wx.arrayBufferToBase64) {
+      const bytes = new Uint8Array(str.length)
+      for (let i = 0; i < str.length; i++) bytes[i] = str.charCodeAt(i)
+      return wx.arrayBufferToBase64(bytes.buffer)
     }
-    const mod = str.length % 3
-    if (mod === 1) output += chars.charAt((block >> 2) & 63) + chars.charAt((block << 4) & 63) + '=='
-    else if (mod === 2) output += chars.charAt((block >> 10) & 63) + chars.charAt((block >> 4) & 63) +
-      chars.charAt((block << 2) & 63) + '='
-    return output
+    return ''
   }
 }
 
