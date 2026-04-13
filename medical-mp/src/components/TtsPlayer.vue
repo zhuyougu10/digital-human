@@ -164,7 +164,8 @@ watch(
       return
     }
     playAudio()
-  }
+  },
+  { immediate: true }
 )
 
 onBeforeUnmount(() => {
