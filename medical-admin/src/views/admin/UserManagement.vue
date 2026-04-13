@@ -88,8 +88,8 @@
 
       <div class="pagination-container">
         <el-pagination
-          v-model:current-page="searchForm.page"
-          v-model:page-size="searchForm.size"
+          v-model:current-page="searchForm.pageNum"
+          v-model:page-size="searchForm.pageSize"
           :page-sizes="[10, 20, 50, 100]"
           layout="total, sizes, prev, pager, next, jumper"
           :total="total"
@@ -193,8 +193,8 @@ const total = ref(0)
 const createFormRef = ref(null)
 
 const searchForm = reactive({
-  page: 1,
-  size: 10,
+  pageNum: 1,
+  pageSize: 10,
   keyword: '',
   role: ''
 })
@@ -250,7 +250,7 @@ const fetchUserList = async () => {
 }
 
 const handleSearch = () => {
-  searchForm.page = 1
+  searchForm.pageNum = 1
   fetchUserList()
 }
 
@@ -261,12 +261,12 @@ const resetSearch = () => {
 }
 
 const handleSizeChange = (val) => {
-  searchForm.size = val
+  searchForm.pageSize = val
   fetchUserList()
 }
 
 const handleCurrentChange = (val) => {
-  searchForm.page = val
+  searchForm.pageNum = val
   fetchUserList()
 }
 
