@@ -242,41 +242,46 @@ export class CubismRenderer {
     const sw = this.canvas.width
     const sh = this.canvas.height
     const canvasInfo = this.internalModel.coreModel?.canvasinfo
+    const ppu = canvasInfo?.PixelsPerUnit || 1
     const baseHeight = this.internalModel.height || this.internalModel.originalHeight || canvasInfo?.CanvasHeight || 1000
     const baseWidth = this.internalModel.width || this.internalModel.originalWidth || canvasInfo?.CanvasWidth || 1000
 
-    // Live2D 模型原点在中心，先按高度适配缩放
-    const scaleX = sw / baseWidth
-    const scaleY = sh / baseHeight
-    const scale = Math.min(scaleX, scaleY) * 1.8 // 放大显示上半身
+    // Live2D 模型坐标: 原点中心, 单位是像素/PPU
+    const modelUnitW = baseWidth / ppu
+    const modelUnitH = baseHeight / ppu
+
+    // 按画布短边适配，放大 1.6 倍显示上半身
+    const scaleX = sw / modelUnitW
+    const scaleY = sh / modelUnitH
+    const scale = Math.min(scaleX, scaleY) * 1.6
 
     this.world.scale = scale
-    this.world.x = sw / 2        // 模型中心 → 画布水平中心
-    this.world.y = sh * 0.85     // 模型中心下移，露出头和上半身
+    this.world.offsetY = modelUnitH * 0.3  // 模型坐标系下移量
 
     console.log('[Live2D][debug] fitToScreen', {
       canvas: { sw, sh },
       base: { baseWidth, baseHeight },
-      world: this.world,
+      ppu, modelUnitW, modelUnitH,
+      world: { ...this.world },
       scale
     })
   }
 
   getProjectionMatrix() {
-    const matrix = new globalThis.PIXI.Matrix()
-    matrix.a = 2 / this.canvas.width
-    matrix.d = -2 / this.canvas.height
-    matrix.tx = -1
-    matrix.ty = 1
+    // 直接构建: 模型坐标 → WebGL NDC
+    // Live2D 模型坐标: 原点在中心, Y 轴向上
+    // WebGL NDC: X [-1,1], Y [-1,1]
+    const sw = this.canvas.width
+    const sh = this.canvas.height
+    const scale = this.world.scale
+    const offsetY = this.world.offsetY || 0
 
-    const world = new globalThis.PIXI.Matrix()
-    world.a = this.world.scale
-    world.d = this.world.scale
-    world.tx = this.world.x
-    world.ty = this.world.y
-
-    // PIXI 行向量约定: world.append(projection) = 先 world 再 projection
-    return world.append(matrix)
+    const m = new globalThis.PIXI.Matrix()
+    m.a = (2 * scale) / sw
+    m.d = (2 * scale) / sh
+    m.tx = 0                          // 水平居中
+    m.ty = -(2 * offsetY * scale) / sh // 下移显示上半身
+    return m
   }
 
   startLoop() {
