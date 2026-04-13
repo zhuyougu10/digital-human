@@ -293,6 +293,9 @@ services:
   live2d-h5:
     build: ../../medical-mp/live2d-h5
     container_name: medical-live2d-h5
+    depends_on:
+      gateway:
+        condition: service_started
     ports:
       - "8090:8090"
 

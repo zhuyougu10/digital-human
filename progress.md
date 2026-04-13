@@ -95,3 +95,16 @@
 - 将 Live2D 文本/二进制资源加载统一改为带鉴权头的 `wx.request`，并把纹理资源改为 `wx.downloadFile + filePath + image.src=本地路径`，绕过小程序远程图片无法带 header 的限制。
 - 为 Live2D 资源请求增加按资源类型输出的诊断日志，便于区分 JSON、moc3、纹理等具体失败点。
 - 在聊天页顶部显式展示数字人姓名，并把欢迎语统一改为 “安禾”。
+
+## Session: 2026-04-14 10:30
+
+### Root Cause
+- `medical-mp/live2d-h5` 仍按旧 Vite H5 页面构建，容器根路径会继续返回 `index.html`，与“只做模型资源站”的部署目标冲突。
+- 现有 Live2D 资源域没有任何服务端鉴权，匿名请求可直接命中 `/models/**` 静态文件。
+- gateway 已经通过 Sa-Token 统一校验现有登录 token，最小改动是提供一个受该过滤器保护的内部探活式鉴权接口，供 nginx `auth_request` 复用，而不是新增第二套 token 机制。
+
+### Fix
+- 在 `medical-gateway` 新增 `/internal/live2d/auth-check` 本地端点；请求命中该端点时继续走现有 Sa-Token 登录校验，已登录返回 `204 No Content`，未登录维持 `401`。
+- 将 `medical-mp/live2d-h5` Docker 镜像改为仅分发 `public/models` 静态目录，不再构建或发布旧 H5 页面。
+- 重写 `live2d-h5` nginx 配置：`/models/**` 先经 `auth_request` 转发到 gateway 鉴权，根路径与其他路径统一返回 `404`，同时关闭目录浏览。
+- 在 `docker-compose.yml` 中让 `live2d-h5` 显式依赖 `gateway` 启动，保持资源域和鉴权链路同网部署。
