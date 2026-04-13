@@ -1,6 +1,39 @@
 // PIXI shim - 必须在 cubism4.js 之前加载
 // 提供 cubism4.js IIFE 执行时需要的所有父类和工具
 
+// atob/btoa polyfill — 真机小程序没有这两个全局函数
+if (typeof atob === 'undefined') {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/='
+  globalThis.atob = (input) => {
+    const str = String(input).replace(/=+$/, '')
+    let output = ''
+    for (let i = 0, bc = 0, bs = 0; (bs = str.charAt(i++));) {
+      bs = chars.indexOf(bs)
+      if (bs === -1) continue
+      bc = bc ? bc * 64 + bs : bs
+      if (i % 4) output += String.fromCharCode(255 & (bc >> ((-2 * (i % 4)) & 6)))
+    }
+    return output
+  }
+  globalThis.btoa = (input) => {
+    const str = String(input)
+    let output = ''
+    for (let i = 0, block = 0, idx = 0; (idx = str.charCodeAt(i++));) {
+      block = (block << 8) | idx
+      if (i % 3 === 0) {
+        output += chars.charAt((block >> 18) & 63) + chars.charAt((block >> 12) & 63) +
+          chars.charAt((block >> 6) & 63) + chars.charAt(block & 63)
+        block = 0
+      }
+    }
+    const mod = str.length % 3
+    if (mod === 1) output += chars.charAt((block >> 2) & 63) + chars.charAt((block << 4) & 63) + '=='
+    else if (mod === 2) output += chars.charAt((block >> 10) & 63) + chars.charAt((block >> 4) & 63) +
+      chars.charAt((block << 2) & 63) + '='
+    return output
+  }
+}
+
 class MiniEmitter {
   constructor() {
     this._events = Object.create(null)

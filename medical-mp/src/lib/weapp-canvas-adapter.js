@@ -1,5 +1,5 @@
-import './live2dcubismcore.min.js'
 import './pixi-shim.js'
+import './live2dcubismcore.min.js'
 import './vendor/cubism4.js'
 
 const createImageWrapper = (canvas) => {
