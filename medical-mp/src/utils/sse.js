@@ -237,6 +237,7 @@ export const createSSERequest = (url, data, callbacks) => {
     url: BASE_URL + url,
     method: 'POST',
     data,
+    responseType: 'arraybuffer',
     header: {
       'Authorization': token ? `Bearer ${token}` : '',
       'Content-Type': 'application/json',
