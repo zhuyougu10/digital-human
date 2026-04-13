@@ -79,7 +79,7 @@
 
 ## 后续任务：后台登录 502 排查与修复
 
-### Phase 4: 系统调试 — 后台登录返回 502 [status: in_progress]
+### Phase 4: 系统调试 — 后台登录返回 502 [status: complete]
 **执行方式：brain 先定位根因，再委派 Codex 修复**
 
 工作内容：
@@ -93,3 +93,19 @@
 - `POST /api/user/auth/login` 通过 admin-web 入口不再返回 502
 - gateway 重建后无需手工重启 admin-web
 - 修复被提交并推送到仓库
+
+### Phase 5: Live2D 模型资源站鉴权 + 数字人命名“安禾” [status: planning]
+**执行方式：brain 先写实现计划，再按 coding-brain 分拆 worker**
+
+工作内容：
+1. 将 `https://live2d.zhuyougu.cn` 从旧 H5 页面改成纯模型资源域
+2. 为模型资源请求接入基于现有登录 token 的访问鉴权
+3. 小程序在加载 `.model3.json`、`.moc3`、纹理与动作资源时附带 token
+4. 关闭目录浏览与旧 H5 首页
+5. 将数字人名称统一为“安禾”
+
+验收标准：
+- 未携带 token 访问模型资源返回 `401/403`
+- 已登录小程序可正常加载完整模型资源
+- `live2d.zhuyougu.cn` 不再提供旧 H5 页面
+- 小程序展示名统一为“安禾”

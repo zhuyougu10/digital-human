@@ -29,3 +29,11 @@
 - `medical-admin/nginx.conf` 当前写法是固定上游：`proxy_pass http://medical-gateway:8080/api/;`。
 - 在 Docker 环境下，nginx 默认不会持续重新解析这个上游域名。gateway 容器重建后 IP 改变，而 admin-web 若未重启，就会继续使用旧 IP，导致 502。
 - 手工 `docker restart medical-admin-web` 后登录立刻恢复为 200，证实根因是 admin-web 容器内 nginx 的上游地址缓存/静态解析。
+
+## 2026-04-14 新需求发现
+- `medical-mp/.env.development` 和 `.env.production` 当前都把 `VITE_LIVE2D_URL` 指向 `https://live2d.zhuyougu.cn`。
+- `medical-mp/src/lib/cubism-renderer.js` 当前用 `wx.request` 直接拉取模型 JSON / moc3 / 纹理资源，但没有附带登录 token，后续加鉴权必须改这里。
+- `medical-mp/src/api/request.js` 已经有统一读取 `uni.getStorageSync('token')` 并拼 `Authorization: Bearer <token>` 的现成模式，可直接复用到 Live2D 资源请求。
+- `medical-mp/live2d-h5/nginx.conf` 当前还是旧 H5 页的 `try_files ... /index.html` 逻辑，不适合模型静态资源域。
+- `medical-ai/docker/docker-compose.yml` 当前 `live2d-h5` 服务仍然从 `medical-mp/live2d-h5` 构建，说明资源域容器与旧 H5 页面还未拆分用途。
+- 数字人最终命名已确认：`安禾`。

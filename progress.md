@@ -70,3 +70,15 @@
 - 将 SSE 解析改为按行累积、空行提交事件，并增加尾部 UTF-8 字节缓冲，保证跨 chunk 中文和事件边界都能正确恢复。
 - 在聊天页统一把服务端返回的相对 `ttsUrl` 转成完整网关地址后再入队播放，避免组件拿到相对路径。
 - 在 `TtsPlayer.vue` 中补充绝对地址校验与 `onError` 详细日志，便于定位真实设备播放失败原因。
+
+## Session: 2026-04-14 01:41
+
+### New Approved Scope
+- 主人确认开始 `/skill coding-brain` 执行新一轮需求。
+- 本轮范围有两部分：
+  1. 把 `https://live2d.zhuyougu.cn` 从旧 H5 页面改造成受保护的模型资源站
+  2. 数字人统一命名为 `安禾`
+
+### Planning Notes
+- 已完成设计文档：`docs/superpowers/specs/2026-04-14-live2d-asset-protection-and-naming-design.md`
+- 当前进入实现计划阶段，下一步按 coding-brain 路线拆 backend / frontend / deployment 任务。
