@@ -1,35 +1,132 @@
 const BASE_URL = import.meta.env.VITE_API_BASE || 'http://192.168.31.210:8080/api'
 
-const normalizeChunkText = (chunk) => {
-  if (!chunk) return ''
-  if (typeof chunk === 'string') return chunk
-  if (chunk instanceof ArrayBuffer) return decodeUTF8(chunk)
-  if (ArrayBuffer.isView(chunk)) {
-    return decodeUTF8(chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength))
-  }
-  return String(chunk)
+const concatUint8Arrays = (left, right) => {
+  if (!left?.length) return right
+  if (!right?.length) return left
+  const combined = new Uint8Array(left.length + right.length)
+  combined.set(left, 0)
+  combined.set(right, left.length)
+  return combined
 }
 
-const splitSseBlocks = (buffer) => {
-  const normalized = buffer.replace(/\r\n/g, '\n')
-  const blocks = normalized.split(/\n\n/)
+const getUtf8SequenceLength = (byte) => {
+  if ((byte & 0x80) === 0) return 1
+  if ((byte & 0xe0) === 0xc0) return 2
+  if ((byte & 0xf0) === 0xe0) return 3
+  if ((byte & 0xf8) === 0xf0) return 4
+  return 1
+}
+
+const splitUtf8Bytes = (bytes) => {
+  if (!bytes?.length) {
+    return {
+      complete: new Uint8Array(0),
+      pending: new Uint8Array(0)
+    }
+  }
+
+  let pendingLength = 0
+  for (let i = bytes.length - 1; i >= 0 && i >= bytes.length - 4; i -= 1) {
+    const byte = bytes[i]
+    if ((byte & 0xc0) === 0x80) {
+      pendingLength += 1
+      continue
+    }
+    const expectedLength = getUtf8SequenceLength(byte)
+    if (expectedLength === 1) {
+      pendingLength = 0
+    } else if (pendingLength + 1 < expectedLength) {
+      pendingLength += 1
+    } else {
+      pendingLength = 0
+    }
+    break
+  }
+
+  if (pendingLength === 0) {
+    return {
+      complete: bytes,
+      pending: new Uint8Array(0)
+    }
+  }
+
   return {
-    blocks: blocks.slice(0, -1),
-    rest: blocks[blocks.length - 1] || ''
+    complete: bytes.slice(0, bytes.length - pendingLength),
+    pending: bytes.slice(bytes.length - pendingLength)
   }
 }
 
-const parseSseBlock = (block) => {
+const toUint8Array = (chunk) => {
+  if (chunk instanceof ArrayBuffer) return new Uint8Array(chunk)
+  if (ArrayBuffer.isView(chunk)) {
+    return new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength)
+  }
+  return null
+}
+
+const normalizeChunkText = (chunk, pendingBytes) => {
+  if (!chunk) {
+    return {
+      text: '',
+      pendingBytes
+    }
+  }
+  if (typeof chunk === 'string') return chunk
+
+  const byteChunk = toUint8Array(chunk)
+  if (byteChunk) {
+    const combined = concatUint8Arrays(pendingBytes, byteChunk)
+    const { complete, pending } = splitUtf8Bytes(combined)
+    return {
+      text: decodeUTF8(complete),
+      pendingBytes: pending
+    }
+  }
+
+  return {
+    text: String(chunk),
+    pendingBytes
+  }
+}
+
+const consumeSseText = (state, incomingText) => {
+  const normalized = incomingText.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+  let lineBuffer = state.lineBuffer + normalized
+  const events = []
+
+  let newlineIndex = lineBuffer.indexOf('\n')
+  while (newlineIndex !== -1) {
+    const rawLine = lineBuffer.slice(0, newlineIndex)
+    lineBuffer = lineBuffer.slice(newlineIndex + 1)
+    const line = rawLine.trimEnd()
+
+    if (line === '') {
+      if (state.eventLines.length > 0) {
+        events.push(parseSseBlock(state.eventLines))
+        state.eventLines = []
+      }
+    } else {
+      state.eventLines.push(line)
+    }
+
+    newlineIndex = lineBuffer.indexOf('\n')
+  }
+
+  state.lineBuffer = lineBuffer
+  return events
+}
+
+const parseSseBlock = (lines) => {
   let eventType = 'message'
   const dataLines = []
 
-  for (const rawLine of block.split('\n')) {
-    const line = rawLine.trimEnd()
+  for (const line of lines) {
     if (!line || line.startsWith(':')) continue
     if (line.startsWith('event:')) {
       eventType = line.substring(6).trim()
     } else if (line.startsWith('data:')) {
-      dataLines.push(line.substring(5).trim())
+      const value = line.startsWith('data: ') ? line.substring(6) : line.substring(5)
+      dataLines.push(value)
     }
   }
 
@@ -75,12 +172,71 @@ const decodeUTF8 = (bytes) => {
 export const createSSERequest = (url, data, callbacks) => {
   const { onMessage, onComplete, onError } = callbacks
   const token = uni.getStorageSync('token')
+  const sseState = {
+    eventLines: [],
+    lineBuffer: ''
+  }
+  let pendingBytes = new Uint8Array(0)
+  let completed = false
+
+  const completeOnce = () => {
+    if (completed) return
+    completed = true
+    onComplete && onComplete()
+  }
+
+  const failOnce = (error) => {
+    if (completed) return
+    completed = true
+    onError && onError(error)
+  }
+
+  const dispatchChunk = (chunk) => {
+    const normalized = normalizeChunkText(chunk, pendingBytes)
+    if (typeof normalized === 'string') {
+      pendingBytes = new Uint8Array(0)
+      processText(normalized)
+      return
+    }
+    pendingBytes = normalized.pendingBytes
+    processText(normalized.text)
+  }
+
+  const processText = (text) => {
+    if (!text) return
+    const events = consumeSseText(sseState, text)
+    for (const event of events) {
+      if (event.dataContent === '[DONE]') {
+        completeOnce()
+        return
+      }
+      if (event.dataContent) {
+        onMessage && onMessage(event.eventType, event.dataContent)
+      }
+    }
+  }
+
+  const flushPending = () => {
+    if (pendingBytes.length > 0) {
+      processText(decodeUTF8(pendingBytes))
+      pendingBytes = new Uint8Array(0)
+    }
+    if (sseState.lineBuffer) {
+      processText('\n')
+    }
+    if (sseState.eventLines.length > 0) {
+      const event = parseSseBlock(sseState.eventLines)
+      sseState.eventLines = []
+      if (event.dataContent) {
+        onMessage && onMessage(event.eventType, event.dataContent)
+      }
+    }
+  }
   
   const requestTask = uni.request({
     url: BASE_URL + url,
     method: 'POST',
     data,
-    responseType: 'arraybuffer',
     header: {
       'Authorization': token ? `Bearer ${token}` : '',
       'Content-Type': 'application/json',
@@ -88,36 +244,20 @@ export const createSSERequest = (url, data, callbacks) => {
     },
     enableChunked: true,
     success: (res) => {
+      flushPending()
       if (res.statusCode >= 200 && res.statusCode < 300) {
-        onComplete && onComplete()
+        completeOnce()
       } else {
-        onError && onError(new Error(`HTTP Error ${res.statusCode}`))
+        failOnce(new Error(`HTTP Error ${res.statusCode}`))
       }
     },
     fail: (err) => {
-      onError && onError(err)
+      failOnce(err)
     }
   })
 
-  let buffer = ''
   requestTask.onChunkReceived((res) => {
-    const chunk = normalizeChunkText(res.data)
-    buffer += chunk
-
-    const { blocks, rest } = splitSseBlocks(buffer)
-    buffer = rest
-
-    for (const block of blocks) {
-      if (!block.trim()) continue
-      const { eventType, dataContent } = parseSseBlock(block)
-      if (dataContent === '[DONE]') {
-        onComplete && onComplete()
-        return
-      }
-      if (dataContent) {
-        onMessage && onMessage(eventType, dataContent)
-      }
-    }
+    dispatchChunk(res.data)
   })
   
   return requestTask

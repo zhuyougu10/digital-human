@@ -109,6 +109,13 @@ let currentAiMessageIndex = -1
 let currentFullText = ''
 
 const apiBase = import.meta.env.VITE_API_BASE || 'http://192.168.31.210:8080/api'
+const apiOrigin = apiBase.replace(/\/+$/, '')
+
+const resolveTtsUrl = (ttsUrl) => {
+  if (!ttsUrl) return ''
+  if (/^https?:\/\//.test(ttsUrl)) return ttsUrl
+  return `${apiOrigin}${ttsUrl.startsWith('/') ? ttsUrl : `/${ttsUrl}`}`
+}
 
 // =============== Live2D 初始化 ===============
 
@@ -247,10 +254,11 @@ const sendToBackend = (text) => {
             scrollToBottom()
           } else if (payload.type === 'tts') {
             if (payload.ttsUrl) {
+              const audioUrl = resolveTtsUrl(payload.ttsUrl)
               const fileName = payload.ttsUrl.split('/').pop()
               ttsQueue.push({
                 segmentIndex: payload.segmentIndex || 0,
-                ttsUrl: payload.ttsUrl,
+                ttsUrl: audioUrl,
                 fileName
               })
               ttsTotalSegments = payload.totalSegments || 1
@@ -307,8 +315,7 @@ const playNextTtsSegment = () => {
   if (!next) return
 
   ttsPlaying = true
-  const audioUrl = next.ttsUrl.startsWith('http') ? next.ttsUrl : `${apiBase}${next.ttsUrl}`
-  currentTtsUrl.value = audioUrl
+  currentTtsUrl.value = next.ttsUrl
 
   // 启动口型同步
   lipSync?.start()

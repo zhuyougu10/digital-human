@@ -56,3 +56,17 @@
 - 在 doctor-service 新增 `/doctor/inner/departments/names` 内部接口，按 `status = 0` 从 `department` 表读取启用科室名称，并通过 `RemoteDoctorService` 暴露给其他服务。
 - 将 `TriageAgent` 改为通过 Feign 动态拉取科室名称，并增加短时缓存与回退默认值，避免单次导诊对 doctor-service 故障过于敏感。
 - 在 `DoctorProfileServiceImpl.resolveDepartmentNamesBySymptoms()` 中，将静态映射产出的科室名与数据库里真实启用科室求交集，再继续做医生匹配。
+
+## Session: 2026-04-13 21:05
+
+### Root Cause
+- `medical-mp/src/utils/sse.js` 强制设置 `responseType: 'arraybuffer'`，配合 `enableChunked` 时会增加小程序端整包缓冲风险，导致真实设备上 `onChunkReceived` 不能稳定逐块触发。
+- 当前 SSE 解析直接对全文做 `split(/\n\n/)`。当单个事件跨 chunk，或者 `data:` 负载里携带换行语义时，这种做法会把事件边界切错，直接表现为消息直到结尾才一次性拼出来。
+- UTF-8 解码是一次一块直接转字符串，没有保留尾部不完整多字节序列；中文字符若恰好被拆到两个 chunk，会造成流式文本损坏，进一步干扰 SSE 逐行解析。
+- `TtsPlayer.vue` 没有输出 `InnerAudioContext` 的实际错误信息，也没有拦截非绝对音频地址，导致播放失败时页面只看到静默失败。
+
+### Fix
+- 将小程序 SSE 请求改为依赖 `enableChunked` 原生分块，去掉显式 `responseType`，同时兼容字符串和 `ArrayBuffer` chunk。
+- 将 SSE 解析改为按行累积、空行提交事件，并增加尾部 UTF-8 字节缓冲，保证跨 chunk 中文和事件边界都能正确恢复。
+- 在聊天页统一把服务端返回的相对 `ttsUrl` 转成完整网关地址后再入队播放，避免组件拿到相对路径。
+- 在 `TtsPlayer.vue` 中补充绝对地址校验与 `onError` 详细日志，便于定位真实设备播放失败原因。

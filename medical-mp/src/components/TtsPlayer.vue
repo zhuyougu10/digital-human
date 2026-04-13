@@ -26,6 +26,8 @@ let audioContext: UniApp.InnerAudioContext | null = null
 
 const statusText = computed(() => (isPlaying.value ? '播放中，点击暂停' : '点击播放语音'))
 
+const isAbsoluteUrl = (url: string) => /^https?:\/\//.test(url)
+
 const postLive2dMessage = (type: 'START_LIPSYNC' | 'STOP_LIPSYNC') => {
   const payload = { type }
   uni.$emit('LIVE2D_POST_MESSAGE', payload)
@@ -62,10 +64,16 @@ const bindAudioEvents = () => {
     emitPlaybackEnded()
     emit('ended')
   })
-  audioContext.onError(() => {
+  audioContext.onError((error) => {
     isPlaying.value = false
     postLive2dMessage('STOP_LIPSYNC')
     emitPlaybackEnded()
+    console.error('[TtsPlayer] 音频播放失败:', {
+      errCode: error?.errCode,
+      errMsg: error?.errMsg,
+      src: audioContext?.src,
+      ttsUrl: props.ttsUrl
+    })
     emit('error')
     uni.showToast({ title: '语音播放失败', icon: 'none' })
   })
@@ -82,6 +90,12 @@ const ensureAudioContext = () => {
 
 const playAudio = () => {
   if (!props.ttsUrl) return
+  if (!isAbsoluteUrl(props.ttsUrl)) {
+    console.error('[TtsPlayer] TTS URL 不是绝对地址:', props.ttsUrl)
+    emit('error')
+    uni.showToast({ title: '语音地址无效', icon: 'none' })
+    return
+  }
   const ctx = ensureAudioContext()
   ctx.src = props.ttsUrl
   ctx.play()
