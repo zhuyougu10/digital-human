@@ -278,9 +278,9 @@ export class CubismRenderer {
 
     const m = new globalThis.PIXI.Matrix()
     m.a = (2 * scale) / sw
-    m.d = (2 * scale) / sh
+    m.d = -(2 * scale) / sh           // 负号翻转 Y 轴（屏幕Y向下 → NDC Y向上）
     m.tx = 0                          // 水平居中
-    m.ty = -(2 * offsetY * scale) / sh // 下移显示上半身
+    m.ty = (2 * offsetY * scale) / sh // 下移显示上半身
     return m
   }
 
