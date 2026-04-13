@@ -268,19 +268,22 @@ export class CubismRenderer {
   }
 
   getProjectionMatrix() {
-    // 直接构建: 模型坐标 → WebGL NDC
-    // Live2D 模型坐标: 原点在中心, Y 轴向上
-    // WebGL NDC: X [-1,1], Y [-1,1]
+    // centeringTransform 已经把模型从中心原点移到了左上角原点,
+    // 并按 PPU 缩放到像素单位. 坐标范围: [0, originalWidth] x [0, originalHeight]
+    // 我们需要把 [0, W] x [0, H] 映射到 NDC [-1, 1]
     const sw = this.canvas.width
     const sh = this.canvas.height
-    const scale = this.world.scale
-    const offsetY = this.world.offsetY || 0
+    const mw = this.internalModel.originalWidth || this.internalModel.width || 2480
+    const mh = this.internalModel.originalHeight || this.internalModel.height || 3508
+
+    // 按画布短边适配，放大显示上半身
+    const fitScale = Math.min(sw / mw, sh / mh) * 1.6
 
     const m = new globalThis.PIXI.Matrix()
-    m.a = (2 * scale) / sw
-    m.d = -(2 * scale) / sh           // 负号翻转 Y 轴（屏幕Y向下 → NDC Y向上）
-    m.tx = 0                          // 水平居中
-    m.ty = (2 * offsetY * scale) / sh // 下移显示上半身
+    m.a = (2 * fitScale) / sw
+    m.d = -(2 * fitScale) / sh          // Y 翻转
+    m.tx = -(mw * fitScale) / sw        // 水平居中: 偏移半个模型宽度
+    m.ty = (mh * fitScale * 0.35) / sh  // 垂直: 下移露出上半身
     return m
   }
 
