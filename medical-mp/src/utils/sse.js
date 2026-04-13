@@ -1,7 +1,37 @@
 const BASE_URL = import.meta.env.VITE_API_BASE || 'http://192.168.31.210:8080/api'
 
-// 创建 TextDecoder 实例支持流式解码，防止 UTF-8 中文字符跨 chunk 产生乱码
-const textDecoder = new TextDecoder('utf-8')
+// 小程序没有 TextDecoder，手写 UTF-8 解码
+const decodeUTF8 = (bytes) => {
+  const arr = new Uint8Array(bytes)
+  let result = ''
+  let i = 0
+  while (i < arr.length) {
+    const byte = arr[i]
+    let code, bytesNeeded
+    if (byte < 0x80) {
+      code = byte; bytesNeeded = 0
+    } else if (byte < 0xE0) {
+      code = byte & 0x1F; bytesNeeded = 1
+    } else if (byte < 0xF0) {
+      code = byte & 0x0F; bytesNeeded = 2
+    } else {
+      code = byte & 0x07; bytesNeeded = 3
+    }
+    if (i + bytesNeeded >= arr.length) break // 不完整的多字节序列
+    for (let j = 0; j < bytesNeeded; j++) {
+      i++
+      code = (code << 6) | (arr[i] & 0x3F)
+    }
+    if (code > 0xFFFF) {
+      code -= 0x10000
+      result += String.fromCharCode(0xD800 + (code >> 10), 0xDC00 + (code & 0x3FF))
+    } else {
+      result += String.fromCharCode(code)
+    }
+    i++
+  }
+  return result
+}
 
 export const createSSERequest = (url, data, callbacks) => {
   const { onMessage, onComplete, onError } = callbacks
@@ -30,8 +60,7 @@ export const createSSERequest = (url, data, callbacks) => {
 
   let buffer = ''
   requestTask.onChunkReceived((res) => {
-    // 使用 TextDecoder 流式解码 ArrayBuffer
-    const chunk = textDecoder.decode(new Uint8Array(res.data), { stream: true })
+    const chunk = decodeUTF8(res.data)
     buffer += chunk
     
     const lines = buffer.split('\n\n')
