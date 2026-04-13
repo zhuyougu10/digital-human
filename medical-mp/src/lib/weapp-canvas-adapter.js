@@ -54,7 +54,15 @@ export const setupWeappCanvasAdapter = async (canvas) => {
       ? canvas.cancelAnimationFrame.bind(canvas)
       : (id) => clearTimeout(id))
 
-    runtimePromise = Promise.resolve(globalThis.PIXI.live2d)
+    // 等待 Cubism Core WASM 初始化完成（真机上是异步的）
+    const waitForCubismCore = () => {
+      if (globalThis.Live2DCubismCore && globalThis.Live2DCubismCore.then) {
+        return new Promise((resolve) => globalThis.Live2DCubismCore.then(resolve))
+      }
+      return Promise.resolve()
+    }
+
+    runtimePromise = waitForCubismCore().then(() => globalThis.PIXI.live2d)
   } else {
     try { globalThis.document = createDocumentShim(canvas) } catch (e) { /* read-only */ }
   }
