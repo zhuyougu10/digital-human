@@ -74,3 +74,22 @@
 - `live2dcubismcore.min.js` 引用了 `WebAssembly`，小程序需确认 WASM 支持
 - 4096px 纹理在低端机可能需要降级
 - 小程序包大小限制（moc3 + 纹理约 1-2MB）
+
+---
+
+## 后续任务：后台登录 502 排查与修复
+
+### Phase 4: 系统调试 — 后台登录返回 502 [status: in_progress]
+**执行方式：brain 先定位根因，再委派 Codex 修复**
+
+工作内容：
+1. 复现后台登录 `Request failed with status code 502`
+2. 检查 admin-web nginx 代理、gateway、user-service 链路
+3. 发布 GitHub issue
+4. 委派 Codex 修复容器重建后 admin-web 到 gateway 的代理失效问题
+5. 验证登录恢复且重建后不再复发
+
+验收标准：
+- `POST /api/user/auth/login` 通过 admin-web 入口不再返回 502
+- gateway 重建后无需手工重启 admin-web
+- 修复被提交并推送到仓库

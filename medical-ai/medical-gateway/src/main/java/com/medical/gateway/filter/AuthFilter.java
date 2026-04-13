@@ -18,6 +18,7 @@ public class AuthFilter {
                         "/api/user/auth/login",
                         "/api/user/auth/register",
                         "/api/user/auth/wx-login",
+                        "/api/ai/chat/tts/**",
                         "/api/*/doc.html",
                         "/api/*/v3/api-docs/**",
                         "/api/*/webjars/**",

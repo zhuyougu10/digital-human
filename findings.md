@@ -21,3 +21,11 @@
 - 无 window 对象
 - requestAnimationFrame 由 canvas.requestAnimationFrame 提供
 - WebGL context 通过 canvas.getContext('webgl') 获取
+
+## 后台登录 502 调试发现
+- 通过 admin-web 入口 `POST http://127.0.0.1/api/user/auth/login` 返回 502。
+- 同样请求直接打 gateway `POST http://127.0.0.1:8080/api/user/auth/login` 返回 200，并能成功登录。
+- 这说明问题不在 user-service 业务逻辑，而在 `medical-admin-web` nginx 到 `medical-gateway` 的代理层。
+- `medical-admin/nginx.conf` 当前写法是固定上游：`proxy_pass http://medical-gateway:8080/api/;`。
+- 在 Docker 环境下，nginx 默认不会持续重新解析这个上游域名。gateway 容器重建后 IP 改变，而 admin-web 若未重启，就会继续使用旧 IP，导致 502。
+- 手工 `docker restart medical-admin-web` 后登录立刻恢复为 200，证实根因是 admin-web 容器内 nginx 的上游地址缓存/静态解析。

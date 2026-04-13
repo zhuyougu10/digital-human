@@ -1,5 +1,44 @@
 const BASE_URL = import.meta.env.VITE_API_BASE || 'http://192.168.31.210:8080/api'
 
+const normalizeChunkText = (chunk) => {
+  if (!chunk) return ''
+  if (typeof chunk === 'string') return chunk
+  if (chunk instanceof ArrayBuffer) return decodeUTF8(chunk)
+  if (ArrayBuffer.isView(chunk)) {
+    return decodeUTF8(chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength))
+  }
+  return String(chunk)
+}
+
+const splitSseBlocks = (buffer) => {
+  const normalized = buffer.replace(/\r\n/g, '\n')
+  const blocks = normalized.split(/\n\n/)
+  return {
+    blocks: blocks.slice(0, -1),
+    rest: blocks[blocks.length - 1] || ''
+  }
+}
+
+const parseSseBlock = (block) => {
+  let eventType = 'message'
+  const dataLines = []
+
+  for (const rawLine of block.split('\n')) {
+    const line = rawLine.trimEnd()
+    if (!line || line.startsWith(':')) continue
+    if (line.startsWith('event:')) {
+      eventType = line.substring(6).trim()
+    } else if (line.startsWith('data:')) {
+      dataLines.push(line.substring(5).trim())
+    }
+  }
+
+  return {
+    eventType,
+    dataContent: dataLines.join('\n')
+  }
+}
+
 // 小程序没有 TextDecoder，手写 UTF-8 解码
 const decodeUTF8 = (bytes) => {
   const arr = new Uint8Array(bytes)
@@ -41,9 +80,11 @@ export const createSSERequest = (url, data, callbacks) => {
     url: BASE_URL + url,
     method: 'POST',
     data,
+    responseType: 'arraybuffer',
     header: {
       'Authorization': token ? `Bearer ${token}` : '',
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'Accept': 'text/event-stream'
     },
     enableChunked: true,
     success: (res) => {
@@ -60,23 +101,15 @@ export const createSSERequest = (url, data, callbacks) => {
 
   let buffer = ''
   requestTask.onChunkReceived((res) => {
-    const chunk = decodeUTF8(res.data)
+    const chunk = normalizeChunkText(res.data)
     buffer += chunk
-    
-    const lines = buffer.split('\n\n')
-    buffer = lines.pop() // Last one might be incomplete
-    
-    for (const block of lines) {
+
+    const { blocks, rest } = splitSseBlocks(buffer)
+    buffer = rest
+
+    for (const block of blocks) {
       if (!block.trim()) continue
-      let eventType = 'message'
-      let dataContent = ''
-      for (const line of block.split('\n')) {
-        if (line.startsWith('event:')) {
-          eventType = line.substring(6).trim()
-        } else if (line.startsWith('data:')) {
-          dataContent = line.substring(5).trim()
-        }
-      }
+      const { eventType, dataContent } = parseSseBlock(block)
       if (dataContent === '[DONE]') {
         onComplete && onComplete()
         return

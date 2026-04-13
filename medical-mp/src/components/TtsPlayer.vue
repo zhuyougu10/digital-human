@@ -74,6 +74,8 @@ const bindAudioEvents = () => {
 const ensureAudioContext = () => {
   if (audioContext) return audioContext
   audioContext = uni.createInnerAudioContext()
+  audioContext.autoplay = true
+  audioContext.obeyMuteSwitch = false
   bindAudioEvents()
   return audioContext
 }

@@ -170,6 +170,28 @@ const isActiveTriageSession = (session) => {
   return session?.sessionType === 'TRIAGE' && Number(session?.status) === 0
 }
 
+const getSessionTimestamp = (session) => {
+  const value = session?.updateTime || session?.createTime
+  if (!value) return 0
+  const timestamp = new Date(value).getTime()
+  return Number.isNaN(timestamp) ? 0 : timestamp
+}
+
+const pickReusableTriageSession = (sessionList) => {
+  if (!Array.isArray(sessionList) || sessionList.length === 0) return null
+
+  const triageSessions = sessionList.filter((session) => session?.sessionType === 'TRIAGE')
+  if (triageSessions.length === 0) return null
+
+  return triageSessions
+    .slice()
+    .sort((a, b) => {
+      const activeDiff = Number(isActiveTriageSession(b)) - Number(isActiveTriageSession(a))
+      if (activeDiff !== 0) return activeDiff
+      return getSessionTimestamp(b) - getSessionTimestamp(a)
+    })[0]
+}
+
 const resetTtsState = () => {
   uni.$off('TTS_PLAY_ENDED')
   ttsQueue = []
@@ -418,7 +440,7 @@ const handleNewChat = () => {
 const initChat = async () => {
   try {
     const sessionList = await getSessionList()
-    const activeSession = Array.isArray(sessionList) ? sessionList.find(isActiveTriageSession) : null
+    const activeSession = pickReusableTriageSession(sessionList)
 
     if (activeSession) {
       sessionId.value = parseSessionId(activeSession)
