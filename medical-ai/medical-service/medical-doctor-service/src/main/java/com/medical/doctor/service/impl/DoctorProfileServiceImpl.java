@@ -6,6 +6,7 @@ import com.medical.common.core.domain.PageQuery;
 import com.medical.common.core.domain.PageResult;
 import com.medical.common.core.exception.BusinessException;
 import com.medical.common.core.exception.ErrorCode;
+import com.medical.common.core.constant.UserConstants;
 import com.medical.common.redis.util.RedisUtil;
 import com.medical.common.security.util.SecurityUtil;
 import com.medical.doctor.constant.DoctorCacheConstants;
@@ -23,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,11 +34,43 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
 public class DoctorProfileServiceImpl implements DoctorProfileService {
+
+    private static final Map<String, List<String>> SYMPTOM_DEPARTMENT_MAPPING = Map.ofEntries(
+            Map.entry("发烧", List.of("内科", "儿科")),
+            Map.entry("发热", List.of("内科", "儿科")),
+            Map.entry("咳嗽", List.of("内科", "儿科")),
+            Map.entry("流鼻涕", List.of("内科", "儿科", "耳鼻喉科")),
+            Map.entry("鼻塞", List.of("耳鼻喉科", "内科")),
+            Map.entry("喉咙痛", List.of("耳鼻喉科", "内科")),
+            Map.entry("咽喉痛", List.of("耳鼻喉科", "内科")),
+            Map.entry("嗓子痛", List.of("耳鼻喉科", "内科")),
+            Map.entry("头痛", List.of("神经内科", "内科")),
+            Map.entry("头疼", List.of("神经内科", "内科")),
+            Map.entry("头晕", List.of("神经内科", "内科")),
+            Map.entry("腹痛", List.of("内科", "外科", "妇产科", "儿科")),
+            Map.entry("肚子痛", List.of("内科", "外科", "妇产科", "儿科")),
+            Map.entry("腹泻", List.of("内科", "儿科")),
+            Map.entry("恶心", List.of("内科")),
+            Map.entry("呕吐", List.of("内科", "儿科")),
+            Map.entry("胸痛", List.of("内科", "外科")),
+            Map.entry("皮疹", List.of("皮肤科")),
+            Map.entry("过敏", List.of("皮肤科")),
+            Map.entry("眼痛", List.of("眼科")),
+            Map.entry("视力模糊", List.of("眼科")),
+            Map.entry("牙痛", List.of("口腔科")),
+            Map.entry("牙龈肿痛", List.of("口腔科")),
+            Map.entry("月经不调", List.of("妇产科")),
+            Map.entry("阴道出血", List.of("妇产科")),
+            Map.entry("失眠", List.of("神经内科", "中医科")),
+            Map.entry("腰痛", List.of("外科", "中医科")),
+            Map.entry("外伤", List.of("外科"))
+    );
 
     private final DoctorProfileMapper doctorProfileMapper;
     private final DoctorDepartmentMapper doctorDepartmentMapper;
@@ -91,27 +125,14 @@ public class DoctorProfileServiceImpl implements DoctorProfileService {
         if (keywords == null || keywords.trim().isEmpty()) {
             return Collections.emptyList();
         }
-        String[] keywordArray = keywords.split("[,，]");
-        LambdaQueryWrapper<DoctorProfile> wrapper = new LambdaQueryWrapper<>();
-        wrapper.and(w -> {
-            boolean hasKeyword = false;
-            for (String item : keywordArray) {
-                String keyword = item.trim();
-                if (keyword.isEmpty()) {
-                    continue;
-                }
-                hasKeyword = true;
-                w.or(c -> c.like(DoctorProfile::getSpecialties, keyword)
-                        .or()
-                        .like(DoctorProfile::getTreatmentAreas, keyword));
-            }
-            if (!hasKeyword) {
-                w.apply("1=0");
-            }
-        });
-        wrapper.orderByDesc(DoctorProfile::getCreateTime);
+        List<String> normalizedKeywords = normalizeKeywords(keywords);
+        if (normalizedKeywords.isEmpty()) {
+            return Collections.emptyList();
+        }
 
-        List<DoctorProfile> profiles = doctorProfileMapper.selectList(wrapper);
+        List<DoctorProfile> textMatchedProfiles = searchDoctorsByKeywordText(normalizedKeywords);
+        List<DoctorProfile> departmentMatchedProfiles = searchDoctorsByMappedDepartments(normalizedKeywords);
+        List<DoctorProfile> profiles = mergeProfiles(textMatchedProfiles, departmentMatchedProfiles);
         Map<Long, List<DepartmentVO>> departmentMap = buildDepartmentMap(profiles);
         return profiles
                 .stream()
@@ -249,6 +270,104 @@ public class DoctorProfileServiceImpl implements DoctorProfileService {
         doctorDepartmentMapper.delete(new LambdaQueryWrapper<DoctorDepartment>()
                 .eq(DoctorDepartment::getDoctorId, doctorId));
         saveDoctorDepartments(doctorId, departmentIds);
+    }
+
+    private List<String> normalizeKeywords(String keywords) {
+        String[] keywordArray = keywords.split("[,，]");
+        List<String> normalizedKeywords = new ArrayList<>();
+        for (String item : keywordArray) {
+            String keyword = item == null ? "" : item.trim().replace(" ", "");
+            if (keyword.isEmpty()) {
+                continue;
+            }
+            normalizedKeywords.add(keyword);
+        }
+        return normalizedKeywords;
+    }
+
+    private List<DoctorProfile> searchDoctorsByKeywordText(List<String> normalizedKeywords) {
+        LambdaQueryWrapper<DoctorProfile> wrapper = new LambdaQueryWrapper<>();
+        wrapper.and(w -> {
+            boolean hasKeyword = false;
+            for (String keyword : normalizedKeywords) {
+                hasKeyword = true;
+                w.or(c -> c.like(DoctorProfile::getSpecialties, keyword)
+                        .or()
+                        .like(DoctorProfile::getTreatmentAreas, keyword));
+            }
+            if (!hasKeyword) {
+                w.apply("1=0");
+            }
+        });
+        wrapper.orderByDesc(DoctorProfile::getCreateTime);
+        return doctorProfileMapper.selectList(wrapper);
+    }
+
+    private List<DoctorProfile> searchDoctorsByMappedDepartments(List<String> normalizedKeywords) {
+        Set<String> departmentNames = resolveDepartmentNamesBySymptoms(normalizedKeywords);
+        if (departmentNames.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Department> departments = departmentMapper.selectList(new LambdaQueryWrapper<Department>()
+                .in(Department::getName, departmentNames)
+                .eq(Department::getStatus, UserConstants.STATUS_NORMAL));
+        if (departments.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Long> departmentIds = departments.stream()
+                .map(Department::getId)
+                .filter(id -> id != null)
+                .collect(Collectors.toList());
+        if (departmentIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Long> doctorIds = doctorDepartmentMapper.selectList(new LambdaQueryWrapper<DoctorDepartment>()
+                        .in(DoctorDepartment::getDepartmentId, departmentIds))
+                .stream()
+                .map(DoctorDepartment::getDoctorId)
+                .filter(id -> id != null)
+                .distinct()
+                .collect(Collectors.toList());
+        if (doctorIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        return doctorProfileMapper.selectBatchIds(doctorIds);
+    }
+
+    private Set<String> resolveDepartmentNamesBySymptoms(List<String> normalizedKeywords) {
+        Set<String> departmentNames = new LinkedHashSet<>();
+        for (String keyword : normalizedKeywords) {
+            for (Map.Entry<String, List<String>> entry : SYMPTOM_DEPARTMENT_MAPPING.entrySet()) {
+                String symptom = entry.getKey();
+                if (keyword.contains(symptom) || symptom.contains(keyword)) {
+                    departmentNames.addAll(entry.getValue());
+                }
+            }
+        }
+        return departmentNames;
+    }
+
+    private List<DoctorProfile> mergeProfiles(List<DoctorProfile> textMatchedProfiles, List<DoctorProfile> departmentMatchedProfiles) {
+        Map<Long, DoctorProfile> mergedProfiles = new LinkedHashMap<>();
+        addProfiles(mergedProfiles, departmentMatchedProfiles);
+        addProfiles(mergedProfiles, textMatchedProfiles);
+        return new ArrayList<>(mergedProfiles.values());
+    }
+
+    private void addProfiles(Map<Long, DoctorProfile> mergedProfiles, List<DoctorProfile> profiles) {
+        if (CollectionUtils.isEmpty(profiles)) {
+            return;
+        }
+        for (DoctorProfile profile : profiles) {
+            if (profile == null || profile.getId() == null) {
+                continue;
+            }
+            mergedProfiles.putIfAbsent(profile.getId(), profile);
+        }
     }
 
     private DoctorVO buildDoctorVO(DoctorProfile profile) {

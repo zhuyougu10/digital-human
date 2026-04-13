@@ -2,6 +2,7 @@ package com.medical.doctor.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -200,5 +201,63 @@ class DoctorProfileServiceImplTest {
         verify(doctorDepartmentMapper).delete(any());
         verify(redisUtil).delete(DoctorCacheConstants.DOCTOR_DETAIL_KEY_PREFIX + "18");
         verify(redisUtil).increment(DoctorCacheConstants.DOCTOR_LIST_VERSION_KEY);
+    }
+
+    @Test
+    void searchBySymptom_shouldReturnDoctorsFromMappedDepartmentsWhenTextSearchMisses() {
+        Department internalMedicine = new Department();
+        internalMedicine.setId(1L);
+        internalMedicine.setName("内科");
+        internalMedicine.setStatus(0);
+
+        DoctorDepartment relation = new DoctorDepartment();
+        relation.setDoctorId(2L);
+        relation.setDepartmentId(1L);
+
+        DoctorProfile mappedDoctor = new DoctorProfile();
+        mappedDoctor.setId(2L);
+        mappedDoctor.setName("Dr. Internal");
+        mappedDoctor.setSpecialties("高血压");
+
+        when(doctorProfileMapper.selectList(any())).thenReturn(List.of());
+        when(departmentMapper.selectList(argThat(wrapper -> wrapper != null))).thenReturn(List.of(internalMedicine));
+        when(doctorDepartmentMapper.selectList(argThat(wrapper -> wrapper != null))).thenReturn(List.of(relation), List.of());
+        when(doctorProfileMapper.selectBatchIds(List.of(2L))).thenReturn(List.of(mappedDoctor));
+        when(departmentMapper.selectBatchIds(any(Collection.class))).thenReturn(List.of(internalMedicine));
+
+        List<DoctorVO> result = doctorProfileService.searchBySymptom("发烧,咳嗽");
+
+        assertEquals(1, result.size());
+        assertEquals(2L, result.get(0).getId());
+        assertEquals("内科", result.get(0).getDepartments().get(0).getName());
+    }
+
+    @Test
+    void searchBySymptom_shouldMergeDepartmentMatchesAndTextMatchesWithoutDuplicates() {
+        Department entDepartment = new Department();
+        entDepartment.setId(7L);
+        entDepartment.setName("耳鼻喉科");
+        entDepartment.setStatus(0);
+
+        DoctorDepartment relation = new DoctorDepartment();
+        relation.setDoctorId(8L);
+        relation.setDepartmentId(7L);
+
+        DoctorProfile matchedDoctor = new DoctorProfile();
+        matchedDoctor.setId(8L);
+        matchedDoctor.setName("Dr. Ent");
+        matchedDoctor.setSpecialties("喉炎");
+
+        when(doctorProfileMapper.selectList(any())).thenReturn(List.of(matchedDoctor));
+        when(departmentMapper.selectList(any())).thenReturn(List.of(entDepartment));
+        when(doctorDepartmentMapper.selectList(any())).thenReturn(List.of(relation), List.of(relation));
+        when(doctorProfileMapper.selectBatchIds(List.of(8L))).thenReturn(List.of(matchedDoctor));
+        when(departmentMapper.selectBatchIds(any(Collection.class))).thenReturn(List.of(entDepartment));
+
+        List<DoctorVO> result = doctorProfileService.searchBySymptom("喉咙痛");
+
+        assertEquals(1, result.size());
+        assertEquals(8L, result.get(0).getId());
+        assertEquals("耳鼻喉科", result.get(0).getDepartments().get(0).getName());
     }
 }
