@@ -244,6 +244,7 @@ const sendToBackend = (text) => {
     { sessionId: Number(sessionId.value), message: text },
     {
       onMessage: (_type, raw) => {
+        console.log('[Chat] SSE消息:', _type, raw.substring(0, 120))
         try {
           const payload = JSON.parse(raw)
           if (payload.type === 'token') {
@@ -253,8 +254,10 @@ const sendToBackend = (text) => {
             }
             scrollToBottom()
           } else if (payload.type === 'tts') {
+            console.log('[Chat] 收到TTS事件:', JSON.stringify(payload))
             if (payload.ttsUrl) {
               const audioUrl = resolveTtsUrl(payload.ttsUrl)
+              console.log('[Chat] TTS音频URL:', audioUrl)
               const fileName = payload.ttsUrl.split('/').pop()
               ttsQueue.push({
                 segmentIndex: payload.segmentIndex || 0,
@@ -312,8 +315,12 @@ const sendToBackend = (text) => {
 const playNextTtsSegment = () => {
   if (ttsPlaying) return
   const next = ttsQueue.find((item) => item.segmentIndex === currentPlayIndex)
-  if (!next) return
+  if (!next) {
+    console.log('[Chat] TTS队列无待播放段落, currentPlayIndex=', currentPlayIndex, 'queue=', JSON.stringify(ttsQueue))
+    return
+  }
 
+  console.log('[Chat] 播放TTS:', next.ttsUrl)
   ttsPlaying = true
   currentTtsUrl.value = next.ttsUrl
 
