@@ -9,9 +9,12 @@
         :style="{ width: '100%', height: live2dHeight + 'px' }"
       ></canvas>
       <view class="live2d-overlay">
-        <view class="status-bar">
-          <view class="status-dot" :class="{ active: isThinking }"></view>
-          <text class="status-text">{{ statusText }}</text>
+        <view class="assistant-card">
+          <text class="assistant-name">安禾</text>
+          <view class="status-bar">
+            <view class="status-dot" :class="{ active: isThinking }"></view>
+            <text class="status-text">{{ statusText }}</text>
+          </view>
         </view>
         <view class="new-chat-btn" @click="handleNewChat">
           <text>新对话</text>
@@ -440,7 +443,7 @@ const handleNewChat = () => {
         messages.value = []
         allHistoryMessages.value = []
         hasMoreHistory.value = false
-        addMessage('assistant', '您好！我是AI医疗助手，请描述您的症状，我来帮您分析和推荐合适的医生。')
+        addMessage('assistant', '您好，我是安禾。请描述您的症状，我来帮您分析并推荐合适的医生。')
       } catch (e) {
         console.error('[Chat] 创建新会话失败:', e)
         uni.showToast({ title: '创建新会话失败，请重试', icon: 'none' })
@@ -470,7 +473,7 @@ const initChat = async () => {
     }
 
     if (messages.value.length === 0) {
-      addMessage('assistant', '您好！我是AI医疗助手，请描述您的症状，我来帮您分析和推荐合适的医生。')
+      addMessage('assistant', '您好，我是安禾。请描述您的症状，我来帮您分析并推荐合适的医生。')
     }
   } catch (e) {
     console.error('[Chat] 会话初始化失败:', e)
@@ -562,6 +565,22 @@ onUnmounted(() => {
   padding: 60rpx 30rpx 20rpx;
 }
 
+.assistant-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+  padding: 18rpx 22rpx;
+  border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.76);
+  backdrop-filter: blur(8rpx);
+}
+
+.assistant-name {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #1f4f6f;
+}
+
 .status-bar {
   display: flex;
   align-items: center;
@@ -587,7 +606,7 @@ onUnmounted(() => {
 
 .status-text {
   font-size: 24rpx;
-  color: #666;
+  color: #5f6b76;
 }
 
 .new-chat-btn {

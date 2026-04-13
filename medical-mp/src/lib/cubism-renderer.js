@@ -1,7 +1,9 @@
 import { createCanvasImage, setupWeappCanvasAdapter } from './weapp-canvas-adapter'
+import { buildAuthHeader, getStoredToken } from '@/api/request'
 
 const DEFAULT_MODEL_FILE = 'wariza.model3.json'
 const GL_CONTEXT_UID = 1
+const LIVE2D_CACHE_DIR = `${wx.env.USER_DATA_PATH}/live2d-cache`
 
 // 模型资源通过 HTTP 从 live2d-h5 容器或 CDN 加载
 const MODEL_BASE_URL = import.meta.env.VITE_LIVE2D_URL || import.meta.env.VITE_LIVE2D_BASE || 'http://192.168.31.210:8090'
@@ -12,37 +14,130 @@ const joinUrl = (base, file = '') => {
   return normalizedFile ? `${normalizedBase}/${normalizedFile}` : normalizedBase
 }
 
-const httpGet = (url, responseType = 'text') =>
+const getFsManager = () => wx.getFileSystemManager()
+
+const ensureCacheDir = () =>
+  new Promise((resolve, reject) => {
+    getFsManager().mkdir({
+      dirPath: LIVE2D_CACHE_DIR,
+      recursive: true,
+      success: resolve,
+      fail: (err) => {
+        if (err?.errMsg?.includes('file already exists')) {
+          resolve()
+          return
+        }
+        reject(err)
+      }
+    })
+  })
+
+const sanitizeFileName = (url) =>
+  url
+    .replace(/^https?:\/\//, '')
+    .replace(/\.[a-zA-Z0-9]+(?:$|[?#])/, '')
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .slice(-180)
+
+const logAssetResult = (kind, url, meta) => {
+  console.log(`[Live2D][asset] ${kind}`, {
+    url,
+    hasToken: Boolean(getStoredToken()),
+    ...meta
+  })
+}
+
+const httpGet = (url, responseType = 'text', kind = 'asset') =>
   new Promise((resolve, reject) => {
     wx.request({
       url,
       method: 'GET',
       responseType,
+      header: buildAuthHeader(),
       success: (res) => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
+          logAssetResult(kind, url, {
+            statusCode: res.statusCode,
+            responseType
+          })
           resolve(res.data)
         } else {
-          reject(new Error(`HTTP ${res.statusCode}: ${url}`))
+          logAssetResult(kind, url, {
+            statusCode: res.statusCode,
+            responseType,
+            ok: false
+          })
+          reject(new Error(`[Live2D] ${kind} request failed with HTTP ${res.statusCode}: ${url}`))
         }
       },
-      fail: reject
+      fail: (err) => {
+        logAssetResult(kind, url, {
+          responseType,
+          ok: false,
+          errMsg: err?.errMsg || String(err)
+        })
+        reject(new Error(`[Live2D] ${kind} request failed: ${err?.errMsg || url}`))
+      }
     })
   })
 
 const readJson = async (url) => {
-  const data = await httpGet(url)
+  const data = await httpGet(url, 'text', 'json')
   return typeof data === 'string' ? JSON.parse(data) : data
 }
 
-const readArrayBuffer = async (url) => httpGet(url, 'arraybuffer')
+const readArrayBuffer = async (url, kind = 'binary') => httpGet(url, 'arraybuffer', kind)
+
+const downloadProtectedTexture = async (url) => {
+  await ensureCacheDir()
+
+  const extensionMatch = url.match(/\.([a-zA-Z0-9]+)(?:$|[?#])/)
+  const extension = extensionMatch ? extensionMatch[1] : 'png'
+  const filePath = `${LIVE2D_CACHE_DIR}/${sanitizeFileName(url)}.${extension}`
+
+  return new Promise((resolve, reject) => {
+    wx.downloadFile({
+      url,
+      header: buildAuthHeader(),
+      filePath,
+      success: (res) => {
+        if (res.statusCode >= 200 && res.statusCode < 300 && res.filePath) {
+          logAssetResult('texture', url, {
+            statusCode: res.statusCode,
+            filePath: res.filePath
+          })
+          resolve(res.filePath)
+          return
+        }
+        logAssetResult('texture', url, {
+          statusCode: res.statusCode,
+          ok: false
+        })
+        reject(new Error(`[Live2D] texture download failed with HTTP ${res.statusCode}: ${url}`))
+      },
+      fail: (err) => {
+        logAssetResult('texture', url, {
+          ok: false,
+          errMsg: err?.errMsg || String(err)
+        })
+        reject(new Error(`[Live2D] texture download failed: ${err?.errMsg || url}`))
+      }
+    })
+  })
+}
 
 const loadImage = (canvas, imageUrl) =>
   new Promise((resolve, reject) => {
     const image = createCanvasImage(canvas)
     image.onload = () => resolve(image)
-    image.onerror = reject
+    image.onerror = (err) => reject(new Error(`[Live2D] texture decode failed: ${imageUrl} ${err?.errMsg || ''}`.trim()))
     image.src = imageUrl
   })
+
+const loadProtectedTexture = async (canvas, imageUrl) => {
+  const localFilePath = await downloadProtectedTexture(imageUrl)
+  return loadImage(canvas, localFilePath)
+}
 
 const createTexture = (gl, image) => {
   const texture = gl.createTexture()
@@ -116,7 +211,7 @@ export class CubismRenderer {
     settings.resolveURL = (file) => joinUrl(this.modelBaseUrl, file)
     this.settings = settings
 
-    const mocBuffer = await readArrayBuffer(settings.resolveURL(settings.moc))
+    const mocBuffer = await readArrayBuffer(settings.resolveURL(settings.moc), 'moc3')
     console.log('[Live2D][debug] mocBuffer', {
       type: typeof mocBuffer,
       constructor: mocBuffer?.constructor?.name,
@@ -224,7 +319,7 @@ export class CubismRenderer {
   async bindTextures() {
     const images = await Promise.all(
       this.settings.textures.map((texturePath) =>
-        loadImage(this.canvas, this.settings.resolveURL(texturePath))
+        loadProtectedTexture(this.canvas, this.settings.resolveURL(texturePath))
       )
     )
 

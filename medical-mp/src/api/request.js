@@ -1,17 +1,22 @@
 const BASE_URL = import.meta.env.VITE_API_BASE || 'http://localhost:8080/api'
 
+export const getStoredToken = () => uni.getStorageSync('token') || ''
+
+export const buildAuthHeader = (header = {}) => {
+  const token = getStoredToken()
+  return {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...header
+  }
+}
+
 const request = (options) => {
   return new Promise((resolve, reject) => {
-    const token = uni.getStorageSync('token')
-    
     uni.request({
       url: BASE_URL + options.url,
       method: options.method || 'GET',
       data: options.data || {},
-      header: {
-        'Authorization': token ? `Bearer ${token}` : '',
-        ...options.header
-      },
+      header: buildAuthHeader(options.header),
       success: (res) => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
           const result = res.data

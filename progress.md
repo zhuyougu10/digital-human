@@ -82,3 +82,16 @@
 ### Planning Notes
 - 已完成设计文档：`docs/superpowers/specs/2026-04-14-live2d-asset-protection-and-naming-design.md`
 - 当前进入实现计划阶段，下一步按 coding-brain 路线拆 backend / frontend / deployment 任务。
+
+## Session: 2026-04-14 10:20
+
+### Root Cause
+- `medical-mp/src/lib/cubism-renderer.js` 只对 Live2D 资源使用裸 `wx.request` / `image.src`。这条链路没有复用小程序现有登录态请求头，因此受保护的 `.model3.json`、`.moc3`、动作、表情、物理文件都会缺少 `Authorization`。
+- 纹理资源即使切到受保护域名，`canvas.createImage().src = remoteUrl` 也无法附带自定义请求头，导致图片请求会继续以匿名方式发出，鉴权后必然失败。
+- `medical-mp/src/pages/chat/chat.vue` 聊天页欢迎语仍使用泛称 “AI医疗助手”，页面顶部也没有显式展示数字人姓名，无法满足统一命名为 “安禾” 的要求。
+
+### Fix
+- 在 `medical-mp/src/api/request.js` 提取通用 token/header 构造函数，供普通 API 请求和 Live2D 资源加载共用同一份 `Authorization: Bearer <token>` 逻辑。
+- 将 Live2D 文本/二进制资源加载统一改为带鉴权头的 `wx.request`，并把纹理资源改为 `wx.downloadFile + filePath + image.src=本地路径`，绕过小程序远程图片无法带 header 的限制。
+- 为 Live2D 资源请求增加按资源类型输出的诊断日志，便于区分 JSON、moc3、纹理等具体失败点。
+- 在聊天页顶部显式展示数字人姓名，并把欢迎语统一改为 “安禾”。
