@@ -63,9 +63,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted, nextTick, computed } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { onLoad, onHide, onShow } from '@dcloudio/uni-app'
-import { createSession, getMessageList } from '@/api/chat'
+import { createSession, getMessageList, getSessionList } from '@/api/chat'
 import { createSSERequest } from '@/utils/sse'
 import ChatMessage from '@/components/ChatMessage.vue'
 import TtsPlayer from '@/components/TtsPlayer.vue'
@@ -76,7 +76,6 @@ import { Live2dLipSync } from '@/lib/live2d-lip-sync'
 const systemInfo = uni.getSystemInfoSync()
 const screenHeight = systemInfo.windowHeight
 const live2dHeight = ref(Math.floor(screenHeight * 0.4))
-const inputAreaHeight = 100 // 底部输入栏高度 rpx -> 约 50px
 const chatAreaHeight = computed(() => screenHeight - live2dHeight.value - 50)
 
 // ---- Live2D ----
@@ -104,7 +103,6 @@ let ttsQueue = []
 let ttsPlaying = false
 let ttsTotalSegments = 0
 let currentPlayIndex = 0
-let currentAbortController = null
 
 // ---- SSE 流式状态 ----
 let currentAiMessageIndex = -1
@@ -158,6 +156,30 @@ const addMessage = (role, content, type = 'text') => {
   scrollToBottom()
 }
 
+const updateMessageContent = (index, content) => {
+  if (index < 0 || index >= messages.value.length) return
+  const target = messages.value[index]
+  messages.value.splice(index, 1, { ...target, content })
+}
+
+const parseSessionId = (payload) => {
+  return payload?.sessionId || payload?.id || payload?.data?.id || payload?.data?.sessionId || ''
+}
+
+const isActiveTriageSession = (session) => {
+  return session?.sessionType === 'TRIAGE' && Number(session?.status) === 0
+}
+
+const resetTtsState = () => {
+  uni.$off('TTS_PLAY_ENDED')
+  ttsQueue = []
+  ttsPlaying = false
+  ttsTotalSegments = 0
+  currentPlayIndex = 0
+  currentTtsUrl.value = ''
+  lipSync?.stop()
+}
+
 const scrollToBottom = () => {
   nextTick(() => {
     scrollTop.value = scrollTop.value === 99999 ? 99998 : 99999
@@ -186,12 +208,9 @@ const sendToBackend = (text) => {
   currentAiMessageIndex = messages.value.length - 1
 
   // 重置 TTS 状态
-  ttsQueue = []
-  ttsPlaying = false
-  ttsTotalSegments = 0
-  currentPlayIndex = 0
+  resetTtsState()
 
-  const requestTask = createSSERequest(
+  createSSERequest(
     '/ai/chat/send',
     { sessionId: Number(sessionId.value), message: text },
     {
@@ -201,7 +220,7 @@ const sendToBackend = (text) => {
           if (payload.type === 'token') {
             currentFullText += payload.content || ''
             if (currentAiMessageIndex >= 0) {
-              messages.value[currentAiMessageIndex].content = currentFullText
+              updateMessageContent(currentAiMessageIndex, currentFullText)
             }
             scrollToBottom()
           } else if (payload.type === 'tts') {
@@ -221,19 +240,19 @@ const sendToBackend = (text) => {
           } else if (payload.type === 'complete') {
             // 确保最终文本完整
             if (currentAiMessageIndex >= 0 && currentFullText) {
-              messages.value[currentAiMessageIndex].content = currentFullText
+              updateMessageContent(currentAiMessageIndex, currentFullText)
             }
           } else if (payload.type === 'error') {
             currentFullText += payload.content || '服务暂时不可用'
             if (currentAiMessageIndex >= 0) {
-              messages.value[currentAiMessageIndex].content = currentFullText
+              updateMessageContent(currentAiMessageIndex, currentFullText)
             }
           }
         } catch (e) {
           // 非 JSON，当作纯文本 token
           currentFullText += raw
           if (currentAiMessageIndex >= 0) {
-            messages.value[currentAiMessageIndex].content = currentFullText
+            updateMessageContent(currentAiMessageIndex, currentFullText)
           }
           scrollToBottom()
         }
@@ -250,7 +269,7 @@ const sendToBackend = (text) => {
         isThinking.value = false
         statusText.value = '正在为您服务...'
         if (currentAiMessageIndex >= 0 && !currentFullText) {
-          messages.value[currentAiMessageIndex].content = '抱歉，服务暂时不可用，请稍后重试'
+          updateMessageContent(currentAiMessageIndex, '抱歉，服务暂时不可用，请稍后重试')
         }
         currentAiMessageIndex = -1
       }
@@ -376,9 +395,10 @@ const handleNewChat = () => {
 
         // 创建新会话
         const result = await createSession('TRIAGE')
-        sessionId.value = result?.sessionId || result?.id || result?.data?.id || ''
+        sessionId.value = parseSessionId(result)
 
         // 清空消息
+        resetTtsState()
         messages.value = []
         allHistoryMessages.value = []
         hasMoreHistory.value = false
@@ -397,8 +417,15 @@ const handleNewChat = () => {
 
 const initChat = async () => {
   try {
-    const result = await createSession('TRIAGE')
-    sessionId.value = result?.sessionId || result?.id || result?.data?.id || ''
+    const sessionList = await getSessionList()
+    const activeSession = Array.isArray(sessionList) ? sessionList.find(isActiveTriageSession) : null
+
+    if (activeSession) {
+      sessionId.value = parseSessionId(activeSession)
+    } else {
+      const result = await createSession('TRIAGE')
+      sessionId.value = parseSessionId(result)
+    }
 
     if (sessionId.value) {
       await loadHistory()
@@ -453,10 +480,12 @@ onShow(() => {
 
 onUnmounted(() => {
   uni.$off('LIVE2D_POST_MESSAGE')
+  uni.$off('TTS_PLAY_ENDED')
   if (lipSyncTickerId) {
     clearTimeout(lipSyncTickerId)
     lipSyncTickerId = null
   }
+  resetTtsState()
   renderer?.destroy()
   renderer = null
   lipSync = null

@@ -34,6 +34,10 @@ const postLive2dMessage = (type: 'START_LIPSYNC' | 'STOP_LIPSYNC') => {
   }
 }
 
+const emitPlaybackEnded = () => {
+  uni.$emit('TTS_PLAY_ENDED')
+}
+
 const bindAudioEvents = () => {
   if (!audioContext) return
   audioContext.onPlay(() => {
@@ -49,16 +53,19 @@ const bindAudioEvents = () => {
   audioContext.onStop(() => {
     isPlaying.value = false
     postLive2dMessage('STOP_LIPSYNC')
+    emitPlaybackEnded()
     emit('stop')
   })
   audioContext.onEnded(() => {
     isPlaying.value = false
     postLive2dMessage('STOP_LIPSYNC')
+    emitPlaybackEnded()
     emit('ended')
   })
   audioContext.onError(() => {
     isPlaying.value = false
     postLive2dMessage('STOP_LIPSYNC')
+    emitPlaybackEnded()
     emit('error')
     uni.showToast({ title: '语音播放失败', icon: 'none' })
   })
