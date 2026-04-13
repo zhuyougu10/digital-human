@@ -283,7 +283,7 @@ export class CubismRenderer {
     m.a = (2 * fitScale) / sw
     m.d = -(2 * fitScale) / sh          // Y 翻转
     m.tx = -(mw * fitScale) / sw        // 水平居中: 偏移半个模型宽度
-    m.ty = (mh * fitScale * 0.35) / sh  // 垂直: 下移露出上半身
+    m.ty = (mh * fitScale * 0.55) / sh  // 垂直: 上移多露出裙子
     return m
   }
 
