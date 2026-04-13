@@ -82,7 +82,6 @@ const bindAudioEvents = () => {
 const ensureAudioContext = () => {
   if (audioContext) return audioContext
   audioContext = uni.createInnerAudioContext()
-  audioContext.autoplay = true
   audioContext.obeyMuteSwitch = false
   bindAudioEvents()
   return audioContext
@@ -97,8 +96,12 @@ const playAudio = () => {
     return
   }
   const ctx = ensureAudioContext()
+  console.log('[TtsPlayer] 设置src并播放:', props.ttsUrl)
   ctx.src = props.ttsUrl
-  ctx.play()
+  setTimeout(() => {
+    console.log('[TtsPlayer] 调用play()')
+    ctx.play()
+  }, 50)
 }
 
 const stopAudio = () => {
