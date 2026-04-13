@@ -286,7 +286,7 @@ export class CubismRenderer {
     const mh = this.internalModel.originalHeight || this.internalModel.height || 3508
 
     // 按画布短边适配，放大显示上半身
-    const fitScale = Math.min(sw / mw, sh / mh) * 2.0
+    const fitScale = Math.min(sw / mw, sh / mh) * 2.5
 
     const m = new globalThis.PIXI.Matrix()
     m.a = (2 * fitScale) / sw
@@ -315,6 +315,10 @@ export class CubismRenderer {
 
       this.internalModel.viewport = [0, 0, this.canvas.width, this.canvas.height]
       this.internalModel.update(delta, now)
+
+      // 持续隐藏翅膀
+      try { this.internalModel.coreModel.setParameterValueById('ParamWingsHide', 1) } catch (e) {}
+
       const projection = this.getProjectionMatrix()
       this.internalModel.updateTransform(projection)
       this.internalModel.draw(this.gl)
