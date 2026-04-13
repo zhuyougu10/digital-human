@@ -55,12 +55,29 @@ export const setupWeappCanvasAdapter = async (canvas) => {
       : (id) => clearTimeout(id))
 
     // 等待 Cubism Core WASM 初始化完成（真机上是异步的）
-    const waitForCubismCore = () => {
-      if (globalThis.Live2DCubismCore && globalThis.Live2DCubismCore.then) {
-        return new Promise((resolve) => globalThis.Live2DCubismCore.then(resolve))
+    const waitForCubismCore = () => new Promise((resolve, reject) => {
+      let attempts = 0
+      const maxAttempts = 200 // 最多等 10 秒
+      const check = () => {
+        attempts++
+        const core = globalThis.Live2DCubismCore
+        // 检查 WASM 核心函数是否已经可用
+        if (core && core.Version && core.Version.csmGetVersion) {
+          try {
+            core.Version.csmGetVersion()
+            console.log('[Live2D] Cubism Core WASM ready after', attempts * 50, 'ms')
+            resolve()
+            return
+          } catch (e) { /* not ready yet */ }
+        }
+        if (attempts >= maxAttempts) {
+          reject(new Error('Cubism Core WASM initialization timeout'))
+          return
+        }
+        setTimeout(check, 50)
       }
-      return Promise.resolve()
-    }
+      check()
+    })
 
     runtimePromise = waitForCubismCore().then(() => globalThis.PIXI.live2d)
   } else {
