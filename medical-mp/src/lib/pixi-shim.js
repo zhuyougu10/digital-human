@@ -86,19 +86,19 @@ class Matrix {
   copyFrom(m) { return this.set(m.a, m.b, m.c, m.d, m.tx, m.ty) }
   clone() { return new Matrix(this.a, this.b, this.c, this.d, this.tx, this.ty) }
   translate(x, y) { this.tx += x; this.ty += y; return this }
-  scale(x, y) { this.a*=x; this.b*=x; this.c*=y; this.d*=y; this.tx*=x; this.ty*=y; return this }
+  scale(x, y) { this.a*=x; this.b*=y; this.c*=x; this.d*=y; this.tx*=x; this.ty*=y; return this }
   append(m) {
-    const a=this.a, b=this.b, c=this.c, d=this.d, tx=this.tx, ty=this.ty
-    this.a = a*m.a + b*m.c; this.b = a*m.b + b*m.d
-    this.c = c*m.a + d*m.c; this.d = c*m.b + d*m.d
-    this.tx = tx*m.a + ty*m.c + m.tx; this.ty = tx*m.b + ty*m.d + m.ty
-    return this
-  }
-  prepend(m) {
     const a=this.a, b=this.b, c=this.c, d=this.d, tx=this.tx, ty=this.ty
     this.a = m.a*a + m.b*c; this.b = m.a*b + m.b*d
     this.c = m.c*a + m.d*c; this.d = m.c*b + m.d*d
     this.tx = m.tx*a + m.ty*c + tx; this.ty = m.tx*b + m.ty*d + ty
+    return this
+  }
+  prepend(m) {
+    const a=this.a, b=this.b, c=this.c, d=this.d, tx=this.tx, ty=this.ty
+    this.a = a*m.a + b*m.c; this.b = a*m.b + b*m.d
+    this.c = c*m.a + d*m.c; this.d = c*m.b + d*m.d
+    this.tx = tx*m.a + ty*m.c + m.tx; this.ty = tx*m.b + ty*m.d + m.ty
     return this
   }
 }

@@ -63,7 +63,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, computed, getCurrentInstance } from 'vue'
 import { onLoad, onHide, onShow } from '@dcloudio/uni-app'
 import { createSession, getMessageList, getSessionList } from '@/api/chat'
 import { createSSERequest } from '@/utils/sse'
@@ -119,8 +119,10 @@ const resolveTtsUrl = (ttsUrl) => {
 
 // =============== Live2D 初始化 ===============
 
+const instance = getCurrentInstance()
+
 const initLive2D = () => {
-  const query = uni.createSelectorQuery()
+  const query = uni.createSelectorQuery().in(instance)
   query.select('#live2d-canvas').node().exec((res) => {
     const canvasNode = res?.[0]?.node
     if (!canvasNode) {
