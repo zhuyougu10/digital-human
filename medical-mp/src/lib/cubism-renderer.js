@@ -289,7 +289,7 @@ export class CubismRenderer {
     const mh = this.internalModel.originalHeight || this.internalModel.height || 3508
 
     // 按画布短边适配，放大显示上半身
-    const fitScale = Math.min(sw / mw, sh / mh) * 2.0
+    const fitScale = Math.min(sw / mw, sh / mh) * 2.5
 
     const m = new globalThis.PIXI.Matrix()
     m.a = (2 * fitScale) / sw
