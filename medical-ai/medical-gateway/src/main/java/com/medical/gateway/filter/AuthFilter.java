@@ -36,6 +36,9 @@ public class AuthFilter {
                     }
                 })
                 .setAuth(obj -> SaRouter.match("/**", StpUtil::checkLogin))
-                .setError(e -> "{\"code\":401,\"msg\":\"" + e.getMessage() + "\",\"data\":null}");
+                .setError(e -> {
+                    SaHolder.getResponse().setStatus(401);
+                    return "{\"code\":401,\"msg\":\"" + e.getMessage() + "\",\"data\":null}";
+                });
     }
 }
