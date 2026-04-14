@@ -158,3 +158,14 @@
 - 后续已完成本机设备配对，并确认 gateway 与 `acpx` 后端正常启动。
 - 进一步定位发现当前 blocker 已收敛为 **OpenCode 1.4.3 的 ACP `session/new` 直接返回 `Internal error`**，不是 pairing、默认模型或 gateway 未启动。
 - 已确认 `opencode run -m github-copilot/gemini-3.1-pro-preview ...` 可正常执行，因此临时切换为 **直接用 OpenCode CLI + Gemini 3.1 Pro 后台派工**，绕过 ACP `session/new` 故障，不阻塞本轮前端任务推进。
+
+## Session: 2026-04-15 02:00
+
+### Design Approval
+- 主人已审批通过单主舞台方案：**方案2（单主舞台 + 系统抽屉）**。
+- 输入方式明确为并行三入口：**打字 / 说 / 点气泡**。
+- 主链路确认保持在舞台内闭环：入场、问诊、分诊、医生推荐、预约确认。
+
+### Planning Output
+- 已新增设计稿：`docs/superpowers/specs/2026-04-15-metaverse-clinic-stage-design.md`（commit `84bf496`）。
+- 已新增实施计划：`docs/superpowers/plans/2026-04-15-metaverse-clinic-stage-implementation.md`（待执行派工）。
