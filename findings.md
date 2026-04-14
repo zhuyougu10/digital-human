@@ -37,3 +37,10 @@
 - `medical-mp/live2d-h5/nginx.conf` 当前还是旧 H5 页的 `try_files ... /index.html` 逻辑，不适合模型静态资源域。
 - `medical-ai/docker/docker-compose.yml` 当前 `live2d-h5` 服务仍然从 `medical-mp/live2d-h5` 构建，说明资源域容器与旧 H5 页面还未拆分用途。
 - 数字人最终命名已确认：`安禾`。
+
+## 2026-04-14 中午体验优化需求发现
+- `medical-admin/src/views/login/index.vue` 当前把 `loginForm.username` 和 `loginForm.password` 默认写死为 `admin / admin123`，打开登录页就会自动带出账号密码。
+- `medical-mp/src/pages/chat/chat.vue` 目前没有首屏级 loading 蒙层，页面一进入就直接渲染主体；虽然 Live2D 区域会随后初始化，但在模型出来之前用户已经能看到聊天页框架。
+- 主人明确选择了折中方案：全屏 loading 只等待数字人首次加载成功，不需要等会话初始化和历史消息全部完成。
+- 这意味着 loading 状态应只绑定 Live2D 首次 ready，而不是复用 `isLoadingHistory`、`isThinking` 或会话请求状态。
+- 同时需要为 Live2D 加载失败或超时提供退出机制，否则可能把用户永久锁在全屏 loading 上。

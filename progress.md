@@ -108,3 +108,17 @@
 - 将 `medical-mp/live2d-h5` Docker 镜像改为仅分发 `public/models` 静态目录，不再构建或发布旧 H5 页面。
 - 重写 `live2d-h5` nginx 配置：`/models/**` 先经 `auth_request` 转发到 gateway 鉴权，根路径与其他路径统一返回 `404`，同时关闭目录浏览。
 - 在 `docker-compose.yml` 中让 `live2d-h5` 显式依赖 `gateway` 启动，保持资源域和鉴权链路同网部署。
+
+## Session: 2026-04-14 12:03
+
+### Approved Scope
+- 主人新增两个前端体验优化点：
+  1. 删除 `medical-admin` 登录页默认自动填写的账号密码
+  2. 小程序聊天页在数字人加载出来之前显示全屏 loading
+- 主人明确选择了折中策略：loading 只等待数字人首次加载成功，不需要等待会话初始化和历史消息全部完成。
+- 主人同时确认 admin 端只删除默认值，输入框保持空白，不额外改“记住上次登录内容”或退出清空策略。
+
+### Planning
+- 已写设计文档：`docs/superpowers/specs/2026-04-14-admin-login-cleanup-and-chat-loading-design.md`
+- 已写实现计划：`docs/superpowers/plans/2026-04-14-admin-login-cleanup-and-chat-loading.md`
+- 下一步按 coding-brain 路线派发单个前端 worker，处理 admin 登录页和小程序聊天页两个文件的改动。

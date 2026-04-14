@@ -94,7 +94,7 @@
 - gateway 重建后无需手工重启 admin-web
 - 修复被提交并推送到仓库
 
-### Phase 5: Live2D 模型资源站鉴权 + 数字人命名“安禾” [status: planning]
+### Phase 5: Live2D 模型资源站鉴权 + 数字人命名“安禾” [status: complete]
 **执行方式：brain 先写实现计划，再按 coding-brain 分拆 worker**
 
 工作内容：
@@ -109,3 +109,18 @@
 - 已登录小程序可正常加载完整模型资源
 - `live2d.zhuyougu.cn` 不再提供旧 H5 页面
 - 小程序展示名统一为“安禾”
+
+### Phase 6: Admin 登录默认值清理 + 聊天页首屏 Loading [status: planning]
+**执行方式：brain 先补设计/计划，再按 coding-brain 派前端 worker**
+
+工作内容：
+1. 删除 `medical-admin` 登录页默认自动填写的 `admin / admin123`
+2. 为 `medical-mp` 聊天页增加全屏 loading 蒙层
+3. loading 只等待 Live2D 首次加载成功，不阻塞会话初始化与历史消息局部加载
+4. 为 Live2D 加载失败或超时增加兜底，避免页面永久卡死
+
+验收标准：
+- admin 登录页打开时账号密码为空
+- 小程序聊天页首次进入先显示全屏 loading
+- 数字人加载成功后 loading 消失
+- 数字人加载失败或超时时 loading 也会退出，不会永久卡死
