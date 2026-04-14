@@ -110,7 +110,7 @@
 - `live2d.zhuyougu.cn` 不再提供旧 H5 页面
 - 小程序展示名统一为“安禾”
 
-### Phase 6: Admin 登录默认值清理 + 聊天页首屏 Loading [status: planning]
+### Phase 6: Admin 登录默认值清理 + 聊天页首屏 Loading [status: complete]
 **执行方式：brain 先补设计/计划，再按 coding-brain 派前端 worker**
 
 工作内容：
@@ -124,3 +124,19 @@
 - 小程序聊天页首次进入先显示全屏 loading
 - 数字人加载成功后 loading 消失
 - 数字人加载失败或超时时 loading 也会退出，不会永久卡死
+
+### Phase 7: App 端全页面 UI 中重构 [status: planning]
+**执行方式：brain 先完成 spec + implementation plan，再按 coding-brain 分前端批次派工**
+
+工作内容：
+1. 建立 `medical-mp` 的统一医疗专业感视觉系统
+2. 统一品牌文案：页面品牌位为“数字人医疗助手”，对话内自称为“我是你的医疗助手安禾”
+3. 重构登录、问诊、医生、预约、我的全部页面 UI
+4. 为 TabBar 补齐统一风格的 icon
+5. 按“问诊主链路 > 预约 > 我的”的顺序推进，但最终覆盖全部页面
+
+验收标准：
+- 全部页面明显属于同一产品视觉体系
+- 问诊、医生、预约、我的信息层级得到统一优化
+- TabBar 拥有完整 icon 与统一选中态
+- 不改后端接口契约，不引入无关业务改动

@@ -122,3 +122,22 @@
 - 已写设计文档：`docs/superpowers/specs/2026-04-14-admin-login-cleanup-and-chat-loading-design.md`
 - 已写实现计划：`docs/superpowers/plans/2026-04-14-admin-login-cleanup-and-chat-loading.md`
 - 下一步按 coding-brain 路线派发单个前端 worker，处理 admin 登录页和小程序聊天页两个文件的改动。
+
+## Session: 2026-04-14 14:38
+
+### Approved Scope
+- 主人要求按 `/skill coding-brain` 推进 `medical-mp` 全页面 UI 中重构。
+- 本轮明确是 **UI 重做**，不是后端或业务架构重写。
+- 风格方向确认：**医疗专业感**。
+- 品牌命名规则确认：
+  - 页面品牌位：`数字人医疗助手`
+  - 对话内自称：`我是你的医疗助手安禾`
+  - 页面空间有限时：`我是你的医疗助手`
+- 推进方式确认：先统一视觉系统，再逐页落地。
+- 页面优先级确认：问诊主链路 > 预约 > 我的，但最终覆盖全部页面。
+- 主人补充要求：底部菜单需要加统一风格的 icon。
+
+### Planning
+- 已写设计文档：`docs/superpowers/specs/2026-04-14-app-pages-ui-refactor-design.md`
+- 已写实现计划：`docs/superpowers/plans/2026-04-14-app-pages-ui-refactor.md`
+- 下一步应按 coding-brain 把任务拆成前端批次派工，至少分成：视觉基础与壳层、核心问诊链路、预约链路与个人中心、TabBar/icon 收口。
