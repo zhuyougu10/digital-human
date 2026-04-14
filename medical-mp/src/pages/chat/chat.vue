@@ -1,5 +1,13 @@
 <template>
   <view class="chat-page">
+    <view v-if="isPageBootLoading" class="page-loading-overlay">
+      <view class="page-loading-card">
+        <view class="page-loading-spinner"></view>
+        <text class="page-loading-title">安禾正在准备中</text>
+        <text class="page-loading-desc">正在加载数字人，请稍候...</text>
+      </view>
+    </view>
+
     <!-- 顶部 Live2D 区域 -->
     <view class="live2d-area" :style="{ height: live2dHeight + 'px' }">
       <canvas
@@ -84,6 +92,9 @@ const chatAreaHeight = computed(() => screenHeight - live2dHeight.value - 50)
 // ---- Live2D ----
 let renderer = null
 let lipSync = null
+const isPageBootLoading = ref(true)
+const live2dReady = ref(false)
+let live2dLoadingTimeoutId = null
 
 // ---- 聊天状态 ----
 const sessionId = ref('')
@@ -124,12 +135,26 @@ const resolveTtsUrl = (ttsUrl) => {
 
 const instance = getCurrentInstance()
 
+const clearLive2dLoadingTimeout = () => {
+  if (live2dLoadingTimeoutId) {
+    clearTimeout(live2dLoadingTimeoutId)
+    live2dLoadingTimeoutId = null
+  }
+}
+
+const finishPageBootLoading = () => {
+  isPageBootLoading.value = false
+}
+
 const initLive2D = () => {
   const query = uni.createSelectorQuery().in(instance)
   query.select('#live2d-canvas').node().exec((res) => {
     const canvasNode = res?.[0]?.node
     if (!canvasNode) {
       console.error('[Chat] 无法获取 canvas 节点')
+      clearLive2dLoadingTimeout()
+      finishPageBootLoading()
+      uni.showToast({ title: '数字人加载失败', icon: 'none' })
       return
     }
 
@@ -142,12 +167,18 @@ const initLive2D = () => {
       .loadModel(canvasNode, 'models/doctor', 'wariza.model3.json')
       .then(() => {
         console.log('[Chat] Live2D 模型加载成功')
+        live2dReady.value = true
+        clearLive2dLoadingTimeout()
+        finishPageBootLoading()
         lipSync = new Live2dLipSync((value) => renderer?.setMouthOpenY(value))
         // 启动口型同步 ticker
         startLipSyncTicker()
       })
       .catch((err) => {
         console.error('[Chat] Live2D 加载失败:', err)
+        clearLive2dLoadingTimeout()
+        finishPageBootLoading()
+        uni.showToast({ title: '数字人加载失败', icon: 'none' })
       })
   })
 }
@@ -486,6 +517,13 @@ onLoad(() => {
 })
 
 onMounted(() => {
+  live2dLoadingTimeoutId = setTimeout(() => {
+    if (live2dReady.value) return
+    console.warn('[Chat] Live2D 加载超时，关闭首屏 loading')
+    finishPageBootLoading()
+    clearLive2dLoadingTimeout()
+  }, 10000)
+
   // 延迟初始化 Live2D，确保 canvas 已渲染
   setTimeout(() => initLive2D(), 300)
 
@@ -522,6 +560,7 @@ onShow(() => {
 onUnmounted(() => {
   uni.$off('LIVE2D_POST_MESSAGE')
   uni.$off('TTS_PLAY_ENDED')
+  clearLive2dLoadingTimeout()
   if (lipSyncTickerId) {
     clearTimeout(lipSyncTickerId)
     lipSyncTickerId = null
@@ -540,6 +579,55 @@ onUnmounted(() => {
   width: 100vw;
   height: 100vh;
   background: linear-gradient(180deg, #e8f4f8 0%, #f5f7fa 40%, #f5f7fa 100%);
+}
+
+.page-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40rpx;
+  background: linear-gradient(180deg, #e8f4f8 0%, #f5f7fa 100%);
+}
+
+.page-loading-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20rpx;
+  width: 100%;
+  max-width: 420rpx;
+  padding: 48rpx 36rpx;
+  border-radius: 32rpx;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 20rpx 60rpx rgba(31, 79, 111, 0.12);
+}
+
+.page-loading-spinner {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  border: 6rpx solid rgba(31, 79, 111, 0.12);
+  border-top-color: #2e7ea7;
+  animation: page-loading-spin 0.9s linear infinite;
+}
+
+.page-loading-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #1f4f6f;
+}
+
+.page-loading-desc {
+  font-size: 26rpx;
+  color: #5f6b76;
+}
+
+@keyframes page-loading-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .live2d-area {
