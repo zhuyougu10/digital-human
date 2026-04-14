@@ -18,7 +18,8 @@
       ></canvas>
       <view class="live2d-overlay">
         <view class="assistant-card">
-          <text class="assistant-name">安禾</text>
+          <text class="assistant-name">数字人医疗助手</text>
+          <text class="assistant-subtitle">我是你的医疗助手安禾</text>
           <view class="status-bar">
             <view class="status-dot" :class="{ active: isThinking }"></view>
             <text class="status-text">{{ statusText }}</text>
@@ -474,7 +475,7 @@ const handleNewChat = () => {
         messages.value = []
         allHistoryMessages.value = []
         hasMoreHistory.value = false
-        addMessage('assistant', '您好，我是安禾。请描述您的症状，我来帮您分析并推荐合适的医生。')
+        addMessage('assistant', '您好，我是你的医疗助手安禾。请描述您的症状，我来帮您分析并推荐合适的医生。')
       } catch (e) {
         console.error('[Chat] 创建新会话失败:', e)
         uni.showToast({ title: '创建新会话失败，请重试', icon: 'none' })
@@ -664,9 +665,14 @@ onUnmounted(() => {
 }
 
 .assistant-name {
-  font-size: 34rpx;
+  font-size: 32rpx;
   font-weight: 600;
   color: #1f4f6f;
+}
+
+.assistant-subtitle {
+  font-size: 24rpx;
+  color: #5f6b76;
 }
 
 .status-bar {

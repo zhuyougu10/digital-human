@@ -64,7 +64,7 @@ const onSelect = () => {
   display: flex;
   align-items: center;
   gap: 24rpx;
-  box-shadow: 0 8rpx 24rpx rgba(37, 99, 235, 0.06);
+  box-shadow: 0 8rpx 24rpx rgba(46, 126, 167, 0.06);
   margin-bottom: 24rpx;
   border: 1rpx solid rgba(226, 232, 240, 0.6);
   font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
@@ -104,8 +104,8 @@ const onSelect = () => {
 
 .title {
   font-size: 24rpx;
-  color: #2563eb;
-  background: rgba(37, 99, 235, 0.08);
+  color: #2e7ea7;
+  background: rgba(46, 126, 167, 0.08);
   padding: 2rpx 12rpx;
   border-radius: 6rpx;
 }
@@ -136,13 +136,13 @@ const onSelect = () => {
 }
 
 .book-btn {
-  background: #2563eb;
+  background: #2e7ea7;
   color: #ffffff;
   font-size: 26rpx;
   font-weight: 600;
   padding: 12rpx 32rpx;
   border-radius: 30rpx;
-  box-shadow: 0 4rpx 12rpx rgba(37, 99, 235, 0.2);
+  box-shadow: 0 4rpx 12rpx rgba(46, 126, 167, 0.2);
 }
 
 .book-btn:active {

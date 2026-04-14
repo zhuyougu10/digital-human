@@ -285,8 +285,8 @@ onLoad((options) => {
 
 .title {
   font-size: 24rpx;
-  color: #2563eb;
-  background: #eff6ff;
+  color: #2e7ea7;
+  background: #e8f4f8;
   padding: 4rpx 16rpx;
   border-radius: 8rpx;
   font-weight: 500;
@@ -342,9 +342,9 @@ onLoad((options) => {
   position: relative;
 
   &.active {
-    background: #2563eb;
-    border-color: #2563eb;
-    box-shadow: 0 8rpx 16rpx rgba(37, 99, 235, 0.2);
+    background: #2e7ea7;
+    border-color: #2e7ea7;
+    box-shadow: 0 8rpx 16rpx rgba(46, 126, 167, 0.2);
     
     .week { color: rgba(255, 255, 255, 0.8); }
     .day { color: #ffffff; }
@@ -397,7 +397,7 @@ onLoad((options) => {
   border-radius: 4rpx;
   
   &.morning { background: #f59e0b; }
-  &.afternoon { background: #2563eb; }
+  &.afternoon { background: #2e7ea7; }
 }
 
 .section-title {
@@ -424,10 +424,10 @@ onLoad((options) => {
   transition: all 0.2s;
 
   &.active {
-    background: #eff6ff;
-    border-color: #2563eb;
-    .time { color: #2563eb; }
-    .status-tag { background: #2563eb; .status-text { color: #ffffff; } }
+    background: #e8f4f8;
+    border-color: #2e7ea7;
+    .time { color: #2e7ea7; }
+    .status-tag { background: #2e7ea7; .status-text { color: #ffffff; } }
   }
 
   &.disabled {
@@ -506,7 +506,7 @@ onLoad((options) => {
 .confirm-btn {
   width: 260rpx;
   height: 96rpx;
-  background: #2563eb;
+  background: #2e7ea7;
   color: #ffffff;
   border-radius: 48rpx;
   font-size: 32rpx;
@@ -515,7 +515,7 @@ onLoad((options) => {
   align-items: center;
   justify-content: center;
   border: none;
-  box-shadow: 0 8rpx 20rpx rgba(37, 99, 235, 0.25);
+  box-shadow: 0 8rpx 20rpx rgba(46, 126, 167, 0.25);
   margin: 0;
   
   &::after { border: none; }

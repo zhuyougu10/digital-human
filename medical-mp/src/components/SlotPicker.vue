@@ -153,8 +153,8 @@ const selectSlot = (slot: Slot) => {
 }
 
 .date-tab.active {
-  background: #2563eb;
-  box-shadow: 0 4rpx 12rpx rgba(37, 99, 235, 0.2);
+  background: #2e7ea7;
+  box-shadow: 0 4rpx 12rpx rgba(46, 126, 167, 0.2);
 }
 
 .date-text {
@@ -184,8 +184,8 @@ const selectSlot = (slot: Slot) => {
   margin-right: 12rpx;
 }
 
-.period-indicator.morning { background: #f59e0b; }
-.period-indicator.afternoon { background: #2563eb; }
+.period-indicator.morning { background: #d89b2b; }
+.period-indicator.afternoon { background: #2e7ea7; }
 
 .period-title {
   font-size: 28rpx;
@@ -212,8 +212,8 @@ const selectSlot = (slot: Slot) => {
 }
 
 .slot-item.selected {
-  border-color: #2563eb;
-  background: #eff6ff;
+  border-color: #2e7ea7;
+  background: #f0f8fb;
 }
 
 .slot-item.disabled {
@@ -229,23 +229,23 @@ const selectSlot = (slot: Slot) => {
 }
 
 .slot-item.selected .time {
-  color: #2563eb;
+  color: #2e7ea7;
 }
 
 .remaining-box {
   padding: 2rpx 12rpx;
-  background: #dcfce7;
+  background: #e9f5ed;
   border-radius: 6rpx;
 }
 
 .remaining-text {
-  color: #059669;
+  color: #41a56a;
   font-size: 20rpx;
   font-weight: 500;
 }
 
 .slot-item.selected .remaining-box {
-  background: #2563eb;
+  background: #2e7ea7;
 }
 
 .slot-item.selected .remaining-text {

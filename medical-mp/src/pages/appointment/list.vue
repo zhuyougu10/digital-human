@@ -3,7 +3,7 @@
     <view class="appt-header">
       <view class="header-content">
         <text class="appt-header-title">我的预约</text>
-        <text class="appt-header-subtitle">管理您的就诊安排</text>
+        <text class="appt-header-subtitle">我是你的医疗助手安禾，为您管理就诊安排</text>
       </view>
     </view>
 
@@ -167,25 +167,25 @@ onMounted(fetchAppointments)
 </script>
 
 <style scoped lang="scss">
-$primary: #2563eb;
-$secondary: #0d9488;
-$success: #10b981;
-$warning: #f59e0b;
-$text-main: #1e293b;
-$text-sub: #64748b;
-$bg-light: #f8faff;
+$primary: #2e7ea7;
+$secondary: #1f5f82;
+$success: #41a56a;
+$warning: #d89b2b;
+$text-main: #1f2d3d;
+$text-sub: #5f6b76;
+$bg-light: #f5f8fb;
 
 .appointment-list-page {
   min-height: 100vh;
-  background: #f1f5f9;
+  background: #f0f4f8;
   display: flex;
   flex-direction: column;
 }
 
 .appt-header {
-  height: 280rpx;
+  height: 260rpx;
   background: linear-gradient(135deg, $primary 0%, $secondary 100%);
-  padding: 100rpx 40rpx 40rpx;
+  padding: 80rpx 40rpx 40rpx;
   display: flex;
   align-items: center;
   position: relative;
@@ -194,26 +194,26 @@ $bg-light: #f8faff;
   &::after {
     content: '';
     position: absolute;
-    right: -20rpx;
-    bottom: -20rpx;
-    width: 200rpx;
-    height: 200rpx;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 100rpx;
+    right: -30rpx;
+    bottom: -30rpx;
+    width: 220rpx;
+    height: 220rpx;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 110rpx;
   }
 }
 
 .appt-header-title {
-  font-size: 44rpx;
-  font-weight: 700;
+  font-size: 40rpx;
+  font-weight: 600;
   color: #FFFFFF;
   display: block;
 }
 
 .appt-header-subtitle {
   font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.8);
-  margin-top: 8rpx;
+  color: rgba(255, 255, 255, 0.85);
+  margin-top: 10rpx;
   display: block;
 }
 

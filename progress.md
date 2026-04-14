@@ -141,3 +141,20 @@
 - 已写设计文档：`docs/superpowers/specs/2026-04-14-app-pages-ui-refactor-design.md`
 - 已写实现计划：`docs/superpowers/plans/2026-04-14-app-pages-ui-refactor.md`
 - 下一步应按 coding-brain 把任务拆成前端批次派工，至少分成：视觉基础与壳层、核心问诊链路、预约链路与个人中心、TabBar/icon 收口。
+
+## Session: 2026-04-14 22:52
+
+### Dispatch Decision
+- 检查 GitHub 未完成 issue 后，当前仍打开的前端任务为：`#13` 视觉基础与 TabBar、`#14` 问诊与医生链路、`#12` 预约与我的页。
+- 这 3 个任务作用域基本独立，适合并行派发。
+- 按主人的要求，本轮改由 **OpenCode + Gemini 3.1 Pro** 执行，并在 worker prompt 中显式要求使用 `frontend-design` skill。
+
+### Next
+- 并行派发 3 个前端 worker，分别对应 issue #13 / #14 / #12。
+- 等 worker 返回后审查 diff、跑 `npm run build:mp-weixin`，再决定是否收口或继续修正。
+
+### Blocker
+- 实际派发 `OpenCode + Gemini 3.1 Pro` 时，ACP harness 启动先被网关拒绝：`pairing required`。
+- 后续已完成本机设备配对，并确认 gateway 与 `acpx` 后端正常启动。
+- 进一步定位发现当前 blocker 已收敛为 **OpenCode 1.4.3 的 ACP `session/new` 直接返回 `Internal error`**，不是 pairing、默认模型或 gateway 未启动。
+- 已确认 `opencode run -m github-copilot/gemini-3.1-pro-preview ...` 可正常执行，因此临时切换为 **直接用 OpenCode CLI + Gemini 3.1 Pro 后台派工**，绕过 ACP `session/new` 故障，不阻塞本轮前端任务推进。

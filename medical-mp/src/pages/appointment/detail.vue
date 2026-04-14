@@ -133,16 +133,16 @@ onLoad((options) => {
 </script>
 
 <style scoped lang="scss">
-$primary: #2563eb;
-$success: #10b981;
-$text-main: #1e293b;
-$text-sub: #64748b;
-$bg-gradient: linear-gradient(135deg, #2563eb 0%, #0d9488 100%);
-$success-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
+$primary: #2e7ea7;
+$success: #41a56a;
+$text-main: #1f2d3d;
+$text-sub: #5f6b76;
+$bg-gradient: linear-gradient(135deg, #2e7ea7 0%, #1f5f82 100%);
+$success-gradient: linear-gradient(135deg, #41a56a 0%, #2f8352 100%);
 
 .result-page {
   min-height: 100vh;
-  background: #f8faff;
+  background: #f5f8fb;
 }
 
 .result-header {

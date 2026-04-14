@@ -33,8 +33,9 @@ const props = defineProps({
 <style scoped>
 .message-item {
   display: flex;
-  margin-bottom: 30rpx;
-  padding: 0 20rpx;
+  margin-bottom: 32rpx;
+  padding: 0 24rpx;
+  align-items: flex-start;
 }
 
 .message-user {
@@ -46,36 +47,39 @@ const props = defineProps({
 }
 
 .avatar {
-  width: 80rpx;
-  height: 80rpx;
-  border-radius: 50%;
-  background-color: #eee;
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 36rpx;
+  background-color: #f5f8fb;
+  flex-shrink: 0;
 }
 
 .content-wrapper {
-  max-width: 70%;
+  max-width: 72%;
   margin: 0 20rpx;
 }
 
 .bubble {
-  padding: 20rpx 30rpx;
-  border-radius: 20rpx;
-  font-size: 30rpx;
-  line-height: 1.5;
+  padding: 24rpx 32rpx;
+  border-radius: 24rpx;
+  font-size: 28rpx;
+  line-height: 1.6;
   word-break: break-all;
 }
 
 .message-ai .bubble {
-  background-color: white;
-  color: #333;
-  border-top-left-radius: 4rpx;
-  box-shadow: 0 4rpx 10rpx rgba(0,0,0,0.05);
+  background-color: #ffffff;
+  color: #1f2d3d;
+  border-top-left-radius: 8rpx;
+  box-shadow: 0 4rpx 16rpx rgba(31, 79, 111, 0.04);
+  border: 1rpx solid rgba(217, 231, 239, 0.6);
 }
 
 .message-user .bubble {
-  background-color: #4A90D9;
-  color: white;
-  border-top-right-radius: 4rpx;
+  background-color: #2e7ea7;
+  color: #ffffff;
+  border-top-right-radius: 8rpx;
+  box-shadow: 0 4rpx 16rpx rgba(46, 126, 167, 0.16);
 }
 
 .special-card {

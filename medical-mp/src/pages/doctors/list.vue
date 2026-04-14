@@ -8,10 +8,10 @@
       </view>
       <view class="dr-info">
         <view class="dr-avatar">
-          <uni-icons type="person-filled" size="36" color="#2563eb"></uni-icons>
+          <uni-icons type="person-filled" size="36" color="#2e7ea7"></uni-icons>
         </view>
-        <text class="dr-name">数字人 AI 辅助</text>
-        <text class="dr-status">基于您的健康档案，为您精准推荐</text>
+        <text class="dr-name">数字人医疗助手</text>
+        <text class="dr-status">基于您的症状分析，为您精准推荐专家</text>
       </view>
     </view>
 
@@ -130,7 +130,7 @@ onMounted(() => {
 
 .dr-header {
   height: 480rpx;
-  background: linear-gradient(180deg, #2563eb 0%, #3b82f6 60%, #60a5fa 100%);
+  background: linear-gradient(180deg, #2e7ea7 0%, #468eb3 60%, #5b9dbf 100%);
   padding: 88rpx 32rpx 32rpx;
   display: flex;
   flex-direction: column;
@@ -225,9 +225,9 @@ onMounted(() => {
   transition: all 0.3s;
   
   &.active {
-    background: #2563eb;
+    background: #2e7ea7;
     color: #FFFFFF;
-    box-shadow: 0 4rpx 12rpx rgba(37, 99, 235, 0.25);
+    box-shadow: 0 4rpx 12rpx rgba(46, 126, 167, 0.25);
   }
 }
 
@@ -286,8 +286,8 @@ onMounted(() => {
   
   .title-tag {
     font-size: 22rpx;
-    color: #2563eb;
-    background: rgba(37, 99, 235, 0.08);
+    color: #2e7ea7;
+    background: rgba(46, 126, 167, 0.08);
     padding: 2rpx 12rpx;
     border-radius: 8rpx;
   }
@@ -338,13 +338,13 @@ onMounted(() => {
   }
   
   .book-btn {
-    background: #2563eb;
+    background: #2e7ea7;
     color: #ffffff;
     font-size: 24rpx;
     font-weight: 600;
     padding: 10rpx 28rpx;
     border-radius: 24rpx;
-    box-shadow: 0 4rpx 10rpx rgba(37, 99, 235, 0.2);
+    box-shadow: 0 4rpx 10rpx rgba(46, 126, 167, 0.2);
   }
 }
 

@@ -29,7 +29,7 @@
           <view class="menu-item" hover-class="menu-item-hover" @click="go('/pages/appointment/list')">
             <view class="item-left">
               <view class="icon-box blue">
-                <uni-icons type="calendar" size="20" color="#2563eb"></uni-icons>
+                <uni-icons type="calendar" size="20" color="#2e7ea7"></uni-icons>
               </view>
               <text class="item-text">我的预约</text>
             </view>
@@ -39,9 +39,9 @@
           <view class="menu-item" hover-class="menu-item-hover" @click="go('/pages/chat/chat')">
             <view class="item-left">
               <view class="icon-box green">
-                <uni-icons type="chatbubble" size="20" color="#0d9488"></uni-icons>
+                <uni-icons type="chatbubble" size="20" color="#41a56a"></uni-icons>
               </view>
-              <text class="item-text">对话记录</text>
+              <text class="item-text">继续问安禾</text>
             </view>
             <uni-icons type="right" size="14" color="#cbd5e1"></uni-icons>
           </view>
@@ -148,7 +148,7 @@ onShow(loadUser)
 <style scoped lang="scss">
 .mine-page {
   min-height: 100vh;
-  background-color: #f8faff;
+  background-color: #f5f8fb;
   display: flex;
   flex-direction: column;
   font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
@@ -162,7 +162,7 @@ onShow(loadUser)
   flex-direction: column;
   justify-content: space-between;
   overflow: hidden;
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, #2e7ea7 0%, #1f5f82 100%);
 }
 
 .header-bg {
@@ -326,8 +326,8 @@ onShow(loadUser)
   align-items: center;
   justify-content: center;
   
-  &.blue { background-color: rgba(37, 99, 235, 0.08); }
-  &.green { background-color: rgba(13, 148, 136, 0.08); }
+  &.blue { background-color: rgba(46, 126, 167, 0.08); }
+  &.green { background-color: rgba(65, 165, 106, 0.08); }
   &.orange { background-color: rgba(245, 158, 11, 0.08); }
   &.indigo { background-color: rgba(99, 102, 241, 0.08); }
   &.slate { background-color: rgba(100, 116, 139, 0.08); }

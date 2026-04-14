@@ -10,7 +10,7 @@
     {
       "path": "pages/chat/chat",
       "style": {
-        "navigationBarTitleText": "AI 问诊",
+        "navigationBarTitleText": "数字人医疗助手",
         "disableScroll": true,
         "navigationStyle": "custom"
       }
@@ -48,9 +48,9 @@
   ],
   "globalStyle": {
     "navigationBarTextStyle": "black",
-    "navigationBarTitleText": "医疗健康小程序",
-    "navigationBarBackgroundColor": "#F8F8F8",
-    "backgroundColor": "#F8F8F8"
+    "navigationBarTitleText": "数字人医疗助手",
+    "navigationBarBackgroundColor": "#F8FAFC",
+    "backgroundColor": "#F8FAFC"
   },
   "tabBar": {
     "color": "#9CA3AF",
@@ -60,14 +60,21 @@
     "list": [
       {
         "pagePath": "pages/chat/chat",
-        "text": "问诊"
-      },      {
+        "text": "问诊",
+        "iconPath": "static/tabbar/consult.png",
+        "selectedIconPath": "static/tabbar/consult-active.png"
+      },
+      {
         "pagePath": "pages/appointment/list",
-        "text": "预约"
+        "text": "预约",
+        "iconPath": "static/tabbar/appointment.png",
+        "selectedIconPath": "static/tabbar/appointment-active.png"
       },
       {
         "pagePath": "pages/mine/index",
-        "text": "我的"
+        "text": "我的",
+        "iconPath": "static/tabbar/mine.png",
+        "selectedIconPath": "static/tabbar/mine-active.png"
       }
     ]
   }
