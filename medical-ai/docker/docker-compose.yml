@@ -215,6 +215,7 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root123}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
+      SEATA_SERVICE_VGROUP_MAPPING_MEDICAL_TX_GROUP: default
 
   ai-service:
     build:
@@ -276,6 +277,7 @@ services:
       RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
       RABBITMQ_USER: ${RABBITMQ_USER:-guest}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+      SEATA_SERVICE_VGROUP_MAPPING_MEDICAL_TX_GROUP: default
 
   knowledge-service:
     build:
