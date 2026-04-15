@@ -28,6 +28,9 @@ class TriageAgentTest {
         String secondPrompt = triageAgent.getSystemPrompt();
 
         assertTrue(firstPrompt.contains("呼吸科、感染科"));
+        assertTrue(firstPrompt.contains("工具参数必须同时传 doctorId、doctorName、date"));
+        assertTrue(firstPrompt.contains("createAppointment 时只能使用 getAvailableSlots 返回的真实 slotId"));
+        assertTrue(firstPrompt.contains("系统当前显示挂号费为 0 元"));
         assertTrue(secondPrompt.contains("呼吸科、感染科"));
         verify(remoteDoctorService, times(1)).getDepartmentNames();
     }

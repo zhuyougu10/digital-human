@@ -23,6 +23,8 @@ services:
   redis:
     image: docker.m.daocloud.io/redis:7-alpine
     container_name: medical-redis
+    environment:
+      TZ: Asia/Shanghai
     ports:
       - "6379:6379"
     volumes:
@@ -35,6 +37,7 @@ services:
       - "5672:5672"
       - "15672:15672"
     environment:
+      TZ: Asia/Shanghai
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
     healthcheck:
@@ -49,6 +52,7 @@ services:
     image: docker.m.daocloud.io/nacos/nacos-server:v2.3.2
     container_name: medical-nacos
     environment:
+      TZ: Asia/Shanghai
       MODE: standalone
       SPRING_DATASOURCE_PLATFORM: ""
       JVM_XMS: 256m
@@ -66,6 +70,7 @@ services:
     image: quay.io/coreos/etcd:v3.5.5
     container_name: medical-milvus-etcd
     environment:
+      TZ: Asia/Shanghai
       ETCD_AUTO_COMPACTION_MODE: revision
       ETCD_AUTO_COMPACTION_RETENTION: "1000"
       ETCD_QUOTA_BACKEND_BYTES: "4294967296"
@@ -78,6 +83,7 @@ services:
     image: docker.m.daocloud.io/minio/minio:RELEASE.2023-03-20T20-16-18Z
     container_name: medical-milvus-minio
     environment:
+      TZ: Asia/Shanghai
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
     ports:
@@ -98,6 +104,7 @@ services:
       - milvus-etcd
       - milvus-minio
     environment:
+      TZ: Asia/Shanghai
       ETCD_ENDPOINTS: milvus-etcd:2379
       MINIO_ADDRESS: milvus-minio:9000
     ports:
@@ -114,6 +121,7 @@ services:
       - "8091:8091"
       - "7091:7091"
     environment:
+      - TZ=Asia/Shanghai
       - SEATA_STORE_MODE=db
       - SEATA_STORE_DB_DATASOURCE=druid
       - SEATA_STORE_DB_DB_TYPE=mysql
@@ -157,6 +165,8 @@ services:
       redis:
         condition: service_started
     environment:
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
       NACOS_ADDR: ${NACOS_ADDR:-nacos:8848}
       REDIS_HOST: ${REDIS_HOST:-redis}
 
@@ -173,6 +183,8 @@ services:
       nacos:
         condition: service_healthy
     environment:
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
       NACOS_ADDR: ${NACOS_ADDR:-nacos:8848}
       MYSQL_HOST: ${MYSQL_HOST:-mysql}
       MYSQL_USER: ${MYSQL_USER:-root}
@@ -195,6 +207,8 @@ services:
       seata-server:
         condition: service_healthy
     environment:
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
       NACOS_ADDR: ${NACOS_ADDR:-nacos:8848}
       MYSQL_HOST: ${MYSQL_HOST:-mysql}
       MYSQL_USER: ${MYSQL_USER:-root}
@@ -217,6 +231,8 @@ services:
       milvus:
         condition: service_started
     environment:
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
       NACOS_ADDR: ${NACOS_ADDR:-nacos:8848}
       MYSQL_HOST: ${MYSQL_HOST:-mysql}
       MYSQL_USER: ${MYSQL_USER:-root}
@@ -248,6 +264,8 @@ services:
       seata-server:
         condition: service_healthy
     environment:
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
       NACOS_ADDR: ${NACOS_ADDR:-nacos:8848}
       MYSQL_HOST: ${MYSQL_HOST:-mysql}
       MYSQL_USER: ${MYSQL_USER:-root}
@@ -272,6 +290,8 @@ services:
       milvus:
         condition: service_started
     environment:
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
       NACOS_ADDR: ${NACOS_ADDR:-nacos:8848}
       MYSQL_HOST: ${MYSQL_HOST:-mysql}
       MYSQL_USER: ${MYSQL_USER:-root}
@@ -284,6 +304,8 @@ services:
   admin-web:
     build: ../../medical-admin
     container_name: medical-admin-web
+    environment:
+      TZ: Asia/Shanghai
     ports:
       - "80:80"
     depends_on:
@@ -293,6 +315,8 @@ services:
   live2d-h5:
     build: ../../medical-mp/live2d-h5
     container_name: medical-live2d-h5
+    environment:
+      TZ: Asia/Shanghai
     depends_on:
       gateway:
         condition: service_started

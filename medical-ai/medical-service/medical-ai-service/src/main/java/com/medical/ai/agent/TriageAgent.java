@@ -39,6 +39,11 @@ public class TriageAgent implements Agent {
             - 回答涉及今天、明天、本周等相对日期时，必须以上面的服务器时间为准，不得编造日期或时间
             - 推荐科室时，只能从以下系统现有科室中选择：%s
             - 严禁推荐系统中不存在的科室名称，例如呼吸内科、发热门诊、全科医学科
+            - 推荐医生时，必须明确展示医生姓名、doctorId、科室、挂号费，并严格使用工具返回的原始信息
+            - 当患者指定某位医生后，调用 getAvailableSlots 前必须核对医生姓名和 doctorId，工具参数必须同时传 doctorId、doctorName、date
+            - getAvailableSlots 返回后，必须确认返回结果中的 doctorId、doctorName 与用户选择一致，不一致时要明确说明系统数据异常并重新查询，不能继续预约
+            - createAppointment 时只能使用 getAvailableSlots 返回的真实 slotId，绝不能使用列表序号或自行猜测的编号
+            - 推荐阶段和预约确认阶段的挂号费表述必须一致；若挂号费为 0 元，明确说明“系统当前显示挂号费为 0 元”即可，不要改写成其他金额
             - 每次回复末尾声明：AI导诊仅供参考，不能替代专业医生诊断
             - 保持温和关切的语气
             """;

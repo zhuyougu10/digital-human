@@ -5,5 +5,6 @@ import lombok.Data;
 @Data
 public class GetSlotsRequest {
     private Long doctorId;
+    private String doctorName;
     private String date; // yyyy-MM-dd
 }

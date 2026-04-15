@@ -52,31 +52,31 @@ public class ScheduleController {
 
     @GetMapping("/slots")
     public R<List<ScheduleSlotVO>> getAvailableSlots(
-            @RequestParam Long doctorId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+            @RequestParam("doctorId") Long doctorId,
+            @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return R.ok(scheduleService.getAvailableSlots(doctorId, date));
     }
 
     @GetMapping("/slots/department")
     public R<List<ScheduleSlotVO>> getAvailableSlotsByDepartment(
-            @RequestParam Long departmentId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+            @RequestParam("departmentId") Long departmentId,
+            @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return R.ok(scheduleService.getAvailableSlotsByDepartment(departmentId, date));
     }
 
     @SaCheckRole(UserConstants.ROLE_ADMIN)
     @PostMapping("/generate")
     public R<Void> generate(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam("startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam("endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         scheduleService.generateSlots(startDate, endDate);
         return R.ok();
     }
 
     @GetMapping("/inner/slots")
     public R<List<SlotInfoDTO>> innerGetAvailableSlots(
-            @RequestParam Long doctorId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+            @RequestParam("doctorId") Long doctorId,
+            @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         List<SlotInfoDTO> result = scheduleService.getAvailableSlots(doctorId, date)
                 .stream()
                 .map(this::toSlotInfoDTO)
