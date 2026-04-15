@@ -169,6 +169,21 @@ public class DoctorProfileServiceImpl implements DoctorProfileService {
     }
 
     @Override
+    public DoctorVO getByName(String name) {
+        if (!StringUtils.hasText(name)) {
+            throw new BusinessException(ErrorCode.DOCTOR_NOT_FOUND);
+        }
+        DoctorProfile profile = doctorProfileMapper.selectOne(
+                new LambdaQueryWrapper<DoctorProfile>()
+                        .eq(DoctorProfile::getName, name.trim())
+                        .last("limit 1"));
+        if (profile == null) {
+            throw new BusinessException(ErrorCode.DOCTOR_NOT_FOUND);
+        }
+        return buildDoctorVO(profile);
+    }
+
+    @Override
     @Transactional
     public void create(DoctorProfileDTO dto) {
         DoctorProfile profile = new DoctorProfile();

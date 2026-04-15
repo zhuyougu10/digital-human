@@ -89,6 +89,12 @@ public class DoctorController {
         return R.ok(toDoctorInfoDTO(vo));
     }
 
+    @GetMapping("/inner/by-name")
+    public R<DoctorInfoDTO> getInnerByName(@RequestParam("name") String name) {
+        DoctorVO vo = doctorProfileService.getByName(name);
+        return R.ok(toDoctorInfoDTO(vo));
+    }
+
     @GetMapping("/inner/departments/names")
     public R<List<String>> innerDepartmentNames() {
         List<String> names = departmentMapper.selectList(new LambdaQueryWrapper<Department>()

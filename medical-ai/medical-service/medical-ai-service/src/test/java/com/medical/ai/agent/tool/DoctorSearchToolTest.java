@@ -63,22 +63,33 @@ class DoctorSearchToolTest {
     }
 
     @Test
-    void getAvailableSlots_shouldRejectMismatchedDoctorSelection() {
+    void getAvailableSlots_shouldCorrectMismatchedDoctorSelectionByName() {
         GetSlotsRequest request = new GetSlotsRequest();
         request.setDoctorId(3L);
         request.setDoctorName("张三");
         request.setDate("2026-04-16");
 
-        DoctorInfoDTO doctor = new DoctorInfoDTO();
-        doctor.setId(3L);
-        doctor.setName("王磊");
+        DoctorInfoDTO doctorById = new DoctorInfoDTO();
+        doctorById.setId(3L);
+        doctorById.setName("王磊");
 
-        when(remoteDoctorService.getDoctorById(3L)).thenReturn(R.ok(doctor));
+        DoctorInfoDTO doctorByName = new DoctorInfoDTO();
+        doctorByName.setId(1L);
+        doctorByName.setName("张三");
 
-        CompletionException error = assertThrows(CompletionException.class,
-                () -> doctorSearchTool.getAvailableSlots().apply(request));
+        SlotInfoDTO slot = new SlotInfoDTO();
+        slot.setId(520L);
+        slot.setDoctorId(1L);
+        slot.setDoctorName("张三");
 
-        assertEquals("医生姓名与 doctorId 不匹配，请重新确认后再查询号源", error.getCause().getMessage());
+        when(remoteDoctorService.getDoctorById(3L)).thenReturn(R.ok(doctorById));
+        when(remoteDoctorService.getDoctorByName("张三")).thenReturn(R.ok(doctorByName));
+        when(remoteScheduleService.getAvailableSlots(1L, "2026-04-16")).thenReturn(R.ok(List.of(slot)));
+
+        List<SlotInfoDTO> result = doctorSearchTool.getAvailableSlots().apply(request);
+
+        assertEquals(1, result.size());
+        assertEquals(520L, result.get(0).getId());
         verify(remoteScheduleService, never()).getAvailableSlots(3L, "2026-04-16");
     }
 

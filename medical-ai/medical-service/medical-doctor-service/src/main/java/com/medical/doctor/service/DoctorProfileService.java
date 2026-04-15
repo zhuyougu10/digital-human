@@ -15,6 +15,8 @@ public interface DoctorProfileService {
 
     DoctorVO getByUserId(Long userId);
 
+    DoctorVO getByName(String name);
+
     void create(DoctorProfileDTO dto);
 
     void update(Long id, DoctorProfileDTO dto);

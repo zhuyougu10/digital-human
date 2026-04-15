@@ -54,15 +54,13 @@ public class DoctorSearchTool {
             return CompletableFuture.supplyAsync(() -> {
                 validateRequest(request);
 
-                DoctorInfoDTO doctor = loadDoctor(request.getDoctorId());
-                validateDoctorSelection(request, doctor);
-
+                DoctorSelection selection = resolveDoctorSelection(request);
                 R<List<SlotInfoDTO>> result = remoteScheduleService.getAvailableSlots(
-                        request.getDoctorId(), request.getDate());
+                        selection.doctorId(), request.getDate());
                 List<SlotInfoDTO> slots = result != null && result.isSuccess() && result.getData() != null
                         ? result.getData()
                         : Collections.emptyList();
-                validateReturnedSlots(request, doctor, slots);
+                validateReturnedSlots(selection.doctorId(), selection.doctorName(), slots);
                 return slots;
             }, toolCallExecutor).join();
         };
@@ -82,27 +80,39 @@ public class DoctorSearchTool {
         return doctorResult.getData();
     }
 
-    private void validateDoctorSelection(GetSlotsRequest request, DoctorInfoDTO doctor) {
-        if (request.getDoctorName() == null || request.getDoctorName().isBlank()) {
-            return;
+    private DoctorSelection resolveDoctorSelection(GetSlotsRequest request) {
+        DoctorInfoDTO doctorById = loadDoctor(request.getDoctorId());
+        String requestedName = normalize(request.getDoctorName());
+        if (requestedName.isBlank() || requestedName.equals(normalize(doctorById.getName()))) {
+            return new DoctorSelection(doctorById.getId(), doctorById.getName());
         }
-        if (!normalize(request.getDoctorName()).equals(normalize(doctor.getName()))) {
-            throw new IllegalArgumentException("医生姓名与 doctorId 不匹配，请重新确认后再查询号源");
+
+        R<DoctorInfoDTO> byNameResult = remoteDoctorService.getDoctorByName(request.getDoctorName().trim());
+        if (byNameResult == null || !byNameResult.isSuccess() || byNameResult.getData() == null) {
+            throw new IllegalArgumentException("医生姓名与 doctorId 不匹配，且无法按姓名定位医生，请重新确认后再查询号源");
         }
+
+        DoctorInfoDTO doctorByName = byNameResult.getData();
+        log.warn("Doctor selection mismatch corrected: requestedDoctorId={}, requestedDoctorName={}, resolvedDoctorId={}, resolvedDoctorName={}",
+                request.getDoctorId(), request.getDoctorName(), doctorByName.getId(), doctorByName.getName());
+        return new DoctorSelection(doctorByName.getId(), doctorByName.getName());
     }
 
-    private void validateReturnedSlots(GetSlotsRequest request, DoctorInfoDTO doctor, List<SlotInfoDTO> slots) {
+    private void validateReturnedSlots(Long doctorId, String doctorName, List<SlotInfoDTO> slots) {
         for (SlotInfoDTO slot : slots) {
             if (slot == null) {
                 continue;
             }
-            if (!request.getDoctorId().equals(slot.getDoctorId())
-                    || !normalize(doctor.getName()).equals(normalize(slot.getDoctorName()))) {
+            if (!doctorId.equals(slot.getDoctorId())
+                    || !normalize(doctorName).equals(normalize(slot.getDoctorName()))) {
                 log.error("Slot doctor mismatch, requestDoctorId={}, requestDoctorName={}, actualDoctorId={}, actualDoctorName={}, slotId={}",
-                        request.getDoctorId(), request.getDoctorName(), slot.getDoctorId(), slot.getDoctorName(), slot.getId());
+                        doctorId, doctorName, slot.getDoctorId(), slot.getDoctorName(), slot.getId());
                 throw new IllegalStateException("号源返回的医生信息与所选医生不一致，请重新查询");
             }
         }
+    }
+
+    private record DoctorSelection(Long doctorId, String doctorName) {
     }
 
     private String normalize(String value) {
