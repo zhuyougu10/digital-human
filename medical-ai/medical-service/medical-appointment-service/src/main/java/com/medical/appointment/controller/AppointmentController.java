@@ -77,8 +77,10 @@ public class AppointmentController {
     @SaCheckRole(UserConstants.ROLE_ADMIN)
     @GetMapping("/statistics")
     public R<Map<String, Object>> statistics(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam(value = "startDate", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         return R.ok(appointmentService.getStatistics(startDate, endDate));
     }
 
