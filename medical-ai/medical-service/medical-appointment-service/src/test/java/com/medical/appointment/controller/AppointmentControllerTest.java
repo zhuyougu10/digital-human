@@ -127,6 +127,17 @@ public class AppointmentControllerTest {
     }
 
     @Test
+    void getDoctorAppointments_shouldPassLoginUserIdToService() throws Exception {
+        when(appointmentService.getDoctorAppointments(eq(1L), any())).thenReturn(Collections.emptyList());
+
+        mockMvc.perform(get("/appointment/doctor"))
+                .andExpect(status().isOk());
+
+        verify(appointmentService).getDoctorAppointments(eq(1L), any());
+        verifyNoMoreInteractions(appointmentService);
+    }
+
+    @Test
     void getDoctorAppointments_withDate() throws Exception {
         when(appointmentService.getDoctorAppointments(eq(1L), any(LocalDate.class))).thenReturn(Collections.emptyList());
 

@@ -3,8 +3,6 @@ package com.medical.appointment.controller;
 import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.annotation.SaCheckRole;
 import cn.dev33.satoken.stp.StpUtil;
-import com.medical.api.doctor.RemoteDoctorService;
-import com.medical.api.doctor.dto.DoctorInfoDTO;
 import com.medical.appointment.domain.dto.AppointmentQueryDTO;
 import com.medical.appointment.domain.dto.CreateAppointmentDTO;
 import com.medical.appointment.domain.vo.AppointmentListVO;
@@ -14,14 +12,11 @@ import com.medical.common.core.constant.UserConstants;
 import com.medical.common.core.domain.PageQuery;
 import com.medical.common.core.domain.PageResult;
 import com.medical.common.core.domain.R;
-import com.medical.common.core.exception.BusinessException;
-import com.medical.common.core.exception.ErrorCode;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -35,11 +30,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/appointment")
 @RequiredArgsConstructor
-@Slf4j
 public class AppointmentController {
 
     private final AppointmentService appointmentService;
-    private final RemoteDoctorService remoteDoctorService;
 
     @SaCheckLogin
     @PostMapping
@@ -57,19 +50,9 @@ public class AppointmentController {
     @SaCheckRole(UserConstants.ROLE_DOCTOR)
     @GetMapping("/doctor")
     public R<List<AppointmentVO>> doctorAppointments(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        Long userId = StpUtil.getLoginIdAsLong();
-        DoctorInfoDTO doctorInfo = resolveDoctorProfile(userId);
-        return R.ok(appointmentService.getDoctorAppointments(doctorInfo.getId(), date));
-    }
-
-    private DoctorInfoDTO resolveDoctorProfile(Long userId) {
-        R<DoctorInfoDTO> response = remoteDoctorService.getDoctorByUserId(userId);
-        if (response == null || !response.isSuccess() || response.getData() == null || response.getData().getId() == null) {
-            log.error("Failed to resolve doctor profile by userId, userId={}, response={}", userId, response);
-            throw new BusinessException(ErrorCode.DOCTOR_NOT_FOUND);
-        }
-        return response.getData();
+            @RequestParam(value = "date", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return R.ok(appointmentService.getDoctorAppointments(StpUtil.getLoginIdAsLong(), date));
     }
 
     @SaCheckLogin
