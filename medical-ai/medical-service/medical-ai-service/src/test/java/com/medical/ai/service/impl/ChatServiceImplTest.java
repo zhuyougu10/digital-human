@@ -120,6 +120,38 @@ class ChatServiceImplTest {
     }
 
     @Test
+    void chat_shouldRewriteFakeAppointmentSuccessReplyWhenCreateAppointmentToolWasNotCalled() {
+        ChatSession session = new ChatSession();
+        session.setId(1L);
+        session.setUserId(38L);
+        session.setAgentType("TRIAGE");
+        session.setTitle("新对话");
+        when(sessionMapper.selectById(1L)).thenReturn(session);
+        when(messageMapper.selectList(any())).thenReturn(Collections.emptyList());
+
+        Agent agent = mock(Agent.class);
+        when(agentFactory.getAgent("TRIAGE")).thenReturn(agent);
+        when(agent.getToolNames()).thenReturn(Collections.emptyList());
+        when(agent.getSystemPrompt()).thenReturn("triage-system");
+        when(agent.getAgentType()).thenReturn("TRIAGE");
+
+        when(chatModel.stream(any(Prompt.class))).thenReturn(Flux.just(
+                mockChatResponse("好的，我已经为您成功创建了预约！\n预约ID：100")
+        ));
+        when(ttsService.synthesize("抱歉，刚才尚未成功创建预约，请重新确认医生与时间后，我再为您提交预约。"))
+                .thenReturn("/ai/chat/tts/guard.mp3");
+
+        List<SseMessageVO> events = chatService.chat(1L, 38L, "帮我预约李伟")
+                .take(3)
+                .collectList()
+                .block(Duration.ofSeconds(1));
+
+        assertNotNull(events);
+        assertEquals("complete", events.get(1).getType());
+        assertEquals("抱歉，刚才尚未成功创建预约，请重新确认医生与时间后，我再为您提交预约。", events.get(1).getContent());
+    }
+
+    @Test
     void chat_shouldEmitCompleteBeforeTtsEvent() throws Exception {
         ChatSession session = new ChatSession();
         session.setId(1L);

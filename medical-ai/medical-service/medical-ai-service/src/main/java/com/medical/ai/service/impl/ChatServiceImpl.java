@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.AssistantMessage;
@@ -52,6 +53,9 @@ public class ChatServiceImpl implements ChatService {
     public static final String CHAT_STREAM_RESOURCE = "svc:ai:chatStream";
     private static final int MAX_CONTEXT_MESSAGES = 20;
     private static final String DEFAULT_SESSION_TITLE = "新对话";
+    private static final Pattern APPOINTMENT_SUCCESS_PATTERN = Pattern.compile("预约成功|成功创建了预约|已经为您成功创建了预约");
+    private static final Pattern APPOINTMENT_ID_PATTERN = Pattern.compile("预约ID|appointmentId", Pattern.CASE_INSENSITIVE);
+    private static final String APPOINTMENT_GUARD_FALLBACK_REPLY = "抱歉，刚才尚未成功创建预约，请重新确认医生与时间后，我再为您提交预约。";
 
     private final ChatSessionMapper sessionMapper;
     private final ChatMessageMapper messageMapper;
@@ -153,13 +157,14 @@ public class ChatServiceImpl implements ChatService {
             })
             .concatWith(Mono.fromCallable(() -> {
                 String fullText = fullResponse.toString();
-                fullTextRef.set(fullText);
+                String guardedText = guardAppointmentSuccessReply(sessionId, userMsg.getId(), fullText);
+                fullTextRef.set(guardedText);
 
                 // 先保存 assistant 消息，保证完整文本先落库
                 ChatMessage assistantMsg = new ChatMessage();
                 assistantMsg.setSessionId(sessionId);
                 assistantMsg.setRole("assistant");
-                assistantMsg.setContent(fullText);
+                assistantMsg.setContent(guardedText);
                 messageMapper.insert(assistantMsg);
                 assistantMessageRef.set(assistantMsg);
 
@@ -172,7 +177,7 @@ public class ChatServiceImpl implements ChatService {
                 // 先下发 complete，避免被后续 TTS 拖住
                 SseMessageVO complete = new SseMessageVO();
                 complete.setType("complete");
-                complete.setContent(fullText);
+                complete.setContent(guardedText);
                 complete.setTtsUrl(null);
                 return complete;
             }))
@@ -308,5 +313,60 @@ public class ChatServiceImpl implements ChatService {
             }
         }
         return vo;
+    }
+
+    private String guardAppointmentSuccessReply(Long sessionId, Long userMessageId, String assistantText) {
+        if (assistantText == null || assistantText.isBlank()) {
+            return assistantText;
+        }
+        if (!isPotentialFakeSuccessReply(assistantText)) {
+            return assistantText;
+        }
+
+        List<ChatMessage> toolMessages = messageMapper.selectList(
+                new LambdaQueryWrapper<ChatMessage>()
+                        .eq(ChatMessage::getSessionId, sessionId)
+                        .eq(ChatMessage::getRole, "tool")
+                        .eq(ChatMessage::getToolName, "createAppointment")
+                        .gt(userMessageId != null, ChatMessage::getId, userMessageId)
+                        .orderByDesc(ChatMessage::getId)
+                        .last("LIMIT 3"));
+
+        boolean hasSuccessfulCreate = toolMessages.stream().anyMatch(this::isCreateAppointmentSuccessToolMessage);
+        if (hasSuccessfulCreate) {
+            return assistantText;
+        }
+
+        log.warn("Guarded potential fake appointment success reply, sessionId={}, userMessageId={}, assistantText={}",
+                sessionId, userMessageId, assistantText);
+        return APPOINTMENT_GUARD_FALLBACK_REPLY;
+    }
+
+    private boolean isPotentialFakeSuccessReply(String text) {
+        return APPOINTMENT_SUCCESS_PATTERN.matcher(text).find() || APPOINTMENT_ID_PATTERN.matcher(text).find();
+    }
+
+    private boolean isCreateAppointmentSuccessToolMessage(ChatMessage toolMessage) {
+        if (toolMessage == null || toolMessage.getContent() == null || toolMessage.getContent().isBlank()) {
+            return false;
+        }
+        try {
+            Map<String, Object> payload = objectMapper.readValue(
+                    toolMessage.getContent(),
+                    new TypeReference<Map<String, Object>>() {
+                    });
+            Object successObj = payload.get("success");
+            Object appointmentIdObj = payload.get("appointmentId");
+            boolean success = successObj instanceof Boolean ? (Boolean) successObj : "true".equals(String.valueOf(successObj));
+            if (!success || appointmentIdObj == null) {
+                return false;
+            }
+            String appointmentId = String.valueOf(appointmentIdObj).trim();
+            return !appointmentId.isEmpty() && !"null".equalsIgnoreCase(appointmentId);
+        } catch (Exception e) {
+            log.warn("Failed to parse createAppointment tool message, id={}, content={}",
+                    toolMessage.getId(), toolMessage.getContent());
+            return false;
+        }
     }
 }
