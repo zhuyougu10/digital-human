@@ -51,7 +51,7 @@ class AppointmentEventPublisherImplTest {
                 .thenReturn(List.of(outbox));
         when(appointmentEventOutboxMapper.claimForPublish(eq(outbox.getId()), anyInt(), anyInt(), any()))
                 .thenReturn(1);
-        when(appointmentEventOutboxMapper.markPublished(eq(outbox.getId()), anyInt(), any())).thenReturn(1);
+        when(appointmentEventOutboxMapper.markPublished(eq(outbox.getId()), anyInt(), anyInt(), any())).thenReturn(1);
         doAnswer(invocation -> {
             CorrelationData correlationData = invocation.getArgument(4);
             correlationData.getFuture().complete(new CorrelationData.Confirm(true, null));
@@ -78,7 +78,10 @@ class AppointmentEventPublisherImplTest {
 
         ArgumentCaptor<LocalDateTime> publishedAtCaptor = ArgumentCaptor.forClass(LocalDateTime.class);
         verify(appointmentEventOutboxMapper).markPublished(
-                eq(outbox.getId()), eq(AppointmentEventPublisherImpl.PUBLISH_STATUS_PUBLISHING), publishedAtCaptor.capture());
+                eq(outbox.getId()),
+                eq(AppointmentEventPublisherImpl.PUBLISH_STATUS_PUBLISHING),
+                eq(AppointmentEventPublisherImpl.PUBLISH_STATUS_PUBLISHED),
+                publishedAtCaptor.capture());
         assertNotNull(publishedAtCaptor.getValue());
         verify(appointmentEventOutboxMapper, never()).markPendingForRetry(any(), anyInt(), anyInt(), anyString(), anyInt());
     }
@@ -106,7 +109,7 @@ class AppointmentEventPublisherImplTest {
         verify(appointmentEventOutboxMapper).markPendingForRetry(
                 outbox.getId(), AppointmentEventPublisherImpl.PUBLISH_STATUS_PUBLISHING, 3,
                 "broker nack: exchange missing", AppointmentEventPublisherImpl.PUBLISH_STATUS_PENDING);
-        verify(appointmentEventOutboxMapper, never()).markPublished(any(), anyInt(), any());
+        verify(appointmentEventOutboxMapper, never()).markPublished(any(), anyInt(), anyInt(), any());
     }
 
     @Test
@@ -133,7 +136,7 @@ class AppointmentEventPublisherImplTest {
         verify(appointmentEventOutboxMapper).markPendingForRetry(
                 outbox.getId(), AppointmentEventPublisherImpl.PUBLISH_STATUS_PUBLISHING, 1,
                 "broker returned replyCode=312, replyText=NO_ROUTE", AppointmentEventPublisherImpl.PUBLISH_STATUS_PENDING);
-        verify(appointmentEventOutboxMapper, never()).markPublished(any(), anyInt(), any());
+        verify(appointmentEventOutboxMapper, never()).markPublished(any(), anyInt(), anyInt(), any());
     }
 
     @Test
@@ -147,7 +150,7 @@ class AppointmentEventPublisherImplTest {
         appointmentEventPublisher.publishPendingEvents();
 
         verify(rabbitTemplate, never()).convertAndSend(anyString(), anyString(), any(), any(MessagePostProcessor.class), any(CorrelationData.class));
-        verify(appointmentEventOutboxMapper, never()).markPublished(any(), anyInt(), any());
+        verify(appointmentEventOutboxMapper, never()).markPublished(any(), anyInt(), anyInt(), any());
         verify(appointmentEventOutboxMapper, never()).markPendingForRetry(any(), anyInt(), anyInt(), anyString(), anyInt());
     }
 

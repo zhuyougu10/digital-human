@@ -82,7 +82,11 @@ public class AppointmentEventPublisherImpl implements AppointmentEventPublisher 
             if (confirm == null || !confirm.isAck()) {
                 throw new IllegalStateException(buildNackMessage(confirm));
             }
-            appointmentEventOutboxMapper.markPublished(outbox.getId(), PUBLISH_STATUS_PUBLISHING, LocalDateTime.now());
+            appointmentEventOutboxMapper.markPublished(
+                    outbox.getId(),
+                    PUBLISH_STATUS_PUBLISHING,
+                    PUBLISH_STATUS_PUBLISHED,
+                    LocalDateTime.now());
         } catch (Exception e) {
             log.error("Failed to publish appointment outbox event, outboxId={}, eventType={}",
                     outbox.getId(), outbox.getEventType(), e);
@@ -90,7 +94,7 @@ public class AppointmentEventPublisherImpl implements AppointmentEventPublisher 
                     outbox.getId(),
                     PUBLISH_STATUS_PUBLISHING,
                     nextRetryCount(outbox),
-                    e.getMessage(),
+                    truncateErrorMessage(e.getMessage()),
                     PUBLISH_STATUS_PENDING);
         }
     }
@@ -115,5 +119,16 @@ public class AppointmentEventPublisherImpl implements AppointmentEventPublisher 
 
     private String buildReturnedMessage(ReturnedMessage returned) {
         return "broker returned replyCode=" + returned.getReplyCode() + ", replyText=" + returned.getReplyText();
+    }
+
+    private String truncateErrorMessage(String message) {
+        if (message == null) {
+            return null;
+        }
+        final int maxLength = 500;
+        if (message.length() <= maxLength) {
+            return message;
+        }
+        return message.substring(0, maxLength);
     }
 }

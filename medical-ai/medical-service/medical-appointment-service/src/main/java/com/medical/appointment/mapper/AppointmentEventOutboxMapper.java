@@ -58,6 +58,7 @@ public interface AppointmentEventOutboxMapper extends BaseMapper<AppointmentEven
     int markPublished(
             @Param("id") Long id,
             @Param("publishingStatus") Integer publishingStatus,
+            @Param("publishedStatus") Integer publishedStatus,
             @Param("publishedAt") LocalDateTime publishedAt);
 
     @Update("""
