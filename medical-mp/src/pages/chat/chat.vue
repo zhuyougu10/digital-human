@@ -25,9 +25,9 @@
             <text class="status-text">{{ statusText }}</text>
           </view>
         </view>
-        <view class="new-chat-btn" @click="handleNewChat">
-          <text>新对话</text>
-        </view>
+      </view>
+      <view class="new-chat-btn" @click="handleNewChat">
+        <text>新对话</text>
       </view>
     </view>
 
@@ -649,7 +649,7 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   padding: 60rpx 30rpx 20rpx;
 }
@@ -704,6 +704,10 @@ onUnmounted(() => {
 }
 
 .new-chat-btn {
+  position: absolute;
+  right: 24rpx;
+  bottom: 24rpx;
+  z-index: 3;
   padding: 10rpx 24rpx;
   border-radius: 30rpx;
   background: rgba(255, 255, 255, 0.8);
