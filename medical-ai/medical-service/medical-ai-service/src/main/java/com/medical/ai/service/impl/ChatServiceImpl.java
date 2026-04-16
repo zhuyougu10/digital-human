@@ -65,6 +65,9 @@ public class ChatServiceImpl implements ChatService {
     private static final Pattern DOCTOR_ID_PATTERN = Pattern.compile("(?:doctorId|医生ID)\s*[:：]\s*(\\d+)", Pattern.CASE_INSENSITIVE);
     private static final Pattern SLOT_ID_PATTERN = Pattern.compile("(?:slotId|时间段ID)\s*(?:为|是|=|:|：)?\s*(\\d+)", Pattern.CASE_INSENSITIVE);
     private static final Pattern DATE_PATTERN = Pattern.compile("(20\\d{2})[年/-](\\d{1,2})[月/-](\\d{1,2})");
+    private static final Pattern CONFIRM_PERIOD_PATTERN = Pattern.compile("确认[^。\n]{0,20}(上午|下午)");
+    private static final Pattern APPOINTMENT_PERIOD_PATTERN = Pattern.compile("预约[^。\n]{0,20}(上午|下午)");
+    private static final Pattern SIMPLE_PERIOD_PATTERN = Pattern.compile("(上午|下午)");
     private static final String APPOINTMENT_GUARD_FALLBACK_REPLY = "抱歉，刚才尚未成功创建预约，请重新确认医生与时间后，我再为您提交预约。";
 
     private final ChatSessionMapper sessionMapper;
@@ -446,8 +449,9 @@ public class ChatServiceImpl implements ChatService {
         if (doctorId == null) {
             return null;
         }
-        String choice = normalizeChoice(userText);
-        if (choice.isBlank()) {
+
+        String targetPeriod = resolveTargetPeriod(userText, assistantText);
+        if (targetPeriod.isBlank()) {
             return null;
         }
 
@@ -458,11 +462,6 @@ public class ChatServiceImpl implements ChatService {
 
         R<List<SlotInfoDTO>> slotsResp = remoteScheduleService.getAvailableSlots(doctorId, queryDate.toString());
         if (slotsResp == null || !slotsResp.isSuccess() || slotsResp.getData() == null || slotsResp.getData().isEmpty()) {
-            return null;
-        }
-
-        String targetPeriod = mapChoiceToPeriod(choice);
-        if (targetPeriod.isBlank()) {
             return null;
         }
 
@@ -497,6 +496,9 @@ public class ChatServiceImpl implements ChatService {
     }
 
     private String mapChoiceToPeriod(String choice) {
+        if (choice == null || choice.isBlank()) {
+            return "";
+        }
         if (choice.contains("上午") || choice.contains("早上") || choice.contains("morning")) {
             return "morning";
         }
@@ -504,6 +506,39 @@ public class ChatServiceImpl implements ChatService {
             return "afternoon";
         }
         return "";
+    }
+
+    private String resolveTargetPeriod(String userText, String assistantText) {
+        String fromUser = mapChoiceToPeriod(normalizeChoice(userText));
+        if (!fromUser.isBlank()) {
+            return fromUser;
+        }
+
+        String fromAssistant = extractPeriodFromAssistant(assistantText);
+        return mapChoiceToPeriod(fromAssistant);
+    }
+
+    private String extractPeriodFromAssistant(String assistantText) {
+        if (assistantText == null || assistantText.isBlank()) {
+            return "";
+        }
+
+        Matcher confirmMatcher = CONFIRM_PERIOD_PATTERN.matcher(assistantText);
+        if (confirmMatcher.find()) {
+            return confirmMatcher.group(1);
+        }
+
+        Matcher appointmentMatcher = APPOINTMENT_PERIOD_PATTERN.matcher(assistantText);
+        if (appointmentMatcher.find()) {
+            return appointmentMatcher.group(1);
+        }
+
+        Matcher simpleMatcher = SIMPLE_PERIOD_PATTERN.matcher(assistantText);
+        String last = "";
+        while (simpleMatcher.find()) {
+            last = simpleMatcher.group(1);
+        }
+        return last;
     }
 
     private LocalDate extractDateFromText(String text) {
