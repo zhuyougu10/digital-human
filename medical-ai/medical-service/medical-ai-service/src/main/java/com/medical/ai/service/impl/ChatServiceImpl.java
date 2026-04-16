@@ -63,7 +63,7 @@ public class ChatServiceImpl implements ChatService {
     private static final Pattern APPOINTMENT_SUCCESS_PATTERN = Pattern.compile("预约成功|成功创建了预约|已经为您成功创建了预约");
     private static final Pattern APPOINTMENT_ID_PATTERN = Pattern.compile("预约ID|appointmentId", Pattern.CASE_INSENSITIVE);
     private static final Pattern DOCTOR_ID_PATTERN = Pattern.compile("(?:doctorId|医生ID)\s*[:：]\s*(\\d+)", Pattern.CASE_INSENSITIVE);
-    private static final Pattern SLOT_ID_PATTERN = Pattern.compile("slotId\s*(?:为|是|=|:|：)?\s*(\\d+)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern SLOT_ID_PATTERN = Pattern.compile("(?:slotId|时间段ID)\s*(?:为|是|=|:|：)?\s*(\\d+)", Pattern.CASE_INSENSITIVE);
     private static final Pattern DATE_PATTERN = Pattern.compile("(20\\d{2})[年/-](\\d{1,2})[月/-](\\d{1,2})");
     private static final String APPOINTMENT_GUARD_FALLBACK_REPLY = "抱歉，刚才尚未成功创建预约，请重新确认医生与时间后，我再为您提交预约。";
 
