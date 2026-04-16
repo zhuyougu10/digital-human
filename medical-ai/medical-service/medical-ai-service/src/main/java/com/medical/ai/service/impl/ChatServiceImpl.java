@@ -20,18 +20,23 @@ import com.medical.ai.service.ChatService;
 import com.medical.ai.service.SummaryService;
 import com.medical.ai.service.TtsService;
 import com.medical.api.appointment.RemoteAppointmentService;
+import com.medical.api.doctor.RemoteScheduleService;
+import com.medical.api.doctor.dto.SlotInfoDTO;
 import com.medical.common.core.domain.R;
 import com.medical.common.core.exception.BusinessException;
 import com.medical.common.core.exception.ErrorCode;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -57,8 +62,9 @@ public class ChatServiceImpl implements ChatService {
     private static final String DEFAULT_SESSION_TITLE = "新对话";
     private static final Pattern APPOINTMENT_SUCCESS_PATTERN = Pattern.compile("预约成功|成功创建了预约|已经为您成功创建了预约");
     private static final Pattern APPOINTMENT_ID_PATTERN = Pattern.compile("预约ID|appointmentId", Pattern.CASE_INSENSITIVE);
-    private static final Pattern DOCTOR_ID_PATTERN = Pattern.compile("doctorId\s*[:：]\s*(\\d+)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern DOCTOR_ID_PATTERN = Pattern.compile("(?:doctorId|医生ID)\s*[:：]\s*(\\d+)", Pattern.CASE_INSENSITIVE);
     private static final Pattern SLOT_ID_PATTERN = Pattern.compile("slotId\s*(?:为|是|=|:|：)?\s*(\\d+)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern DATE_PATTERN = Pattern.compile("(20\\d{2})[年/-](\\d{1,2})[月/-](\\d{1,2})");
     private static final String APPOINTMENT_GUARD_FALLBACK_REPLY = "抱歉，刚才尚未成功创建预约，请重新确认医生与时间后，我再为您提交预约。";
 
     private final ChatSessionMapper sessionMapper;
@@ -68,6 +74,7 @@ public class ChatServiceImpl implements ChatService {
     private final TtsService ttsService;
     private final SummaryService summaryService;
     private final RemoteAppointmentService remoteAppointmentService;
+    private final RemoteScheduleService remoteScheduleService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -162,7 +169,7 @@ public class ChatServiceImpl implements ChatService {
             })
             .concatWith(Mono.fromCallable(() -> {
                 String fullText = fullResponse.toString();
-                String guardedText = guardAppointmentSuccessReply(sessionId, userMsg.getId(), userId, fullText);
+                String guardedText = guardAppointmentSuccessReply(sessionId, userMsg.getId(), userId, message, fullText);
                 fullTextRef.set(guardedText);
 
                 // 先保存 assistant 消息，保证完整文本先落库
@@ -320,7 +327,7 @@ public class ChatServiceImpl implements ChatService {
         return vo;
     }
 
-    private String guardAppointmentSuccessReply(Long sessionId, Long userMessageId, Long userId, String assistantText) {
+    private String guardAppointmentSuccessReply(Long sessionId, Long userMessageId, Long userId, String userText, String assistantText) {
         if (assistantText == null || assistantText.isBlank()) {
             return assistantText;
         }
@@ -344,20 +351,26 @@ public class ChatServiceImpl implements ChatService {
 
         Long doctorId = extractLongByPattern(assistantText, DOCTOR_ID_PATTERN);
         Long slotId = extractLongByPattern(assistantText, SLOT_ID_PATTERN);
-        if (userId != null && doctorId != null && slotId != null) {
-            try {
-                R<Long> createResult = remoteAppointmentService.createAppointment(userId, doctorId, slotId);
-                if (createResult != null && createResult.isSuccess() && createResult.getData() != null) {
-                    Long appointmentId = createResult.getData();
-                    log.info("Guard fallback auto-created appointment, sessionId={}, userMessageId={}, patientId={}, doctorId={}, slotId={}, appointmentId={}",
-                            sessionId, userMessageId, userId, doctorId, slotId, appointmentId);
-                    return buildAutoCreateSuccessReply(assistantText, appointmentId);
+
+        if (userId != null && doctorId != null) {
+            if (slotId == null) {
+                slotId = resolveSlotIdFromUserChoice(doctorId, userText, assistantText);
+            }
+            if (slotId != null) {
+                try {
+                    R<Long> createResult = remoteAppointmentService.createAppointment(userId, doctorId, slotId);
+                    if (createResult != null && createResult.isSuccess() && createResult.getData() != null) {
+                        Long appointmentId = createResult.getData();
+                        log.info("Guard fallback auto-created appointment, sessionId={}, userMessageId={}, patientId={}, doctorId={}, slotId={}, appointmentId={}",
+                                sessionId, userMessageId, userId, doctorId, slotId, appointmentId);
+                        return buildAutoCreateSuccessReply(assistantText, appointmentId);
+                    }
+                    log.warn("Guard fallback auto-create failed, sessionId={}, userMessageId={}, patientId={}, doctorId={}, slotId={}, result={}",
+                            sessionId, userMessageId, userId, doctorId, slotId, createResult);
+                } catch (Exception e) {
+                    log.error("Guard fallback auto-create exception, sessionId={}, userMessageId={}, patientId={}, doctorId={}, slotId={}",
+                            sessionId, userMessageId, userId, doctorId, slotId, e);
                 }
-                log.warn("Guard fallback auto-create failed, sessionId={}, userMessageId={}, patientId={}, doctorId={}, slotId={}, result={}",
-                        sessionId, userMessageId, userId, doctorId, slotId, createResult);
-            } catch (Exception e) {
-                log.error("Guard fallback auto-create exception, sessionId={}, userMessageId={}, patientId={}, doctorId={}, slotId={}",
-                        sessionId, userMessageId, userId, doctorId, slotId, e);
             }
         }
 
@@ -416,5 +429,74 @@ public class ChatServiceImpl implements ChatService {
             return merged;
         }
         return merged + "\n\n预约ID：" + appointmentId;
+    }
+
+    private Long resolveSlotIdFromUserChoice(Long doctorId, String userText, String assistantText) {
+        if (doctorId == null) {
+            return null;
+        }
+        String choice = normalizeChoice(userText);
+        if (choice.isBlank()) {
+            return null;
+        }
+
+        LocalDate date = extractDateFromText(assistantText);
+        if (date == null) {
+            date = LocalDate.now();
+        }
+
+        R<List<SlotInfoDTO>> slotsResp = remoteScheduleService.getAvailableSlots(doctorId, date.toString());
+        if (slotsResp == null || !slotsResp.isSuccess() || slotsResp.getData() == null || slotsResp.getData().isEmpty()) {
+            return null;
+        }
+
+        String targetPeriod = mapChoiceToPeriod(choice);
+        if (targetPeriod.isBlank()) {
+            return null;
+        }
+
+        return slotsResp.getData().stream()
+                .filter(Objects::nonNull)
+                .filter(slot -> Objects.equals(slot.getDoctorId(), doctorId))
+                .filter(slot -> targetPeriod.equalsIgnoreCase(String.valueOf(slot.getPeriod())))
+                .sorted(Comparator.comparing(SlotInfoDTO::getStartTime, Comparator.nullsLast(Comparator.naturalOrder())))
+                .map(SlotInfoDTO::getId)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private String normalizeChoice(String userText) {
+        if (userText == null) {
+            return "";
+        }
+        return userText.replaceAll("\\s+", "").trim();
+    }
+
+    private String mapChoiceToPeriod(String choice) {
+        if (choice.contains("上午") || choice.contains("早上") || choice.contains("morning")) {
+            return "morning";
+        }
+        if (choice.contains("下午") || choice.contains("晚上") || choice.contains("afternoon")) {
+            return "afternoon";
+        }
+        return "";
+    }
+
+    private LocalDate extractDateFromText(String text) {
+        if (text == null || text.isBlank()) {
+            return null;
+        }
+        Matcher matcher = DATE_PATTERN.matcher(text);
+        if (!matcher.find()) {
+            return null;
+        }
+        try {
+            int year = Integer.parseInt(matcher.group(1));
+            int month = Integer.parseInt(matcher.group(2));
+            int day = Integer.parseInt(matcher.group(3));
+            return LocalDate.of(year, month, day);
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

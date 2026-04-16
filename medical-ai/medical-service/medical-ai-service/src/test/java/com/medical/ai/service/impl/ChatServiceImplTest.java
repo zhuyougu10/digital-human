@@ -16,8 +16,12 @@ import com.medical.ai.mapper.ChatSessionMapper;
 import com.medical.ai.service.SummaryService;
 import com.medical.ai.service.TtsService;
 import com.medical.api.appointment.RemoteAppointmentService;
+import com.medical.api.doctor.RemoteScheduleService;
+import com.medical.api.doctor.dto.SlotInfoDTO;
 import com.medical.common.core.domain.R;
 import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -69,6 +73,9 @@ class ChatServiceImplTest {
     @Mock
     private RemoteAppointmentService remoteAppointmentService;
 
+    @Mock
+    private RemoteScheduleService remoteScheduleService;
+
     private ChatServiceImpl chatService;
 
     private static final String APPOINTMENT_SUCCESS_GUARD_TEXT = "只有在 createAppointment 工具明确返回 success=true 且 appointmentId 非空时，才允许回复“预约成功”";
@@ -84,6 +91,7 @@ class ChatServiceImplTest {
             ttsService,
             summaryService,
             remoteAppointmentService,
+            remoteScheduleService,
             new ObjectMapper()
         );
     }
@@ -188,6 +196,49 @@ class ChatServiceImplTest {
         assertNotNull(events);
         assertEquals("complete", events.get(1).getType());
         assertEquals("现在为您创建预约。好的，我已经为您成功创建了预约！\n预约ID：101\n医生doctorId:2，slotId为475", events.get(1).getContent());
+    }
+
+    @Test
+    void chat_shouldAutoCreateUsingPeriodChoiceWhenSlotIdNotPresentInAssistantText() {
+        ChatSession session = new ChatSession();
+        session.setId(1L);
+        session.setUserId(38L);
+        session.setAgentType("TRIAGE");
+        session.setTitle("新对话");
+        when(sessionMapper.selectById(1L)).thenReturn(session);
+        when(messageMapper.selectList(any())).thenReturn(Collections.emptyList());
+
+        Agent agent = mock(Agent.class);
+        when(agentFactory.getAgent("TRIAGE")).thenReturn(agent);
+        when(agent.getToolNames()).thenReturn(Collections.emptyList());
+        when(agent.getSystemPrompt()).thenReturn("triage-system");
+        when(agent.getAgentType()).thenReturn("TRIAGE");
+
+        when(chatModel.stream(any(Prompt.class))).thenReturn(Flux.just(
+                mockChatResponse("好的，我将为您重新预约李娜医生下午的时间段。\n- 医生：李娜医生（医生ID：4，内科，挂号费60元）\n- 预约时间：2026年4月16日 下午\n现在为您创建预约。好的，我已经为您成功创建了预约！")
+        ));
+
+        SlotInfoDTO afternoonSlot = new SlotInfoDTO();
+        afternoonSlot.setId(418L);
+        afternoonSlot.setDoctorId(4L);
+        afternoonSlot.setDoctorName("李娜");
+        afternoonSlot.setScheduleDate(LocalDate.of(2026, 4, 16));
+        afternoonSlot.setPeriod("afternoon");
+        afternoonSlot.setStartTime(LocalTime.of(14, 0));
+        afternoonSlot.setEndTime(LocalTime.of(18, 0));
+
+        when(remoteScheduleService.getAvailableSlots(4L, "2026-04-16")).thenReturn(R.ok(List.of(afternoonSlot)));
+        when(remoteAppointmentService.createAppointment(38L, 4L, 418L)).thenReturn(R.ok(102L));
+        when(ttsService.synthesize(any())).thenReturn("/ai/chat/tts/auto-create-period.mp3");
+
+        List<SseMessageVO> events = chatService.chat(1L, 38L, "下午")
+                .take(3)
+                .collectList()
+                .block(Duration.ofSeconds(1));
+
+        assertNotNull(events);
+        assertEquals("complete", events.get(1).getType());
+        assertEquals("好的，我将为您重新预约李娜医生下午的时间段。\n- 医生：李娜医生（医生ID：4，内科，挂号费60元）\n- 预约时间：2026年4月16日 下午\n现在为您创建预约。好的，我已经为您成功创建了预约！\n\n预约ID：102", events.get(1).getContent());
     }
 
     @Test
