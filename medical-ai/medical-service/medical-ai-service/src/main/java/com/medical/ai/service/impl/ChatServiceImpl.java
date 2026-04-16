@@ -251,7 +251,9 @@ public class ChatServiceImpl implements ChatService {
         String systemPrompt = agent.getSystemPrompt();
         if ("TRIAGE".equals(agent.getAgentType()) && userId != null) {
             systemPrompt += "\n\n当前患者信息：\n- patientId = " + userId
-                + "\n在调用 createAppointment 工具时，请务必使用上面的 patientId。";
+                + "\n在调用 createAppointment 工具时，请务必使用上面的 patientId。"
+                + "\n只有在 createAppointment 工具明确返回 success=true 且 appointmentId 非空时，才允许回复“预约成功”或输出预约ID；"
+                + "若未实际调用 createAppointment，或工具返回失败/缺少appointmentId，必须明确告知“尚未创建预约”，并引导用户重试。";
         }
         messages.add(new SystemMessage(systemPrompt));
 

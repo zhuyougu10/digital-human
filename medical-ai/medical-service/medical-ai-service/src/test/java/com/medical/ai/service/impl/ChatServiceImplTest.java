@@ -66,6 +66,8 @@ class ChatServiceImplTest {
 
     private ChatServiceImpl chatService;
 
+    private static final String APPOINTMENT_SUCCESS_GUARD_TEXT = "只有在 createAppointment 工具明确返回 success=true 且 appointmentId 非空时，才允许回复“预约成功”";
+
     @BeforeEach
     void setUp() {
         FlowRuleManager.loadRules(Collections.emptyList());
@@ -78,6 +80,43 @@ class ChatServiceImplTest {
             summaryService,
             new ObjectMapper()
         );
+    }
+
+    @Test
+    void chat_shouldInjectAppointmentSuccessGuardIntoTriageSystemPrompt() {
+        ChatSession session = new ChatSession();
+        session.setId(1L);
+        session.setUserId(38L);
+        session.setAgentType("TRIAGE");
+        session.setTitle("新对话");
+        when(sessionMapper.selectById(1L)).thenReturn(session);
+        when(messageMapper.selectList(any())).thenReturn(Collections.emptyList());
+
+        Agent agent = mock(Agent.class);
+        when(agentFactory.getAgent("TRIAGE")).thenReturn(agent);
+        when(agent.getToolNames()).thenReturn(Collections.emptyList());
+        when(agent.getSystemPrompt()).thenReturn("triage-system");
+        when(agent.getAgentType()).thenReturn("TRIAGE");
+
+        when(chatModel.stream(argThat((Prompt prompt) -> {
+            if (prompt == null || prompt.getInstructions() == null || prompt.getInstructions().isEmpty()) {
+                return false;
+            }
+            String systemText = prompt.getInstructions().get(0).getText();
+            return systemText != null
+                    && systemText.contains("patientId = 38")
+                    && systemText.contains(APPOINTMENT_SUCCESS_GUARD_TEXT);
+        }))).thenReturn(Flux.just(mockChatResponse("收到")));
+
+        when(ttsService.synthesize("收到")).thenReturn("/ai/chat/tts/x.mp3");
+
+        List<SseMessageVO> events = chatService.chat(1L, 38L, "我要预约")
+                .take(3)
+                .collectList()
+                .block(Duration.ofSeconds(1));
+
+        assertNotNull(events);
+        assertEquals("complete", events.get(1).getType());
     }
 
     @Test
