@@ -44,6 +44,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -184,9 +185,17 @@ class ChatServiceImplTest {
         when(chatModel.stream(any(Prompt.class))).thenReturn(Flux.just(
                 mockChatResponse("现在为您创建预约。好的，我已经为您成功创建了预约！\n预约ID：100\n医生doctorId:2，slotId为475")
         ));
+
+        SlotInfoDTO slot = new SlotInfoDTO();
+        slot.setId(475L);
+        slot.setDoctorId(2L);
+        slot.setDoctorName("李伟");
+        slot.setScheduleDate(LocalDate.now());
+        slot.setPeriod("afternoon");
+        when(remoteScheduleService.getAvailableSlots(eq(2L), any())).thenReturn(R.ok(List.of(slot)));
+
         when(remoteAppointmentService.createAppointment(38L, 2L, 475L)).thenReturn(R.ok(101L));
-        when(ttsService.synthesize("现在为您创建预约。好的，我已经为您成功创建了预约！\n预约ID：101\n医生doctorId:2，slotId为475"))
-                .thenReturn("/ai/chat/tts/auto-create.mp3");
+        when(ttsService.synthesize(any())).thenReturn("/ai/chat/tts/auto-create.mp3");
 
         List<SseMessageVO> events = chatService.chat(1L, 38L, "帮我预约")
                 .take(3)

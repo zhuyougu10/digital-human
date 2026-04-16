@@ -353,8 +353,19 @@ public class ChatServiceImpl implements ChatService {
         Long slotId = extractLongByPattern(assistantText, SLOT_ID_PATTERN);
 
         if (userId != null && doctorId != null) {
+            LocalDate date = extractDateFromText(assistantText);
+            if (date == null) {
+                date = LocalDate.now();
+            }
+
+            if (slotId != null && !isSlotAvailableForDoctorOnDate(doctorId, slotId, date)) {
+                log.warn("Guard extracted slotId is invalid for doctor/date, sessionId={}, doctorId={}, slotId={}, date={}",
+                        sessionId, doctorId, slotId, date);
+                slotId = null;
+            }
+
             if (slotId == null) {
-                slotId = resolveSlotIdFromUserChoice(doctorId, userText, assistantText);
+                slotId = resolveSlotIdFromUserChoice(doctorId, userText, assistantText, date);
             }
             if (slotId != null) {
                 try {
@@ -431,7 +442,7 @@ public class ChatServiceImpl implements ChatService {
         return merged + "\n\n预约ID：" + appointmentId;
     }
 
-    private Long resolveSlotIdFromUserChoice(Long doctorId, String userText, String assistantText) {
+    private Long resolveSlotIdFromUserChoice(Long doctorId, String userText, String assistantText, LocalDate date) {
         if (doctorId == null) {
             return null;
         }
@@ -440,12 +451,12 @@ public class ChatServiceImpl implements ChatService {
             return null;
         }
 
-        LocalDate date = extractDateFromText(assistantText);
-        if (date == null) {
-            date = LocalDate.now();
+        LocalDate queryDate = date != null ? date : extractDateFromText(assistantText);
+        if (queryDate == null) {
+            queryDate = LocalDate.now();
         }
 
-        R<List<SlotInfoDTO>> slotsResp = remoteScheduleService.getAvailableSlots(doctorId, date.toString());
+        R<List<SlotInfoDTO>> slotsResp = remoteScheduleService.getAvailableSlots(doctorId, queryDate.toString());
         if (slotsResp == null || !slotsResp.isSuccess() || slotsResp.getData() == null || slotsResp.getData().isEmpty()) {
             return null;
         }
@@ -463,6 +474,19 @@ public class ChatServiceImpl implements ChatService {
                 .map(SlotInfoDTO::getId)
                 .findFirst()
                 .orElse(null);
+    }
+
+    private boolean isSlotAvailableForDoctorOnDate(Long doctorId, Long slotId, LocalDate date) {
+        if (doctorId == null || slotId == null || date == null) {
+            return false;
+        }
+        R<List<SlotInfoDTO>> slotsResp = remoteScheduleService.getAvailableSlots(doctorId, date.toString());
+        if (slotsResp == null || !slotsResp.isSuccess() || slotsResp.getData() == null || slotsResp.getData().isEmpty()) {
+            return false;
+        }
+        return slotsResp.getData().stream()
+                .filter(Objects::nonNull)
+                .anyMatch(slot -> Objects.equals(slot.getId(), slotId) && Objects.equals(slot.getDoctorId(), doctorId));
     }
 
     private String normalizeChoice(String userText) {
