@@ -15,6 +15,8 @@ import com.medical.ai.mapper.ChatMessageMapper;
 import com.medical.ai.mapper.ChatSessionMapper;
 import com.medical.ai.service.SummaryService;
 import com.medical.ai.service.TtsService;
+import com.medical.api.appointment.RemoteAppointmentService;
+import com.medical.common.core.domain.R;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
@@ -64,6 +66,9 @@ class ChatServiceImplTest {
     @Mock
     private SummaryService summaryService;
 
+    @Mock
+    private RemoteAppointmentService remoteAppointmentService;
+
     private ChatServiceImpl chatService;
 
     private static final String APPOINTMENT_SUCCESS_GUARD_TEXT = "只有在 createAppointment 工具明确返回 success=true 且 appointmentId 非空时，才允许回复“预约成功”";
@@ -78,6 +83,7 @@ class ChatServiceImplTest {
             chatModel,
             ttsService,
             summaryService,
+            remoteAppointmentService,
             new ObjectMapper()
         );
     }
@@ -149,6 +155,39 @@ class ChatServiceImplTest {
         assertNotNull(events);
         assertEquals("complete", events.get(1).getType());
         assertEquals("抱歉，刚才尚未成功创建预约，请重新确认医生与时间后，我再为您提交预约。", events.get(1).getContent());
+    }
+
+    @Test
+    void chat_shouldAutoCreateAppointmentWhenModelClaimsSuccessButToolNotCalled() {
+        ChatSession session = new ChatSession();
+        session.setId(1L);
+        session.setUserId(38L);
+        session.setAgentType("TRIAGE");
+        session.setTitle("新对话");
+        when(sessionMapper.selectById(1L)).thenReturn(session);
+        when(messageMapper.selectList(any())).thenReturn(Collections.emptyList());
+
+        Agent agent = mock(Agent.class);
+        when(agentFactory.getAgent("TRIAGE")).thenReturn(agent);
+        when(agent.getToolNames()).thenReturn(Collections.emptyList());
+        when(agent.getSystemPrompt()).thenReturn("triage-system");
+        when(agent.getAgentType()).thenReturn("TRIAGE");
+
+        when(chatModel.stream(any(Prompt.class))).thenReturn(Flux.just(
+                mockChatResponse("现在为您创建预约。好的，我已经为您成功创建了预约！\n预约ID：100\n医生doctorId:2，slotId为475")
+        ));
+        when(remoteAppointmentService.createAppointment(38L, 2L, 475L)).thenReturn(R.ok(101L));
+        when(ttsService.synthesize("现在为您创建预约。好的，我已经为您成功创建了预约！\n预约ID：101\n医生doctorId:2，slotId为475"))
+                .thenReturn("/ai/chat/tts/auto-create.mp3");
+
+        List<SseMessageVO> events = chatService.chat(1L, 38L, "帮我预约")
+                .take(3)
+                .collectList()
+                .block(Duration.ofSeconds(1));
+
+        assertNotNull(events);
+        assertEquals("complete", events.get(1).getType());
+        assertEquals("现在为您创建预约。好的，我已经为您成功创建了预约！\n预约ID：101\n医生doctorId:2，slotId为475", events.get(1).getContent());
     }
 
     @Test

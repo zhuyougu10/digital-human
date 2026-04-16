@@ -9,6 +9,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.atLeastOnce;
 
 import com.alibaba.csp.sentinel.EntryType;
 import com.alibaba.csp.sentinel.SphU;
@@ -96,6 +97,7 @@ class AppointmentServiceImplTest {
         DoctorInfoDTO doctorInfo = new DoctorInfoDTO();
         SlotInfoDTO slotInfo = new SlotInfoDTO();
         slotInfo.setId(4L);
+        slotInfo.setDoctorId(2L);
         slotInfo.setScheduleDate(LocalDate.of(2026, 3, 27));
         slotInfo.setPeriod("morning");
         slotInfo.setStartTime(LocalTime.of(9, 0));
@@ -153,6 +155,7 @@ class AppointmentServiceImplTest {
         DoctorInfoDTO doctorInfo = new DoctorInfoDTO();
         SlotInfoDTO slotInfo = new SlotInfoDTO();
         slotInfo.setId(4L);
+        slotInfo.setDoctorId(2L);
         slotInfo.setScheduleDate(LocalDate.of(2026, 3, 27));
 
         when(redisUtil.setIfAbsent("appointment:dedup:1:4", 1, AppointmentCacheConstants.APPOINTMENT_DEDUP_TTL_SECONDS,
@@ -165,6 +168,39 @@ class AppointmentServiceImplTest {
         assertThrows(BusinessException.class, () -> appointmentService.createAppointment(dto));
 
         verify(redisUtil).delete("appointment:dedup:1:4");
+        verify(appointmentEventOutboxService, never()).saveCreatedEvent(any());
+    }
+
+    @Test
+    void createAppointment_shouldRejectWhenSlotDoesNotBelongToSelectedDoctor() {
+        CreateAppointmentDTO dto = new CreateAppointmentDTO();
+        dto.setPatientId(1L);
+        dto.setDoctorId(2L);
+        dto.setDepartmentId(3L);
+        dto.setSlotId(480L);
+
+        DoctorInfoDTO doctorInfo = new DoctorInfoDTO();
+        doctorInfo.setId(2L);
+
+        SlotInfoDTO otherDoctorSlot = new SlotInfoDTO();
+        otherDoctorSlot.setId(480L);
+        otherDoctorSlot.setDoctorId(1L);
+        otherDoctorSlot.setScheduleDate(LocalDate.of(2026, 4, 18));
+        otherDoctorSlot.setPeriod("afternoon");
+        otherDoctorSlot.setStartTime(LocalTime.of(14, 0));
+        otherDoctorSlot.setEndTime(LocalTime.of(18, 0));
+
+        when(redisUtil.setIfAbsent("appointment:dedup:1:480", 1, AppointmentCacheConstants.APPOINTMENT_DEDUP_TTL_SECONDS,
+                TimeUnit.SECONDS)).thenReturn(Boolean.TRUE);
+        when(appointmentMapper.selectCount(any())).thenReturn(0L);
+        when(remoteDoctorService.getDoctorById(2L)).thenReturn(R.ok(doctorInfo));
+        when(remoteScheduleService.getAvailableSlots(eq(2L), anyString())).thenReturn(R.ok(List.of(otherDoctorSlot)));
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> appointmentService.createAppointment(dto));
+
+        assertEquals(ErrorCode.SLOT_NOT_AVAILABLE.getCode(), ex.getCode());
+        verify(remoteScheduleService, never()).bookSlot(480L);
+        verify(redisUtil).delete("appointment:dedup:1:480");
         verify(appointmentEventOutboxService, never()).saveCreatedEvent(any());
     }
 

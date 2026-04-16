@@ -106,6 +106,9 @@ public class AppointmentServiceImpl implements AppointmentService {
                 }
 
                 SlotInfoDTO slotInfo = findSlotInfo(dto.getDoctorId(), dto.getSlotId());
+                if (slotInfo == null) {
+                    throw new BusinessException(ErrorCode.SLOT_NOT_AVAILABLE);
+                }
 
                 R<Boolean> lockResp = remoteScheduleService.bookSlot(dto.getSlotId());
                 if (lockResp == null || !lockResp.isSuccess() || !Boolean.TRUE.equals(lockResp.getData())) {
@@ -123,10 +126,10 @@ public class AppointmentServiceImpl implements AppointmentService {
                 appointment.setDepartmentId(dto.getDepartmentId());
                 appointment.setSlotId(dto.getSlotId());
                 appointment.setSessionId(dto.getSessionId());
-                appointment.setAppointmentDate(slotInfo == null ? LocalDate.now() : slotInfo.getScheduleDate());
-                appointment.setPeriod(slotInfo == null ? "morning" : slotInfo.getPeriod());
-                appointment.setStartTime(slotInfo == null ? LocalTime.of(9, 0) : slotInfo.getStartTime());
-                appointment.setEndTime(slotInfo == null ? LocalTime.of(9, 30) : slotInfo.getEndTime());
+                appointment.setAppointmentDate(slotInfo.getScheduleDate());
+                appointment.setPeriod(slotInfo.getPeriod());
+                appointment.setStartTime(slotInfo.getStartTime());
+                appointment.setEndTime(slotInfo.getEndTime());
                 appointment.setQueueNumber((int) ((currentCount == null ? 0 : currentCount) + 1));
                 appointment.setStatus(STATUS_PENDING);
                 appointmentMapper.insert(appointment);
@@ -288,7 +291,8 @@ public class AppointmentServiceImpl implements AppointmentService {
             R<List<SlotInfoDTO>> slotsResp = remoteScheduleService.getAvailableSlots(doctorId, cursor.toString());
             if (slotsResp != null && slotsResp.isSuccess() && slotsResp.getData() != null) {
                 for (SlotInfoDTO slot : slotsResp.getData()) {
-                    if (Objects.equals(slot.getId(), slotId)) {
+                    if (Objects.equals(slot.getId(), slotId)
+                            && Objects.equals(slot.getDoctorId(), doctorId)) {
                         return slot;
                     }
                 }

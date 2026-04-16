@@ -19,6 +19,8 @@ import com.medical.ai.mapper.ChatSessionMapper;
 import com.medical.ai.service.ChatService;
 import com.medical.ai.service.SummaryService;
 import com.medical.ai.service.TtsService;
+import com.medical.api.appointment.RemoteAppointmentService;
+import com.medical.common.core.domain.R;
 import com.medical.common.core.exception.BusinessException;
 import com.medical.common.core.exception.ErrorCode;
 import java.time.Duration;
@@ -55,6 +57,8 @@ public class ChatServiceImpl implements ChatService {
     private static final String DEFAULT_SESSION_TITLE = "新对话";
     private static final Pattern APPOINTMENT_SUCCESS_PATTERN = Pattern.compile("预约成功|成功创建了预约|已经为您成功创建了预约");
     private static final Pattern APPOINTMENT_ID_PATTERN = Pattern.compile("预约ID|appointmentId", Pattern.CASE_INSENSITIVE);
+    private static final Pattern DOCTOR_ID_PATTERN = Pattern.compile("doctorId\s*[:：]\s*(\\d+)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern SLOT_ID_PATTERN = Pattern.compile("slotId\s*(?:为|是|=|:|：)?\s*(\\d+)", Pattern.CASE_INSENSITIVE);
     private static final String APPOINTMENT_GUARD_FALLBACK_REPLY = "抱歉，刚才尚未成功创建预约，请重新确认医生与时间后，我再为您提交预约。";
 
     private final ChatSessionMapper sessionMapper;
@@ -63,6 +67,7 @@ public class ChatServiceImpl implements ChatService {
     private final OpenAiChatModel chatModel;
     private final TtsService ttsService;
     private final SummaryService summaryService;
+    private final RemoteAppointmentService remoteAppointmentService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -157,7 +162,7 @@ public class ChatServiceImpl implements ChatService {
             })
             .concatWith(Mono.fromCallable(() -> {
                 String fullText = fullResponse.toString();
-                String guardedText = guardAppointmentSuccessReply(sessionId, userMsg.getId(), fullText);
+                String guardedText = guardAppointmentSuccessReply(sessionId, userMsg.getId(), userId, fullText);
                 fullTextRef.set(guardedText);
 
                 // 先保存 assistant 消息，保证完整文本先落库
@@ -315,7 +320,7 @@ public class ChatServiceImpl implements ChatService {
         return vo;
     }
 
-    private String guardAppointmentSuccessReply(Long sessionId, Long userMessageId, String assistantText) {
+    private String guardAppointmentSuccessReply(Long sessionId, Long userMessageId, Long userId, String assistantText) {
         if (assistantText == null || assistantText.isBlank()) {
             return assistantText;
         }
@@ -335,6 +340,25 @@ public class ChatServiceImpl implements ChatService {
         boolean hasSuccessfulCreate = toolMessages.stream().anyMatch(this::isCreateAppointmentSuccessToolMessage);
         if (hasSuccessfulCreate) {
             return assistantText;
+        }
+
+        Long doctorId = extractLongByPattern(assistantText, DOCTOR_ID_PATTERN);
+        Long slotId = extractLongByPattern(assistantText, SLOT_ID_PATTERN);
+        if (userId != null && doctorId != null && slotId != null) {
+            try {
+                R<Long> createResult = remoteAppointmentService.createAppointment(userId, doctorId, slotId);
+                if (createResult != null && createResult.isSuccess() && createResult.getData() != null) {
+                    Long appointmentId = createResult.getData();
+                    log.info("Guard fallback auto-created appointment, sessionId={}, userMessageId={}, patientId={}, doctorId={}, slotId={}, appointmentId={}",
+                            sessionId, userMessageId, userId, doctorId, slotId, appointmentId);
+                    return buildAutoCreateSuccessReply(assistantText, appointmentId);
+                }
+                log.warn("Guard fallback auto-create failed, sessionId={}, userMessageId={}, patientId={}, doctorId={}, slotId={}, result={}",
+                        sessionId, userMessageId, userId, doctorId, slotId, createResult);
+            } catch (Exception e) {
+                log.error("Guard fallback auto-create exception, sessionId={}, userMessageId={}, patientId={}, doctorId={}, slotId={}",
+                        sessionId, userMessageId, userId, doctorId, slotId, e);
+            }
         }
 
         log.warn("Guarded potential fake appointment success reply, sessionId={}, userMessageId={}, assistantText={}",
@@ -368,5 +392,29 @@ public class ChatServiceImpl implements ChatService {
                     toolMessage.getId(), toolMessage.getContent());
             return false;
         }
+    }
+
+    private Long extractLongByPattern(String text, Pattern pattern) {
+        if (text == null || pattern == null) {
+            return null;
+        }
+        var matcher = pattern.matcher(text);
+        if (!matcher.find() || matcher.groupCount() < 1) {
+            return null;
+        }
+        try {
+            return Long.parseLong(matcher.group(1));
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private String buildAutoCreateSuccessReply(String originalText, Long appointmentId) {
+        String merged = originalText.replaceAll("(?i)appointmentId\\s*[:：]?\\s*\\d+", "appointmentId: " + appointmentId)
+                .replaceAll("预约ID\\s*[:：]?\\s*\\d+", "预约ID：" + appointmentId);
+        if (merged.contains("预约ID")) {
+            return merged;
+        }
+        return merged + "\n\n预约ID：" + appointmentId;
     }
 }
