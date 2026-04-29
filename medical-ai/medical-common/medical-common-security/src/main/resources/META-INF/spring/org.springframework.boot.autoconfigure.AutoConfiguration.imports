@@ -1,3 +1,4 @@
 com.medical.common.security.config.SaTokenConfig
+com.medical.common.security.config.InternalApiFeignConfig
 com.medical.common.security.config.StpInterfaceImpl
 com.medical.common.security.handler.SaTokenExceptionHandler

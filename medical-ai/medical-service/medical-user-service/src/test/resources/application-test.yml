@@ -21,6 +21,10 @@ sa-token:
   token-name: Authorization
   token-prefix: Bearer
 
+security:
+  internal-api:
+    secret: test-internal-secret
+
 # 禁用 Knife4j
 springdoc:
   api-docs:

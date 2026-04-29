@@ -1,12 +1,20 @@
 package com.medical.common.security.config;
 
 import cn.dev33.satoken.interceptor.SaInterceptor;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
+@EnableConfigurationProperties(InternalApiAuthProperties.class)
 public class SaTokenConfig implements WebMvcConfigurer {
+
+    private final InternalApiAuthInterceptor internalApiAuthInterceptor;
+
+    public SaTokenConfig(InternalApiAuthProperties internalApiAuthProperties) {
+        this.internalApiAuthInterceptor = new InternalApiAuthInterceptor(internalApiAuthProperties);
+    }
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
@@ -22,5 +30,8 @@ public class SaTokenConfig implements WebMvcConfigurer {
                         "/v3/api-docs/**",
                         "/actuator/**"
                 );
+
+        registry.addInterceptor(internalApiAuthInterceptor)
+                .addPathPatterns("/**/inner/**");
     }
 }
