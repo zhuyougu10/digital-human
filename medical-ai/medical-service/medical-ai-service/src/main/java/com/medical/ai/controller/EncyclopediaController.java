@@ -1,16 +1,17 @@
 package com.medical.ai.controller;
 
 import com.medical.ai.domain.dto.ChatRequestDTO;
-import com.medical.ai.domain.dto.CreateSessionDTO;
 import com.medical.ai.domain.vo.ChatMessageVO;
 import com.medical.ai.domain.vo.ChatSessionVO;
 import com.medical.ai.domain.vo.SseMessageVO;
 import com.medical.ai.service.ChatService;
 import com.medical.common.core.domain.R;
 import com.medical.common.security.util.SecurityUtil;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 
@@ -19,6 +20,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/encyclopedia")
 @RequiredArgsConstructor
+@Validated
 public class EncyclopediaController {
 
     private final ChatService chatService;
@@ -43,7 +45,7 @@ public class EncyclopediaController {
     }
 
     @PostMapping(value = "/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<ServerSentEvent<SseMessageVO>> chat(@RequestBody ChatRequestDTO dto) {
+    public Flux<ServerSentEvent<SseMessageVO>> chat(@RequestBody @Valid ChatRequestDTO dto) {
         Long userId = SecurityUtil.getUserId();
         return chatService.chat(dto.getSessionId(), userId, dto.getMessage())
             .map(msg -> ServerSentEvent.<SseMessageVO>builder()

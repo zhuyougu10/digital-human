@@ -6,9 +6,13 @@ import com.medical.ai.domain.vo.ChatMessageVO;
 import com.medical.ai.domain.vo.ChatSessionVO;
 import com.medical.ai.domain.vo.SseMessageVO;
 import com.medical.ai.service.ChatService;
+import com.medical.ai.service.TtsService;
 import com.medical.common.core.domain.R;
 import com.medical.common.core.exception.BusinessException;
 import com.medical.common.security.util.SecurityUtil;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
@@ -16,6 +20,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 
@@ -27,15 +32,17 @@ import java.util.List;
 @RestController
 @RequestMapping("/chat")
 @RequiredArgsConstructor
+@Validated
 public class ChatController {
 
     private final ChatService chatService;
+    private final TtsService ttsService;
 
     @Value("${tts.cosyvoice.audio-path:tts-audio}")
     private String ttsAudioPath;
 
     @PostMapping("/session")
-    public R<ChatSessionVO> createSession(@RequestBody CreateSessionDTO dto) {
+    public R<ChatSessionVO> createSession(@RequestBody @Valid CreateSessionDTO dto) {
         Long userId = SecurityUtil.getUserId();
         return R.ok(chatService.createSession(userId, dto.getSessionType()));
     }
@@ -53,7 +60,7 @@ public class ChatController {
     }
 
     @PostMapping(value = "/send", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public ResponseEntity<Flux<ServerSentEvent<SseMessageVO>>> chat(@RequestBody ChatRequestDTO dto) {
+    public ResponseEntity<Flux<ServerSentEvent<SseMessageVO>>> chat(@RequestBody @Valid ChatRequestDTO dto) {
         Long userId = SecurityUtil.getUserId();
         Flux<ServerSentEvent<SseMessageVO>> body = chatService.chat(dto.getSessionId(), userId, dto.getMessage())
             .map(msg -> ServerSentEvent.<SseMessageVO>builder()
@@ -96,7 +103,7 @@ public class ChatController {
     }
 
     @GetMapping("/tts/{fileName}")
-    public ResponseEntity<Resource> getTtsAudio(@PathVariable("fileName") String fileName) {
+    public ResponseEntity<Resource> getTtsAudio(@PathVariable("fileName") @NotBlank String fileName) {
         try {
             if (fileName.contains("..") || fileName.contains("/") || fileName.contains("\\")) {
                 return ResponseEntity.badRequest().build();
@@ -113,5 +120,10 @@ public class ChatController {
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
         }
+    }
+
+    @DeleteMapping("/tts/cleanup")
+    public R<Integer> cleanupTtsAudio(@RequestBody @NotEmpty List<@NotBlank String> fileNames) {
+        return R.ok(ttsService.cleanupGeneratedAudio(fileNames));
     }
 }

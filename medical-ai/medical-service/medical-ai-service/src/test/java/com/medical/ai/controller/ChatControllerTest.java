@@ -7,6 +7,7 @@ import com.medical.ai.domain.vo.ChatMessageVO;
 import com.medical.ai.domain.vo.ChatSessionVO;
 import com.medical.ai.domain.vo.SseMessageVO;
 import com.medical.ai.service.ChatService;
+import com.medical.ai.service.TtsService;
 import com.medical.common.core.handler.GlobalExceptionHandler;
 import com.medical.common.security.util.SecurityUtil;
 import com.medical.ai.TestAiApplication;
@@ -49,6 +50,9 @@ public class ChatControllerTest {
 
     @MockBean
     private ChatService chatService;
+
+    @MockBean
+    private TtsService ttsService;
 
     private MockedStatic<SecurityUtil> securityUtilMock;
 
@@ -134,5 +138,56 @@ public class ChatControllerTest {
 
         mockMvc.perform(delete("/chat/session/1"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void createSession_rejectsInvalidSessionType() throws Exception {
+        CreateSessionDTO dto = new CreateSessionDTO();
+        dto.setSessionType("INVALID");
+
+        mockMvc.perform(post("/chat/session")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").exists());
+
+        verify(chatService, never()).createSession(any(), anyString());
+    }
+
+    @Test
+    void sendMessage_rejectsBlankMessage() throws Exception {
+        ChatRequestDTO dto = new ChatRequestDTO();
+        dto.setSessionId(1L);
+        dto.setMessage("   ");
+
+        mockMvc.perform(post("/chat/send")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").exists());
+
+        verify(chatService, never()).chat(anyLong(), anyLong(), anyString());
+    }
+
+    @Test
+    void cleanupTtsAudio_success() throws Exception {
+        when(ttsService.cleanupGeneratedAudio(java.util.List.of("1710000000000.mp3"))).thenReturn(1);
+
+        mockMvc.perform(delete("/chat/tts/cleanup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(java.util.List.of("1710000000000.mp3"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").value(1));
+    }
+
+    @Test
+    void cleanupTtsAudio_rejectsEmptyPayload() throws Exception {
+        mockMvc.perform(delete("/chat/tts/cleanup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(java.util.List.of())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").exists());
+
+        verify(ttsService, never()).cleanupGeneratedAudio(anyList());
     }
 }

@@ -8,15 +8,19 @@ import com.alibaba.dashscope.audio.ttsv2.SpeechSynthesisParam;
 import com.alibaba.dashscope.audio.ttsv2.SpeechSynthesizer;
 import com.alibaba.dashscope.utils.Constants;
 import com.medical.ai.service.TtsService;
+import com.medical.common.core.exception.BusinessException;
+import com.medical.common.core.exception.ErrorCode;
 import jakarta.annotation.PostConstruct;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -26,6 +30,7 @@ import org.springframework.stereotype.Service;
 public class TtsServiceImpl implements TtsService {
 
     public static final String TTS_RESOURCE = "svc:ai:tts";
+    private static final Pattern GENERATED_AUDIO_FILE_NAME = Pattern.compile("^\\d+\\.mp3$");
 
     @Value("${tts.cosyvoice.api-key:}")
     private String apiKey;
@@ -122,6 +127,32 @@ public class TtsServiceImpl implements TtsService {
         }
     }
 
+    @Override
+    public int cleanupGeneratedAudio(List<String> fileNames) {
+        if (fileNames == null || fileNames.isEmpty()) {
+            return 0;
+        }
+
+        Path baseDir = Paths.get(audioPath).toAbsolutePath().normalize();
+        int deleted = 0;
+        for (String fileName : fileNames) {
+            validateGeneratedFileName(fileName);
+            Path filePath = baseDir.resolve(fileName).normalize();
+            if (!filePath.startsWith(baseDir)) {
+                throw new BusinessException(ErrorCode.PARAM_ERROR, "非法TTS文件名");
+            }
+            try {
+                if (Files.deleteIfExists(filePath)) {
+                    deleted++;
+                }
+            } catch (IOException e) {
+                log.error("TTS 清理失败: {}", fileName, e);
+                throw new BusinessException(ErrorCode.FAIL, "TTS音频清理失败");
+            }
+        }
+        return deleted;
+    }
+
     protected ByteBuffer synthesizeAudio(String text, SpeechSynthesisParam param) throws Exception {
         SpeechSynthesizer synthesizer = new SpeechSynthesizer(param, null);
         try {
@@ -163,5 +194,11 @@ public class TtsServiceImpl implements TtsService {
             .replaceAll("(?m)^[\\s]*[-*+]\\s+", "")
             .replaceAll("(?m)^[\\s]*\\d+\\.\\s+", "")
             .trim();
+    }
+
+    private void validateGeneratedFileName(String fileName) {
+        if (fileName == null || fileName.isBlank() || !GENERATED_AUDIO_FILE_NAME.matcher(fileName).matches()) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "非法TTS文件名");
+        }
     }
 }

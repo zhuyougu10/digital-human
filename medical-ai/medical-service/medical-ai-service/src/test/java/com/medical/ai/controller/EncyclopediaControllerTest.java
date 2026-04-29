@@ -120,11 +120,12 @@ public class EncyclopediaControllerTest {
         dto.setSessionId(1L);
         dto.setMessage("");
 
-        when(chatService.chat(eq(1L), eq(1L), eq(""))).thenReturn(Flux.empty());
-
         mockMvc.perform(post("/encyclopedia/chat")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").exists());
+
+        verify(chatService, never()).chat(any(), any(), any());
     }
 }
