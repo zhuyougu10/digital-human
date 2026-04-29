@@ -92,12 +92,12 @@ const goBack = () => uni.navigateBack()
 
 const filteredDoctors = computed(() => {
   if (!activeDeptId.value) return doctors.value
-  return doctors.value.filter(d => d.departmentId === activeDeptId.value)
+  return doctors.value.filter((d: any) => d.departmentId === activeDeptId.value)
 })
 
 const fetchDepartments = async () => {
   const res = await getDepartmentList()
-  departments.value = (Array.isArray(res) ? res : (res.records || [])).map(d => ({
+  departments.value = (Array.isArray(res) ? res : (res.records || [])).map((d: any) => ({
     id: d.id,
     name: d.name || d.departmentName
   }))
@@ -105,7 +105,7 @@ const fetchDepartments = async () => {
 
 const fetchDoctors = async () => {
   const res = await getDoctorList({})
-  doctors.value = (Array.isArray(res) ? res : (res.records || [])).map(d => ({
+  doctors.value = (Array.isArray(res) ? res : (res.records || [])).map((d: any) => ({
     ...d,
     specialties: (d.specialties || '').split(/[，,]/).filter(Boolean)
   }))

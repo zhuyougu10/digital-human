@@ -51,53 +51,57 @@ const destroyAudio = () => {
 const createFreshAudio = () => {
   destroyAudio()
 
+  let ctx: UniApp.InnerAudioContext
+
   // 尝试使用 useWebAudioImplement（基础库 3.4.7+）
   try {
-    audioContext = uni.createInnerAudioContext({ useWebAudioImplement: true } as any)
+    ctx = (uni.createInnerAudioContext as any)({ useWebAudioImplement: true })
   } catch (_) {
-    audioContext = uni.createInnerAudioContext()
+    ctx = uni.createInnerAudioContext()
   }
 
-  audioContext.obeyMuteSwitch = false
+  audioContext = ctx
 
-  audioContext.onPlay(() => {
+  ctx.obeyMuteSwitch = false
+
+  ctx.onPlay(() => {
     console.log('[TtsPlayer] onPlay 触发')
     isPlaying.value = true
     postLive2dMessage('START_LIPSYNC')
     emit('play')
   })
-  audioContext.onPause(() => {
+  ctx.onPause(() => {
     isPlaying.value = false
     postLive2dMessage('STOP_LIPSYNC')
     emit('pause')
   })
-  audioContext.onStop(() => {
+  ctx.onStop(() => {
     isPlaying.value = false
     postLive2dMessage('STOP_LIPSYNC')
     emitPlaybackEnded()
     emit('stop')
   })
-  audioContext.onEnded(() => {
+  ctx.onEnded(() => {
     console.log('[TtsPlayer] onEnded 触发')
     isPlaying.value = false
     postLive2dMessage('STOP_LIPSYNC')
     emitPlaybackEnded()
     emit('ended')
   })
-  audioContext.onError((error: any) => {
+  ctx.onError((error: any) => {
     isPlaying.value = false
     postLive2dMessage('STOP_LIPSYNC')
     emitPlaybackEnded()
     console.error('[TtsPlayer] 音频播放失败:', {
       errCode: error?.errCode,
       errMsg: error?.errMsg,
-      src: audioContext?.src,
+      src: ctx.src,
       ttsUrl: props.ttsUrl
     })
     emit('error')
   })
 
-  return audioContext
+  return ctx
 }
 
 const playAudio = () => {

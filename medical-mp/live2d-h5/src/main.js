@@ -1,6 +1,7 @@
 import * as PIXI from 'pixi.js'
 window.PIXI = PIXI
 import { playAuthenticatedAudio, unlockAudioPlayback } from './audio-player'
+import { resolveApiBase, resolveTtsUrl } from '../../shared/runtime-config'
 import VConsole from 'vconsole'
 
 if (import.meta.env.DEV && !window.__H5_VCONSOLE__) {
@@ -63,20 +64,8 @@ async function bootstrap() {
   const urlParams = new URLSearchParams(window.location.search)
   const token = urlParams.get('token')
   let sessionId = urlParams.get('sessionId')
-  const rawApiBase = urlParams.get('apiBase') || 'http://localhost:8080/api'
-  const resolveApiBase = (baseUrl) => {
-    try {
-      const parsed = new URL(baseUrl)
-      if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') {
-        parsed.hostname = window.location.hostname
-      }
-      return parsed.toString().replace(/\/$/, '')
-    } catch (error) {
-      console.warn('[H5] apiBase 解析失败，使用原始值:', { baseUrl, error })
-      return baseUrl
-    }
-  }
-  const apiBase = resolveApiBase(rawApiBase)
+  const rawApiBase = urlParams.get('apiBase')
+  const apiBase = resolveApiBase({ explicitBase: rawApiBase, browserHost: window.location.hostname })
   if (token && sessionId) {
     console.log('[H5] 接收到鉴权信息:', { sessionId, rawApiBase, apiBase })
   }
@@ -103,7 +92,10 @@ async function bootstrap() {
     if (!next) return
     
     ttsPlaying = true
-    const audioUrl = next.ttsUrl.startsWith('http') ? next.ttsUrl : (apiBase + next.ttsUrl)
+    const audioUrl = resolveTtsUrl(next.ttsUrl, {
+      explicitBase: rawApiBase,
+      browserHost: window.location.hostname
+    })
     
     try {
       await playAuthenticatedAudio({

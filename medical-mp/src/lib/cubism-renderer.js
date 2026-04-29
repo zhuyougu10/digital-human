@@ -1,12 +1,13 @@
 import { createCanvasImage, setupWeappCanvasAdapter } from './weapp-canvas-adapter'
 import { buildAuthHeader, getStoredToken } from '@/api/request'
+import { resolveLive2dBase } from '../../shared/runtime-config'
 
 const DEFAULT_MODEL_FILE = 'wariza.model3.json'
 const GL_CONTEXT_UID = 1
 const LIVE2D_CACHE_DIR = `${wx.env.USER_DATA_PATH}/live2d-cache`
 
 // 模型资源通过 HTTP 从 live2d-h5 容器或 CDN 加载
-const MODEL_BASE_URL = import.meta.env.VITE_LIVE2D_URL || import.meta.env.VITE_LIVE2D_BASE || 'http://192.168.31.210:8090'
+const MODEL_BASE_URL = resolveLive2dBase()
 
 const joinUrl = (base, file = '') => {
   const normalizedBase = base.replace(/\/+$/, '')

@@ -83,6 +83,7 @@ import ChatMessage from '@/components/ChatMessage.vue'
 import TtsPlayer from '@/components/TtsPlayer.vue'
 import { createCubismRenderer } from '@/lib/cubism-renderer'
 import { Live2dLipSync } from '@/lib/live2d-lip-sync'
+import { getRuntimeConfig, resolveTtsUrl as buildTtsUrl } from '../../../shared/runtime-config'
 
 // ---- 布局 ----
 const systemInfo = uni.getSystemInfoSync()
@@ -123,13 +124,10 @@ let currentPlayIndex = 0
 let currentAiMessageIndex = -1
 let currentFullText = ''
 
-const apiBase = import.meta.env.VITE_API_BASE || 'http://192.168.31.210:8080/api'
-const apiOrigin = apiBase.replace(/\/+$/, '')
+const { apiBase } = getRuntimeConfig()
 
 const resolveTtsUrl = (ttsUrl) => {
-  if (!ttsUrl) return ''
-  if (/^https?:\/\//.test(ttsUrl)) return ttsUrl
-  return `${apiOrigin}${ttsUrl.startsWith('/') ? ttsUrl : `/${ttsUrl}`}`
+  return buildTtsUrl(ttsUrl)
 }
 
 // =============== Live2D 初始化 ===============

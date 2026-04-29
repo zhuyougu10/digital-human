@@ -1,4 +1,6 @@
-const BASE_URL = import.meta.env.VITE_API_BASE || 'http://192.168.31.210:8080/api'
+import { resolveApiBase } from '../../shared/runtime-config'
+
+const BASE_URL = resolveApiBase()
 
 const concatUint8Arrays = (left, right) => {
   if (!left?.length) return right
