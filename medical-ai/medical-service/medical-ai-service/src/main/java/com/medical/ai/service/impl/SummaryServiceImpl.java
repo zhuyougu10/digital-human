@@ -13,8 +13,15 @@ import com.medical.ai.mapper.ChatMessageMapper;
 import com.medical.ai.mapper.ChatSessionMapper;
 import com.medical.ai.mapper.ConversationSummaryMapper;
 import com.medical.ai.service.SummaryService;
+import com.medical.api.appointment.RemoteAppointmentService;
+import com.medical.api.appointment.dto.AppointmentDTO;
+import com.medical.api.doctor.RemoteDoctorService;
+import com.medical.api.doctor.dto.DoctorInfoDTO;
+import com.medical.common.core.constant.UserConstants;
+import com.medical.common.core.domain.R;
 import com.medical.common.core.exception.BusinessException;
 import com.medical.common.core.exception.ErrorCode;
+import java.util.Collections;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;
@@ -40,6 +47,8 @@ public class SummaryServiceImpl implements SummaryService {
     private final AgentFactory agentFactory;
     private final OpenAiChatModel chatModel;
     private final ObjectMapper objectMapper;
+    private final RemoteAppointmentService remoteAppointmentService;
+    private final RemoteDoctorService remoteDoctorService;
 
     @Async("summaryExecutor")
     @Override
@@ -123,12 +132,38 @@ public class SummaryServiceImpl implements SummaryService {
     }
 
     @Override
-    public ConversationSummaryVO getSummaryByAppointment(Long appointmentId) {
+    public ConversationSummaryVO getSummaryByAppointment(Long appointmentId, Long userId, List<String> roles) {
+        AppointmentDTO appointment = loadAuthorizedAppointment(appointmentId, userId, roles);
         ConversationSummary summary = summaryMapper.selectOne(
             new LambdaQueryWrapper<ConversationSummary>()
-                .eq(ConversationSummary::getAppointmentId, appointmentId)
+                .eq(ConversationSummary::getAppointmentId, appointment.getId())
         );
         return summary != null ? toVO(summary) : null;
+    }
+
+    private AppointmentDTO loadAuthorizedAppointment(Long appointmentId, Long userId, List<String> roles) {
+        R<AppointmentDTO> appointmentResponse = remoteAppointmentService.getAppointmentSnapshot(appointmentId);
+        if (appointmentResponse == null || !appointmentResponse.isSuccess() || appointmentResponse.getData() == null) {
+            throw new BusinessException(ErrorCode.APPOINTMENT_NOT_FOUND);
+        }
+        AppointmentDTO appointment = appointmentResponse.getData();
+        List<String> safeRoles = roles == null ? Collections.emptyList() : roles;
+        if (safeRoles.contains(UserConstants.ROLE_ADMIN)) {
+            return appointment;
+        }
+        if (userId != null && userId.equals(appointment.getPatientId())) {
+            return appointment;
+        }
+        if (safeRoles.contains(UserConstants.ROLE_DOCTOR)) {
+            R<DoctorInfoDTO> doctorResponse = remoteDoctorService.getDoctorByUserId(userId);
+            if (doctorResponse != null && doctorResponse.isSuccess() && doctorResponse.getData() != null) {
+                DoctorInfoDTO doctor = doctorResponse.getData();
+                if (doctor.getId() != null && doctor.getId().equals(appointment.getDoctorId())) {
+                    return appointment;
+                }
+            }
+        }
+        throw new BusinessException(ErrorCode.FORBIDDEN);
     }
 
     private void validateSessionOwner(Long sessionId, Long userId) {

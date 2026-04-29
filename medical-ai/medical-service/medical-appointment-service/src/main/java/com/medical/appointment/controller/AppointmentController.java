@@ -3,6 +3,7 @@ package com.medical.appointment.controller;
 import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.annotation.SaCheckRole;
 import cn.dev33.satoken.stp.StpUtil;
+import com.medical.api.appointment.dto.AppointmentDTO;
 import com.medical.appointment.domain.dto.AppointmentQueryDTO;
 import com.medical.appointment.domain.dto.CreateAppointmentDTO;
 import com.medical.appointment.domain.vo.AppointmentListVO;
@@ -59,6 +60,11 @@ public class AppointmentController {
     @GetMapping("/{id}")
     public R<AppointmentVO> detail(@PathVariable("id") Long id) {
         return R.ok(appointmentService.getAppointmentDetail(id, StpUtil.getLoginIdAsLong()));
+    }
+
+    @GetMapping("/inner/{id}")
+    public R<AppointmentDTO> innerDetail(@PathVariable("id") Long id) {
+        return R.ok(appointmentService.getAppointmentSnapshot(id));
     }
 
     @SaCheckLogin

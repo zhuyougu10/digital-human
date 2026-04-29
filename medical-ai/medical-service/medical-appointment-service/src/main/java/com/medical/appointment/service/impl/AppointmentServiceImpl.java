@@ -6,6 +6,7 @@ import com.alibaba.csp.sentinel.SphU;
 import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.medical.api.appointment.dto.AppointmentDTO;
 import com.medical.api.doctor.RemoteDoctorService;
 import com.medical.api.doctor.RemoteScheduleService;
 import com.medical.api.doctor.dto.DoctorInfoDTO;
@@ -220,6 +221,23 @@ public class AppointmentServiceImpl implements AppointmentService {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
         return toVO(appointment);
+    }
+
+    @Override
+    public AppointmentDTO getAppointmentSnapshot(Long appointmentId) {
+        Appointment appointment = appointmentMapper.selectById(appointmentId);
+        if (appointment == null || Objects.equals(appointment.getDeleted(), 1)) {
+            throw new BusinessException(ErrorCode.APPOINTMENT_NOT_FOUND);
+        }
+        AppointmentDTO dto = new AppointmentDTO();
+        dto.setId(appointment.getId());
+        dto.setPatientId(appointment.getPatientId());
+        dto.setDoctorId(appointment.getDoctorId());
+        dto.setAppointmentDate(appointment.getAppointmentDate());
+        dto.setStartTime(appointment.getStartTime());
+        dto.setEndTime(appointment.getEndTime());
+        dto.setStatus(appointment.getStatus());
+        return dto;
     }
 
     @Override

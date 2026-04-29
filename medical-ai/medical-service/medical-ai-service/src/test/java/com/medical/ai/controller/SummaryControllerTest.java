@@ -4,6 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.medical.ai.TestAiApplication;
 import com.medical.ai.domain.vo.ConversationSummaryVO;
 import com.medical.ai.service.SummaryService;
+import com.medical.common.core.constant.UserConstants;
+import com.medical.common.core.exception.BusinessException;
+import com.medical.common.core.exception.ErrorCode;
 import com.medical.common.core.handler.GlobalExceptionHandler;
 import com.medical.common.security.util.SecurityUtil;
 import org.junit.jupiter.api.AfterEach;
@@ -44,6 +47,7 @@ public class SummaryControllerTest {
     void setUp() {
         securityUtilMock = mockStatic(SecurityUtil.class);
         securityUtilMock.when(SecurityUtil::getUserId).thenReturn(1L);
+        securityUtilMock.when(SecurityUtil::getRoles).thenReturn(java.util.List.of(UserConstants.ROLE_ADMIN));
     }
 
     @AfterEach
@@ -75,7 +79,7 @@ public class SummaryControllerTest {
     void getByAppointment_success() throws Exception {
         ConversationSummaryVO vo = new ConversationSummaryVO();
         vo.setId(1L);
-        when(summaryService.getSummaryByAppointment(1L)).thenReturn(vo);
+        when(summaryService.getSummaryByAppointment(1L, 1L, java.util.List.of(UserConstants.ROLE_ADMIN))).thenReturn(vo);
 
         mockMvc.perform(get("/summary/appointment/1"))
                 .andExpect(status().isOk())
@@ -84,10 +88,21 @@ public class SummaryControllerTest {
 
     @Test
     void getByAppointment_notFound() throws Exception {
-        when(summaryService.getSummaryByAppointment(999L)).thenReturn(null);
+        when(summaryService.getSummaryByAppointment(999L, 1L, java.util.List.of(UserConstants.ROLE_ADMIN))).thenReturn(null);
 
         mockMvc.perform(get("/summary/appointment/999"))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isEmpty());
+    }
+
+    @Test
+    void getByAppointment_forbiddenDoesNotLeakPayload() throws Exception {
+        when(summaryService.getSummaryByAppointment(2L, 1L, java.util.List.of(UserConstants.ROLE_ADMIN)))
+                .thenThrow(new BusinessException(ErrorCode.FORBIDDEN));
+
+        mockMvc.perform(get("/summary/appointment/2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(ErrorCode.FORBIDDEN.getCode()))
                 .andExpect(jsonPath("$.data").isEmpty());
     }
 }

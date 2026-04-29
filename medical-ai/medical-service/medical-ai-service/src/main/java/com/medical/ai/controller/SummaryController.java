@@ -4,6 +4,7 @@ import com.medical.ai.domain.vo.ConversationSummaryVO;
 import com.medical.ai.service.SummaryService;
 import com.medical.common.core.domain.R;
 import com.medical.common.security.util.SecurityUtil;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,6 +23,8 @@ public class SummaryController {
 
     @GetMapping("/appointment/{appointmentId}")
     public R<ConversationSummaryVO> getSummaryByAppointment(@PathVariable Long appointmentId) {
-        return R.ok(summaryService.getSummaryByAppointment(appointmentId));
+        Long userId = SecurityUtil.getUserId();
+        List<String> roles = SecurityUtil.getRoles();
+        return R.ok(summaryService.getSummaryByAppointment(appointmentId, userId, roles));
     }
 }
