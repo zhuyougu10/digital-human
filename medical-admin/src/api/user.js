@@ -25,12 +25,12 @@ export function createUser(data) {
 }
 
 /**
- * 根据ID获取用户信息 (内部调用/详情)
+ * 根据ID获取用户信息
  * @param {Long} userId 
  */
 export function getUserById(userId) {
   return service({
-    url: `/api/user/user/inner/${userId}`,
+    url: `/api/user/user/${userId}`,
     method: 'get'
   })
 }

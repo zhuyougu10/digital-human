@@ -122,6 +122,19 @@ public class SysUserControllerTest {
     }
 
     @Test
+    void getUserById_success() throws Exception {
+        UserVO vo = new UserVO();
+        vo.setId(2L);
+        vo.setUsername("doctor_a");
+        when(sysUserService.getUserById(2L)).thenReturn(vo);
+
+        mockMvc.perform(get("/user/2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value(2))
+                .andExpect(jsonPath("$.data.username").value("doctor_a"));
+    }
+
+    @Test
     void updateUserInfo_success() throws Exception {
         doNothing().when(sysUserService).updateUser(eq(1L), any(UserUpdateDTO.class));
 

@@ -43,6 +43,13 @@ public class SysUserController {
         return R.ok(sysUserService.getUserById(SecurityUtil.getUserId()));
     }
 
+    /** 管理员 - 根据ID获取用户详情 */
+    @SaCheckRole(UserConstants.ROLE_ADMIN)
+    @GetMapping("/{userId}")
+    public R<UserVO> getUserById(@PathVariable Long userId) {
+        return R.ok(sysUserService.getUserById(userId));
+    }
+
     /** 更新当前用户信息 */
     @PutMapping("/info")
     public R<Void> updateCurrentUser(@RequestBody UserUpdateDTO dto) {
