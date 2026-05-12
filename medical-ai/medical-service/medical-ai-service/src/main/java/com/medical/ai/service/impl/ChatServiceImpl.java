@@ -27,6 +27,7 @@ import com.medical.common.core.exception.BusinessException;
 import com.medical.common.core.exception.ErrorCode;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -69,6 +70,13 @@ public class ChatServiceImpl implements ChatService {
     private static final Pattern APPOINTMENT_PERIOD_PATTERN = Pattern.compile("预约[^。\n]{0,20}(上午|下午)");
     private static final Pattern SIMPLE_PERIOD_PATTERN = Pattern.compile("(上午|下午)");
     private static final String APPOINTMENT_GUARD_FALLBACK_REPLY = "抱歉，刚才尚未成功创建预约，请重新确认医生与时间后，我再为您提交预约。";
+    private static final String AVATAR_CUE_KEY = "avatarCue";
+    private static final String CUE_BUCKET_KEY = "bucket";
+    private static final String CUE_EXPRESSION_KEY = "expression";
+    private static final String CUE_ACTION_KEY = "action";
+    private static final String CUE_TONE_KEY = "tone";
+    private static final String CUE_VARIANT_KEY = "variant";
+    private static final String CUE_SOURCE_KEY = "source";
 
     private final ChatSessionMapper sessionMapper;
     private final ChatMessageMapper messageMapper;
@@ -149,6 +157,7 @@ public class ChatServiceImpl implements ChatService {
         StringBuilder fullResponse = new StringBuilder();
         AtomicReference<String> fullTextRef = new AtomicReference<>("");
         AtomicReference<ChatMessage> assistantMessageRef = new AtomicReference<>();
+        AtomicReference<Map<String, Object>> avatarCueRef = new AtomicReference<>();
 
         return chatModel.stream(prompt)
             .publishOn(Schedulers.boundedElastic())
@@ -174,12 +183,15 @@ public class ChatServiceImpl implements ChatService {
                 String fullText = fullResponse.toString();
                 String guardedText = guardAppointmentSuccessReply(sessionId, userMsg.getId(), userId, message, fullText);
                 fullTextRef.set(guardedText);
+                Map<String, Object> avatarCueMetadata = buildAvatarCueMetadata(session, message, guardedText);
+                avatarCueRef.set(avatarCueMetadata);
 
                 // 先保存 assistant 消息，保证完整文本先落库
                 ChatMessage assistantMsg = new ChatMessage();
                 assistantMsg.setSessionId(sessionId);
                 assistantMsg.setRole("assistant");
                 assistantMsg.setContent(guardedText);
+                assistantMsg.setMetadata(writeMetadataJson(avatarCueMetadata));
                 messageMapper.insert(assistantMsg);
                 assistantMessageRef.set(assistantMsg);
 
@@ -194,6 +206,7 @@ public class ChatServiceImpl implements ChatService {
                 complete.setType("complete");
                 complete.setContent(guardedText);
                 complete.setTtsUrl(null);
+                complete.setMetadata(avatarCueMetadata);
                 return complete;
             }))
             .concatWith(Mono.defer(() -> Mono.fromCallable(() -> {
@@ -215,6 +228,7 @@ public class ChatServiceImpl implements ChatService {
                 SseMessageVO tts = new SseMessageVO();
                 tts.setType("tts");
                 tts.setTtsUrl(ttsUrl);
+                tts.setMetadata(avatarCueRef.get());
                 return tts;
             })
                 .subscribeOn(Schedulers.boundedElastic())
@@ -328,6 +342,134 @@ public class ChatServiceImpl implements ChatService {
             }
         }
         return vo;
+    }
+
+    private Map<String, Object> buildAvatarCueMetadata(ChatSession session, String userText, String assistantText) {
+        String agentType = session != null ? session.getAgentType() : null;
+        String bucket = resolveAvatarCueBucket(agentType, userText, assistantText);
+        Map<String, Object> avatarCue = new LinkedHashMap<>();
+        avatarCue.put(CUE_BUCKET_KEY, bucket);
+        avatarCue.put(CUE_EXPRESSION_KEY, resolveAvatarCueExpression(bucket));
+        avatarCue.put(CUE_ACTION_KEY, resolveAvatarCueAction(bucket));
+        avatarCue.put(CUE_TONE_KEY, resolveAvatarCueTone(bucket));
+        avatarCue.put(CUE_VARIANT_KEY, resolveAvatarCueVariant(bucket));
+
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put(AVATAR_CUE_KEY, avatarCue);
+        metadata.put(CUE_SOURCE_KEY, resolveAvatarCueSource(agentType));
+        return metadata;
+    }
+
+    private String resolveAvatarCueBucket(String agentType, String userText, String assistantText) {
+        if (!"TRIAGE".equals(agentType)) {
+            return "knowledge_explanation";
+        }
+
+        String text = ((assistantText == null ? "" : assistantText) + "\n" + (userText == null ? "" : userText));
+        String normalized = text.toLowerCase();
+
+        if (containsAny(normalized, "预约失败", "挂号失败", "未能预约", "预约未成功", "未成功创建预约")) {
+            return "appointment_failure";
+        }
+        if (containsAny(normalized, "抱歉", "尚未成功", "暂时无法", "无法完成", "请重新确认", "tts 超时")) {
+            return "fallback_error";
+        }
+        if (containsAny(normalized, "急诊", "胸痛", "呼吸困难", "昏迷", "出血", "立即就医", "尽快就医", "紧急")) {
+            return "urgent_warning";
+        }
+        if (containsAny(normalized, "预约成功", "成功创建了预约", "已经为您成功创建了预约", "appointmentid")) {
+            return "appointment_success";
+        }
+        if (containsAny(normalized, "预约", "号源", "时间段", "上午", "下午", "选择", "确认")) {
+            return "slot_selection";
+        }
+        if (containsAny(normalized, "推荐", "科室", "医生", "挂号")) {
+            return "doctor_recommendation";
+        }
+        if (containsAny(normalized, "症状", "哪里不舒服", "哪里疼", "不适", "多长时间", "发热", "咳嗽", "头痛")) {
+            return "symptom_collection";
+        }
+        if (containsAny(normalized, "你好", "您好", "hello", "hi", "早上好", "晚上好")) {
+            return "greeting";
+        }
+        return "symptom_collection";
+    }
+
+    private String resolveAvatarCueExpression(String bucket) {
+        return switch (bucket) {
+            case "greeting" -> "warm";
+            case "symptom_collection" -> "attentive";
+            case "doctor_recommendation" -> "confident";
+            case "slot_selection" -> "focused";
+            case "appointment_success" -> "relieved";
+            case "appointment_failure", "fallback_error" -> "apologetic";
+            case "knowledge_explanation" -> "calm";
+            case "urgent_warning" -> "serious";
+            default -> "attentive";
+        };
+    }
+
+    private String resolveAvatarCueAction(String bucket) {
+        return switch (bucket) {
+            case "greeting" -> "welcome";
+            case "symptom_collection" -> "listen";
+            case "doctor_recommendation" -> "recommend";
+            case "slot_selection" -> "guide";
+            case "appointment_success" -> "celebrate";
+            case "appointment_failure", "fallback_error" -> "apologize";
+            case "knowledge_explanation" -> "explain";
+            case "urgent_warning" -> "alert";
+            default -> "listen";
+        };
+    }
+
+    private String resolveAvatarCueTone(String bucket) {
+        return switch (bucket) {
+            case "appointment_success" -> "positive";
+            case "urgent_warning", "appointment_failure", "fallback_error" -> "serious";
+            case "knowledge_explanation" -> "neutral";
+            default -> "supportive";
+        };
+    }
+
+    private String resolveAvatarCueVariant(String bucket) {
+        return switch (bucket) {
+            case "appointment_success", "appointment_failure", "fallback_error" -> "transactional";
+            case "doctor_recommendation", "slot_selection" -> "triage_flow";
+            case "urgent_warning" -> "safety";
+            default -> "general";
+        };
+    }
+
+    private String resolveAvatarCueSource(String agentType) {
+        if (agentType == null || agentType.isBlank()) {
+            return "unknown";
+        }
+        return agentType;
+    }
+
+    private boolean containsAny(String text, String... keywords) {
+        if (text == null || keywords == null) {
+            return false;
+        }
+        for (String keyword : keywords) {
+            if (keyword != null && !keyword.isBlank() && text.contains(keyword.toLowerCase())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String writeMetadataJson(Map<String, Object> metadata) {
+        if (metadata == null || metadata.isEmpty()) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(metadata);
+        } catch (Exception e) {
+            log.warn("Failed to serialize avatar cue metadata: {}", e.getMessage());
+            return null;
+        }
     }
 
     private String guardAppointmentSuccessReply(Long sessionId, Long userMessageId, Long userId, String userText, String assistantText) {

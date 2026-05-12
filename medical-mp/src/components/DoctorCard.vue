@@ -58,16 +58,16 @@ const onSelect = () => {
 
 <style scoped>
 .doctor-card {
-  background: #ffffff;
-  border-radius: 24rpx;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
   padding: 28rpx 24rpx;
   display: flex;
   align-items: center;
   gap: 24rpx;
-  box-shadow: 0 8rpx 24rpx rgba(46, 126, 167, 0.06);
+  box-shadow: var(--shadow-sm);
   margin-bottom: 24rpx;
-  border: 1rpx solid rgba(226, 232, 240, 0.6);
-  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  border: 1rpx solid rgba(226, 232, 240, 0.84);
+  font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif;
 }
 
 .avatar-section {
@@ -78,8 +78,8 @@ const onSelect = () => {
   width: 120rpx;
   height: 120rpx;
   border-radius: 60rpx;
-  background: #f8faff;
-  border: 4rpx solid #f0f4ff;
+  background: var(--brand-primary-soft);
+  border: 4rpx solid rgba(219, 234, 254, 0.8);
 }
 
 .info-section {
@@ -98,21 +98,21 @@ const onSelect = () => {
 
 .name {
   font-size: 32rpx;
-  color: #1e293b;
+  color: var(--text-main);
   font-weight: 700;
 }
 
 .title {
   font-size: 24rpx;
-  color: #2e7ea7;
-  background: rgba(46, 126, 167, 0.08);
+  color: var(--brand-primary);
+  background: var(--brand-primary-soft);
   padding: 2rpx 12rpx;
-  border-radius: 6rpx;
+  border-radius: 9999rpx;
 }
 
 .dept {
   font-size: 26rpx;
-  color: #64748b;
+  color: var(--text-subtle);
 }
 
 .specialties {
@@ -125,8 +125,8 @@ const onSelect = () => {
 .tag {
   padding: 4rpx 16rpx;
   border-radius: 24rpx;
-  background: #f1f5f9;
-  color: #64748b;
+  background: var(--bg-muted);
+  color: var(--text-subtle);
   font-size: 22rpx;
   white-space: nowrap;
 }
@@ -136,13 +136,13 @@ const onSelect = () => {
 }
 
 .book-btn {
-  background: #2e7ea7;
+  background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-secondary) 100%);
   color: #ffffff;
   font-size: 26rpx;
   font-weight: 600;
   padding: 12rpx 32rpx;
-  border-radius: 30rpx;
-  box-shadow: 0 4rpx 12rpx rgba(46, 126, 167, 0.2);
+  border-radius: 9999rpx;
+  box-shadow: 0 8rpx 20rpx rgba(37, 99, 235, 0.18);
 }
 
 .book-btn:active {

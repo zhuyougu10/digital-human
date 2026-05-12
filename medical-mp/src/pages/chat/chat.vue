@@ -266,7 +266,7 @@ const pickReusableTriageSession = (sessionList) => {
 const resetAvatarToNeutral = () => {
   if (!renderer) return
   console.log('[Chat] Resetting avatar to neutral state')
-  renderer.setExpression('')
+  renderer.resetExpression()
   renderer.playMotion('Idle', 0)
 }
 

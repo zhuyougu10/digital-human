@@ -454,6 +454,19 @@ export class CubismRenderer {
     return this.internalModel.motionManager.startMotion(group, index)
   }
 
+  async resetExpression() {
+    const expressionManager = this.internalModel?.motionManager?.expressionManager
+    if (!expressionManager) {
+      return false
+    }
+
+    if (typeof expressionManager.resetExpression === 'function') {
+      expressionManager.resetExpression()
+      return true
+    }
+    return false
+  }
+
   async setExpression(name) {
     const expressionManager = this.internalModel?.motionManager?.expressionManager
     if (!expressionManager) {

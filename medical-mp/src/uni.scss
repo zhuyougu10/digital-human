@@ -15,30 +15,30 @@
 /* 颜色变量 */
 
 /* 行为相关颜色 */
-$uni-color-primary: #2563EB;
-$uni-color-success: #10B981;
-$uni-color-warning: #F59E0B;
-$uni-color-error: #EF4444;
+$uni-color-primary: #2563eb;
+$uni-color-success: #10b981;
+$uni-color-warning: #f59e0b;
+$uni-color-error: #ef4444;
 
 /* 渐变色变量 */
-$bg-gradient: linear-gradient(180deg, #1E5AA8 0%, #3B82F6 100%);
-$bg-gradient-full: linear-gradient(180deg, #1E5AA8 0%, #3B82F6 50%, #60A5FA 100%);
+$bg-gradient: linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%);
+$bg-gradient-full: linear-gradient(135deg, #2563eb 0%, #0ea5e9 55%, #38bdf8 100%);
 
 /* 背景颜色 */
-$uni-bg-color: #FFFFFF;
-$uni-bg-color-grey: #F5F8FC;
-$uni-bg-color-hover: #F3F4F6;
-$uni-bg-color-mask: rgba(0, 0, 0, 0.4);
+$uni-bg-color: #ffffff;
+$uni-bg-color-grey: #f7fafc;
+$uni-bg-color-hover: #f1f5f9;
+$uni-bg-color-mask: rgba(15, 23, 42, 0.4);
 
 /* 边框颜色 */
-$uni-border-color: #c8c7cc;
+$uni-border-color: #e2e8f0;
 
 /* 尺寸变量 */
 
 /* 文字尺寸 */
 $uni-font-size-sm: 12px;
 $uni-font-size-base: 14px;
-$uni-font-size-lg: 16;
+$uni-font-size-lg: 16px;
 
 /* 图片尺寸 */
 $uni-img-size-sm: 20px;
@@ -46,28 +46,28 @@ $uni-img-size-base: 26px;
 $uni-img-size-lg: 40px;
 
 /* Border Radius */
-$uni-border-radius-sm: 2px;
-$uni-border-radius-base: 3px;
-$uni-border-radius-lg: 6px;
+$uni-border-radius-sm: 12px;
+$uni-border-radius-base: 16px;
+$uni-border-radius-lg: 24px;
 $uni-border-radius-circle: 50%;
 
 /* 水平间距 */
-$uni-spacing-row-sm: 5px;
-$uni-spacing-row-base: 10px;
-$uni-spacing-row-lg: 15px;
+$uni-spacing-row-sm: 8px;
+$uni-spacing-row-base: 16px;
+$uni-spacing-row-lg: 24px;
 
 /* 垂直间距 */
-$uni-spacing-col-sm: 4px;
-$uni-spacing-col-base: 8px;
-$uni-spacing-col-lg: 12px;
+$uni-spacing-col-sm: 8px;
+$uni-spacing-col-base: 16px;
+$uni-spacing-col-lg: 24px;
 
 /* 透明度 */
-$uni-opacity-disabled: 0.3; // 组件禁用态的透明度
+$uni-opacity-disabled: 0.32; // 组件禁用态的透明度
 
 /* 文章场景相关 */
-$uni-color-title: #2c405a; // 文章标题颜色
+$uni-color-title: #0f172a; // 文章标题颜色
 $uni-font-size-title: 20px;
-$uni-color-subtitle: #555; // 二级标题颜色
+$uni-color-subtitle: #475569; // 二级标题颜色
 $uni-font-size-subtitle: 18px;
-$uni-color-paragraph: #3f536e; // 文章段落颜色
+$uni-color-paragraph: #334155; // 文章段落颜色
 $uni-font-size-paragraph: 15px;

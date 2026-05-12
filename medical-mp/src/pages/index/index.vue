@@ -32,7 +32,7 @@
       <view class="quick-grid">
         <view v-for="item in quickActions" :key="item.id" class="grid-item" @tap="navigateTo(item.path)">
           <view class="grid-icon">
-            <uni-icons :type="item.icon" size="28" color="#1E5AA8"></uni-icons>
+            <uni-icons :type="item.icon" size="28" color="var(--brand-primary)"></uni-icons>
           </view>
           <text class="grid-name">{{ item.name }}</text>
         </view>
@@ -41,12 +41,12 @@
       <view class="health-encyclopedia">
         <view class="section-header">
           <text class="section-title">健康科普</text>
-          <text class="section-more" @tap="showMore">更多 <uni-icons type="right" size="12" color="#9CA3AF"></uni-icons></text>
+          <text class="section-more" @tap="showMore">更多 <uni-icons type="right" size="12" color="var(--text-light)"></uni-icons></text>
         </view>
         <view class="article-list">
           <view class="article-item" v-for="i in 2" :key="i">
             <view class="article-img-placeholder">
-              <uni-icons type="image" size="24" color="#D1D5DB"></uni-icons>
+              <uni-icons type="image" size="24" color="var(--border-color)"></uni-icons>
             </view>
             <view class="article-info">
               <text class="article-title">春季过敏性鼻炎预防指南</text>
@@ -103,17 +103,20 @@ onMounted(() => {
 <style scoped lang="scss">
 .home-page {
   min-height: 100vh;
-  background: $uni-bg-color-grey;
+  background:
+    radial-gradient(circle at top right, rgba(37, 99, 235, 0.08), transparent 24%),
+    linear-gradient(180deg, #f8fbff 0%, #f7fafc 100%);
   display: flex;
   flex-direction: column;
 }
 
 .home-header {
   height: 480rpx;
-  background: $bg-gradient;
+  background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-secondary) 100%);
   padding: 88rpx 32rpx 32rpx;
-  border-bottom-left-radius: 40rpx;
-  border-bottom-right-radius: 40rpx;
+  border-bottom-left-radius: 48rpx;
+  border-bottom-right-radius: 48rpx;
+  box-shadow: 0 18rpx 40rpx rgba(37, 99, 235, 0.12);
 }
 
 .header-content {
@@ -154,7 +157,7 @@ onMounted(() => {
 
 .notice-bar {
   height: 72rpx;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 36rpx;
   display: flex;
   align-items: center;
@@ -181,13 +184,15 @@ onMounted(() => {
 
 .main-card {
   height: 240rpx;
-  background: #FFFFFF;
-  border-radius: 32rpx;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 36rpx;
   padding: 40rpx;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 16rpx 32rpx rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-md);
+  border: 1rpx solid rgba(226, 232, 240, 0.9);
+  backdrop-filter: blur(12rpx);
 }
 
 .card-info {
@@ -199,29 +204,29 @@ onMounted(() => {
 .card-title {
   font-size: 40rpx;
   font-weight: 700;
-  color: #1E5AA8;
+  color: var(--text-main);
 }
 
 .card-desc {
   font-size: 24rpx;
-  color: #6B7280;
+  color: var(--text-subtle);
 }
 
 .card-tag {
   margin-top: 12rpx;
   width: fit-content;
   padding: 8rpx 24rpx;
-  background: #EFF6FF;
-  color: #1E5AA8;
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary);
   font-size: 24rpx;
   font-weight: 600;
-  border-radius: 20rpx;
+  border-radius: 9999rpx;
 }
 
 .ai-avatar-preview {
   width: 120rpx;
   height: 120rpx;
-  background: $bg-gradient;
+  background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-secondary) 100%);
   border-radius: 60rpx;
   display: flex;
   align-items: center;
@@ -233,9 +238,9 @@ onMounted(() => {
   position: absolute;
   width: 140rpx;
   height: 140rpx;
-  border: 2rpx solid #3B82F6;
+  border: 2rpx solid rgba(255, 255, 255, 0.5);
   border-radius: 70rpx;
-  opacity: 0.3;
+  opacity: 0.45;
 }
 
 .avatar-text {
@@ -260,17 +265,18 @@ onMounted(() => {
 .grid-icon {
   width: 100rpx;
   height: 100rpx;
-  background: #FFFFFF;
-  border-radius: 32rpx;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 28rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8rpx 16rpx rgba(0, 0, 0, 0.03);
+  box-shadow: var(--shadow-sm);
+  border: 1rpx solid rgba(226, 232, 240, 0.8);
 }
 
 .grid-name {
   font-size: 24rpx;
-  color: #4B5563;
+  color: var(--text-regular);
 }
 
 .health-encyclopedia {
@@ -288,12 +294,12 @@ onMounted(() => {
 .section-title {
   font-size: 32rpx;
   font-weight: 700;
-  color: #1F2937;
+  color: var(--text-main);
 }
 
 .section-more {
   font-size: 24rpx;
-  color: #9CA3AF;
+  color: var(--text-subtle);
 }
 
 .article-list {
@@ -303,18 +309,20 @@ onMounted(() => {
 }
 
 .article-item {
-  background: #FFFFFF;
-  border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 28rpx;
   padding: 24rpx;
   display: flex;
   gap: 24rpx;
+  border: 1rpx solid rgba(226, 232, 240, 0.82);
+  box-shadow: var(--shadow-sm);
 }
 
 .article-img-placeholder {
   width: 180rpx;
   height: 140rpx;
-  background: #F3F4F6;
-  border-radius: 16rpx;
+  background: linear-gradient(135deg, #eff6ff 0%, #e0f2fe 100%);
+  border-radius: 18rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -330,12 +338,12 @@ onMounted(() => {
 .article-title {
   font-size: 30rpx;
   font-weight: 600;
-  color: #1F2937;
+  color: var(--text-main);
 }
 
 .article-desc {
   font-size: 24rpx;
-  color: #6B7280;
+  color: var(--text-subtle);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -351,14 +359,14 @@ onMounted(() => {
 
 .tag {
   font-size: 20rpx;
-  color: #1E5AA8;
-  background: #EFF6FF;
+  color: var(--brand-primary);
+  background: var(--brand-primary-soft);
   padding: 4rpx 12rpx;
-  border-radius: 8rpx;
+  border-radius: 9999rpx;
 }
 
 .time {
   font-size: 20rpx;
-  color: #9CA3AF;
+  color: var(--text-subtle);
 }
 </style>

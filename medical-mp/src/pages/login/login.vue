@@ -79,7 +79,10 @@ const showProtocol = (type) => {
   height: 100vh;
   position: relative;
   overflow: hidden;
-  background-color: var(--bg-page, #F8FAFC);
+  background:
+    radial-gradient(circle at top left, rgba(14, 165, 233, 0.12), transparent 28%),
+    radial-gradient(circle at right 18%, rgba(37, 99, 235, 0.10), transparent 24%),
+    linear-gradient(180deg, #f8fbff 0%, #f7fafc 55%, #eef6ff 100%);
   display: flex;
   flex-direction: column;
   padding: 0 48rpx;
@@ -94,34 +97,35 @@ const showProtocol = (type) => {
   
   .brand-title {
     font-size: 56rpx;
-    font-weight: 600;
-    color: var(--text-main, #1E293B);
+    font-weight: 700;
+    color: var(--text-main, #0F172A);
     margin-bottom: 16rpx;
     letter-spacing: 2rpx;
   }
   
   .brand-subtitle {
     font-size: 32rpx;
-    color: var(--text-regular, #475569);
+    color: var(--text-regular, #334155);
     font-weight: 400;
   }
 }
 
 .hero-card {
   margin-top: 80rpx;
-  background: var(--bg-card, #FFFFFF);
-  border-radius: var(--radius-lg, 24rpx);
+  background: rgba(255, 255, 255, 0.88);
+  border-radius: var(--radius-xl, 36rpx);
   padding: 64rpx 48rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
-  box-shadow: var(--shadow-sm, 0 2rpx 8rpx rgba(30, 41, 59, 0.04));
-  border: 2rpx solid var(--border-color, #E2E8F0);
+  box-shadow: var(--shadow-md, 0 12rpx 34rpx rgba(15, 23, 42, 0.08));
+  border: 1rpx solid rgba(226, 232, 240, 0.92);
+  backdrop-filter: blur(12rpx);
 
   .hero-icon-wrapper {
     width: 160rpx;
     height: 160rpx;
-    background: var(--brand-primary-soft, #EFF6FF);
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(14, 165, 233, 0.14));
     border-radius: var(--radius-full, 9999rpx);
     display: flex;
     align-items: center;
@@ -132,13 +136,13 @@ const showProtocol = (type) => {
   .hero-copy {
     font-size: 40rpx;
     font-weight: 600;
-    color: var(--text-main, #1E293B);
+    color: var(--text-main, #0F172A);
     margin-bottom: 16rpx;
   }
   
   .hero-desc {
     font-size: 28rpx;
-    color: var(--text-subtle, #94A3B8);
+    color: var(--text-subtle, #64748B);
     text-align: center;
     line-height: 1.5;
   }
@@ -156,16 +160,16 @@ const showProtocol = (type) => {
 .login-btn {
   width: 100%;
   height: 96rpx;
-  background: var(--brand-primary, #2563EB);
+  background: linear-gradient(135deg, var(--brand-primary, #2563EB) 0%, var(--brand-secondary, #0EA5E9) 100%);
   color: #ffffff;
-  border-radius: var(--radius-md, 16rpx);
+  border-radius: var(--radius-md, 20rpx);
   font-size: 32rpx;
   font-weight: 500;
   display: flex;
   align-items: center;
   justify-content: center;
   border: none;
-  box-shadow: 0 8rpx 16rpx rgba(37, 99, 235, 0.15);
+  box-shadow: 0 14rpx 32rpx rgba(37, 99, 235, 0.20);
   transition: all 0.2s ease;
   
   .btn-icon {
@@ -174,9 +178,9 @@ const showProtocol = (type) => {
 }
 
 .login-btn-hover {
-  background: var(--brand-primary-hover, #1D4ED8);
+  background: linear-gradient(135deg, var(--brand-primary-hover, #1D4ED8) 0%, #0284c7 100%);
   transform: translateY(2rpx);
-  box-shadow: 0 4rpx 8rpx rgba(37, 99, 235, 0.1);
+  box-shadow: 0 10rpx 22rpx rgba(37, 99, 235, 0.14);
 }
 
 .protocol {
@@ -192,7 +196,7 @@ const showProtocol = (type) => {
   
   .protocol-text {
     font-size: 24rpx;
-    color: var(--text-regular, #475569);
+    color: var(--text-regular, #334155);
     line-height: 40rpx;
   }
   

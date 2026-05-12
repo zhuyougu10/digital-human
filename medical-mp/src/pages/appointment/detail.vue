@@ -79,9 +79,21 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getAppointmentById, cancelAppointment } from '@/api/appointment'
 
+interface AppointmentDetail {
+  id?: string | number
+  status?: string | number
+  doctorName?: string
+  title?: string
+  departmentName?: string
+  appointmentDate?: string
+  startTime?: string
+  endTime?: string
+  queueNumber?: string | number
+}
+
 const appointmentId = ref('')
 const isSuccess = ref(false)
-const appointment = ref<any>(null)
+const appointment = ref<AppointmentDetail | null>(null)
 
 const headerClass = computed(() => ({
   'is-success': isSuccess.value,
@@ -93,9 +105,13 @@ const canCancel = computed(() => {
   return s === 0 || s === 'PENDING' || s === '待就诊'
 })
 
-const statusText = (status: any) => {
-  const map: any = { 0: '待就诊', 1: '已完成', 2: '已取消' }
-  return map[status] ?? status ?? '已预约'
+const statusText = (status: string | number | undefined) => {
+  const map: Record<string, string> = { 0: '待就诊', 1: '已完成', 2: '已取消' }
+  if (status === undefined) {
+    return '已预约'
+  }
+
+  return map[String(status)] ?? String(status)
 }
 
 const goBack = () => uni.navigateBack()

@@ -39,6 +39,15 @@ const emitPlaybackEnded = () => {
   uni.$emit('TTS_PLAY_ENDED')
 }
 
+const getAudioErrorDetail = (error: unknown, key: 'errCode' | 'errMsg') => {
+  if (typeof error !== 'object' || error === null || !(key in error)) {
+    return undefined
+  }
+
+  const value = (error as Record<'errCode' | 'errMsg', unknown>)[key]
+  return typeof value === 'string' || typeof value === 'number' ? value : undefined
+}
+
 const destroyAudio = () => {
   if (!audioContext) return
   try {
@@ -51,15 +60,7 @@ const destroyAudio = () => {
 const createFreshAudio = () => {
   destroyAudio()
 
-  let ctx: UniApp.InnerAudioContext
-
-  // 尝试使用 useWebAudioImplement（基础库 3.4.7+）
-  try {
-    ctx = (uni.createInnerAudioContext as any)({ useWebAudioImplement: true })
-  } catch (_) {
-    ctx = uni.createInnerAudioContext()
-  }
-
+  const ctx = uni.createInnerAudioContext()
   audioContext = ctx
 
   ctx.obeyMuteSwitch = false
@@ -88,13 +89,13 @@ const createFreshAudio = () => {
     emitPlaybackEnded()
     emit('ended')
   })
-  ctx.onError((error: any) => {
+  ctx.onError((error: Error | unknown) => {
     isPlaying.value = false
     postLive2dMessage('STOP_LIPSYNC')
     emitPlaybackEnded()
     console.error('[TtsPlayer] 音频播放失败:', {
-      errCode: error?.errCode,
-      errMsg: error?.errMsg,
+      errCode: getAudioErrorDetail(error, 'errCode'),
+      errMsg: getAudioErrorDetail(error, 'errMsg'),
       src: ctx.src,
       ttsUrl: props.ttsUrl
     })
@@ -183,9 +184,10 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 10rpx;
   padding: 10rpx 16rpx;
-  border-radius: 999rpx;
-  background: #ecf5ff;
-  color: #4a90d9;
+  border-radius: 9999rpx;
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary);
+  border: 1rpx solid rgba(37, 99, 235, 0.12);
 }
 
 .icon {

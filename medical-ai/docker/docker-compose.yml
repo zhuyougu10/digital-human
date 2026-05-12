@@ -210,6 +210,7 @@ services:
       TZ: Asia/Shanghai
       JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
       NACOS_ADDR: ${NACOS_ADDR:-nacos:8848}
+      SEATA_CONFIG_TYPE: file
       MYSQL_HOST: ${MYSQL_HOST:-mysql}
       MYSQL_USER: ${MYSQL_USER:-root}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root123}
@@ -268,6 +269,7 @@ services:
       TZ: Asia/Shanghai
       JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
       NACOS_ADDR: ${NACOS_ADDR:-nacos:8848}
+      SEATA_CONFIG_TYPE: file
       MYSQL_HOST: ${MYSQL_HOST:-mysql}
       MYSQL_USER: ${MYSQL_USER:-root}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root123}

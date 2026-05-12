@@ -33,7 +33,7 @@ const props = defineProps({
 <style scoped>
 .message-item {
   display: flex;
-  margin-bottom: 32rpx;
+  margin-bottom: 28rpx;
   padding: 0 24rpx;
   align-items: flex-start;
 }
@@ -50,7 +50,7 @@ const props = defineProps({
   width: 72rpx;
   height: 72rpx;
   border-radius: 36rpx;
-  background-color: #f5f8fb;
+  background-color: var(--bg-muted);
   flex-shrink: 0;
 }
 
@@ -61,25 +61,25 @@ const props = defineProps({
 
 .bubble {
   padding: 24rpx 32rpx;
-  border-radius: 24rpx;
+  border-radius: 26rpx;
   font-size: 28rpx;
   line-height: 1.6;
   word-break: break-all;
 }
 
 .message-ai .bubble {
-  background-color: #ffffff;
-  color: #1f2d3d;
+  background-color: var(--bg-card);
+  color: var(--text-main);
   border-top-left-radius: 8rpx;
-  box-shadow: 0 4rpx 16rpx rgba(31, 79, 111, 0.04);
-  border: 1rpx solid rgba(217, 231, 239, 0.6);
+  box-shadow: var(--shadow-sm);
+  border: 1rpx solid rgba(226, 232, 240, 0.9);
 }
 
 .message-user .bubble {
-  background-color: #2e7ea7;
+  background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-secondary) 100%);
   color: #ffffff;
   border-top-right-radius: 8rpx;
-  box-shadow: 0 4rpx 16rpx rgba(46, 126, 167, 0.16);
+  box-shadow: 0 10rpx 24rpx rgba(37, 99, 235, 0.18);
 }
 
 .special-card {

@@ -10,6 +10,7 @@ import com.medical.ai.agent.Agent;
 import com.medical.ai.agent.AgentFactory;
 import com.medical.ai.domain.entity.ChatMessage;
 import com.medical.ai.domain.entity.ChatSession;
+import com.medical.ai.domain.vo.ChatMessageVO;
 import com.medical.ai.domain.vo.SseMessageVO;
 import com.medical.ai.mapper.ChatMessageMapper;
 import com.medical.ai.mapper.ChatSessionMapper;
@@ -24,11 +25,13 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -40,13 +43,16 @@ import org.springframework.ai.openai.OpenAiChatModel;
 import reactor.core.publisher.Flux;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -289,11 +295,89 @@ class ChatServiceImplTest {
         assertEquals("complete", events.get(2).getType());
         assertEquals("你好", events.get(2).getContent());
         assertNull(events.get(2).getTtsUrl());
+        assertNotNull(events.get(2).getMetadata());
+        assertCue(events.get(2).getMetadata(), "knowledge_explanation", "calm", "explain", "QA");
         assertEquals("tts", events.get(3).getType());
         assertNull(events.get(3).getContent());
         assertEquals("/ai/chat/tts/tts-file.mp3", events.get(3).getTtsUrl());
+        assertNotNull(events.get(3).getMetadata());
+        assertCue(events.get(3).getMetadata(), "knowledge_explanation", "calm", "explain", "QA");
 
         verify(messageMapper).updateById(argThat(hasTtsUrl("/ai/chat/tts/tts-file.mp3")));
+    }
+
+    @Test
+    void chat_shouldAttachAvatarCueMetadataToAssistantMessageAndSseEvents() throws Exception {
+        ChatSession session = new ChatSession();
+        session.setId(1L);
+        session.setUserId(38L);
+        session.setAgentType("TRIAGE");
+        session.setTitle("新对话");
+        when(sessionMapper.selectById(1L)).thenReturn(session);
+
+        ChatMessage successToolMessage = new ChatMessage();
+        successToolMessage.setRole("tool");
+        successToolMessage.setToolName("createAppointment");
+        successToolMessage.setContent("{\"success\":true,\"appointmentId\":101}");
+        when(messageMapper.selectList(any())).thenReturn(Collections.emptyList(), List.of(successToolMessage));
+
+        Agent agent = mock(Agent.class);
+        when(agentFactory.getAgent("TRIAGE")).thenReturn(agent);
+        when(agent.getToolNames()).thenReturn(Collections.emptyList());
+        when(agent.getSystemPrompt()).thenReturn("triage-system");
+        when(agent.getAgentType()).thenReturn("TRIAGE");
+
+        when(chatModel.stream(any(Prompt.class))).thenReturn(Flux.just(
+                mockChatResponse("好的，我已经为您成功创建了预约！\n预约ID：101")
+        ));
+        when(ttsService.synthesize("好的，我已经为您成功创建了预约！\n预约ID：101"))
+                .thenReturn("/ai/chat/tts/appointment-success.mp3");
+
+        List<SseMessageVO> events = chatService.chat(1L, 38L, "帮我预约")
+                .take(3)
+                .collectList()
+                .block(Duration.ofSeconds(1));
+
+        assertNotNull(events);
+        assertEquals(3, events.size());
+        assertEquals("complete", events.get(1).getType());
+        assertCue(events.get(1).getMetadata(), "appointment_success", "relieved", "celebrate", "TRIAGE");
+        assertEquals("tts", events.get(2).getType());
+        assertCue(events.get(2).getMetadata(), "appointment_success", "relieved", "celebrate", "TRIAGE");
+
+        ArgumentCaptor<ChatMessage> insertCaptor = ArgumentCaptor.forClass(ChatMessage.class);
+        verify(messageMapper, times(2)).insert(insertCaptor.capture());
+        ChatMessage assistantMessage = insertCaptor.getAllValues().stream()
+                .filter(message -> "assistant".equals(message.getRole()))
+                .findFirst()
+                .orElseThrow();
+
+        assertNotNull(assistantMessage.getMetadata());
+        Map<String, Object> metadata = new ObjectMapper().readValue(assistantMessage.getMetadata(), Map.class);
+        assertCue(metadata, "appointment_success", "relieved", "celebrate", "TRIAGE");
+    }
+
+    @Test
+    void getSessionMessages_shouldDeserializeAvatarCueMetadata() {
+        ChatSession session = new ChatSession();
+        session.setId(9L);
+        session.setUserId(7L);
+        when(sessionMapper.selectById(9L)).thenReturn(session);
+
+        ChatMessage assistantMessage = new ChatMessage();
+        assistantMessage.setId(12L);
+        assistantMessage.setSessionId(9L);
+        assistantMessage.setRole("assistant");
+        assistantMessage.setContent("请描述一下您的症状");
+        assistantMessage.setMetadata("{\"avatarCue\":{\"bucket\":\"symptom_collection\",\"expression\":\"attentive\",\"action\":\"listen\",\"tone\":\"supportive\",\"variant\":\"general\"},\"source\":\"TRIAGE\"}");
+        when(messageMapper.selectList(any())).thenReturn(List.of(assistantMessage));
+
+        List<ChatMessageVO> result = chatService.getSessionMessages(9L, 7L);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertNotNull(result.get(0).getMetadata());
+        assertCue(result.get(0).getMetadata(), "symptom_collection", "attentive", "listen", "TRIAGE");
     }
 
     @Test
@@ -351,5 +435,23 @@ class ChatServiceImplTest {
 
     private static ArgumentMatcher<ChatMessage> hasTtsUrl(String expectedTtsUrl) {
         return message -> message != null && expectedTtsUrl.equals(message.getTtsUrl());
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void assertCue(Map<String, Object> metadata,
+                                  String expectedBucket,
+                                  String expectedExpression,
+                                  String expectedAction,
+                                  String expectedSource) {
+        assertNotNull(metadata);
+        assertFalse(metadata.isEmpty());
+        assertEquals(expectedSource, metadata.get("source"));
+        assertTrue(metadata.get("avatarCue") instanceof Map);
+        Map<String, Object> avatarCue = (Map<String, Object>) metadata.get("avatarCue");
+        assertEquals(expectedBucket, avatarCue.get("bucket"));
+        assertEquals(expectedExpression, avatarCue.get("expression"));
+        assertEquals(expectedAction, avatarCue.get("action"));
+        assertNotNull(avatarCue.get("tone"));
+        assertNotNull(avatarCue.get("variant"));
     }
 }

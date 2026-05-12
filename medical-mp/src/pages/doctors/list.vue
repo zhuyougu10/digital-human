@@ -83,35 +83,80 @@
 import { ref, computed, onMounted } from 'vue'
 import { getDepartmentList, getDoctorList } from '@/api/doctor'
 
-const departments = ref<any[]>([])
-const doctors = ref<any[]>([])
-const activeDeptId = ref<string | number>('')
+type EntityId = string | number
+
+interface DepartmentItem {
+  id: EntityId
+  name: string
+}
+
+interface DoctorItem {
+  id: EntityId
+  avatar?: string
+  name: string
+  title?: string
+  departmentId?: EntityId
+  departmentName?: string
+  fee?: number | string
+  specialties: string[]
+}
+
+interface RawDepartment {
+  id?: EntityId
+  name?: string
+  departmentName?: string
+}
+
+interface RawDoctor {
+  id?: EntityId
+  avatar?: string
+  name?: string
+  title?: string
+  departmentId?: EntityId
+  departmentName?: string
+  fee?: number | string
+  specialties?: string | string[]
+}
+
+const departments = ref<DepartmentItem[]>([])
+const doctors = ref<DoctorItem[]>([])
+const activeDeptId = ref<EntityId | ''>('')
 const defaultAvatar = '/static/logo.png'
 
 const goBack = () => uni.navigateBack()
 
 const filteredDoctors = computed(() => {
   if (!activeDeptId.value) return doctors.value
-  return doctors.value.filter((d: any) => d.departmentId === activeDeptId.value)
+  return doctors.value.filter((d) => d.departmentId === activeDeptId.value)
 })
 
 const fetchDepartments = async () => {
   const res = await getDepartmentList()
-  departments.value = (Array.isArray(res) ? res : (res.records || [])).map((d: any) => ({
-    id: d.id,
-    name: d.name || d.departmentName
+  const list: RawDepartment[] = Array.isArray(res) ? res : (res.records || [])
+  departments.value = list.map((d) => ({
+    id: d.id ?? '',
+    name: d.name || d.departmentName || '未命名科室'
   }))
 }
 
 const fetchDoctors = async () => {
   const res = await getDoctorList({})
-  doctors.value = (Array.isArray(res) ? res : (res.records || [])).map((d: any) => ({
-    ...d,
-    specialties: (d.specialties || '').split(/[，,]/).filter(Boolean)
+  const list: RawDoctor[] = Array.isArray(res) ? res : (res.records || [])
+  doctors.value = list.map((d) => ({
+    id: d.id ?? '',
+    avatar: d.avatar,
+    name: d.name || '未命名医生',
+    title: d.title || '',
+    departmentId: d.departmentId,
+    departmentName: d.departmentName || '',
+    fee: d.fee,
+    specialties: Array.isArray(d.specialties)
+      ? d.specialties.filter((item): item is string => typeof item === 'string' && item.length > 0)
+      : String(d.specialties || '').split(/[，,]/).filter(Boolean)
   }))
 }
 
-const goDetail = (id: string | number) => {
+const goDetail = (id: EntityId) => {
   uni.navigateTo({ url: `/pages/doctors/detail?id=${id}` })
 }
 
@@ -124,16 +169,19 @@ onMounted(() => {
 <style scoped lang="scss">
 .recommend-page {
   min-height: 100vh;
-  background: #f8faff;
-  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  background:
+    radial-gradient(circle at top right, rgba(37, 99, 235, 0.08), transparent 22%),
+    linear-gradient(180deg, #f8fbff 0%, #f7fafc 100%);
+  font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif;
 }
 
 .dr-header {
   height: 480rpx;
-  background: linear-gradient(180deg, #2e7ea7 0%, #468eb3 60%, #5b9dbf 100%);
+  background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-secondary) 100%);
   padding: 88rpx 32rpx 32rpx;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 18rpx 40rpx rgba(37, 99, 235, 0.12);
 }
 
 .header-top {
@@ -161,13 +209,13 @@ onMounted(() => {
 .dr-avatar {
   width: 140rpx;
   height: 140rpx;
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.92);
   border-radius: 70rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.1);
-  border: 4rpx solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 14rpx 30rpx rgba(15, 23, 42, 0.10);
+  border: 4rpx solid rgba(255, 255, 255, 0.35);
 }
 
 .dr-name {
@@ -191,7 +239,7 @@ onMounted(() => {
 
 .dr-content {
   height: 100%;
-  background: #f8faff;
+  background: transparent;
   border-top-left-radius: 48rpx;
   border-top-right-radius: 48rpx;
   padding: 40rpx 32rpx;
@@ -218,16 +266,17 @@ onMounted(() => {
 .dept-tag {
   flex-shrink: 0;
   padding: 14rpx 32rpx;
-  background: #f1f5f9;
-  color: #64748b;
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--text-subtle);
   font-size: 26rpx;
-  border-radius: 40rpx;
+  border-radius: 9999rpx;
+  border: 1rpx solid rgba(226, 232, 240, 0.9);
   transition: all 0.3s;
   
   &.active {
-    background: #2e7ea7;
+    background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-secondary) 100%);
     color: #FFFFFF;
-    box-shadow: 0 4rpx 12rpx rgba(46, 126, 167, 0.25);
+    box-shadow: 0 8rpx 20rpx rgba(37, 99, 235, 0.18);
   }
 }
 
@@ -238,18 +287,18 @@ onMounted(() => {
 }
 
 .doctor-card {
-  background: #FFFFFF;
+  background: rgba(255, 255, 255, 0.94);
   border-radius: 28rpx;
   padding: 32rpx 24rpx;
   display: flex;
   align-items: center;
   gap: 24rpx;
-  box-shadow: 0 8rpx 24rpx rgba(148, 163, 184, 0.08);
-  border: 1rpx solid rgba(226, 232, 240, 0.6);
+  box-shadow: var(--shadow-sm);
+  border: 1rpx solid rgba(226, 232, 240, 0.88);
   
   &:active {
     transform: scale(0.98);
-    background: #fcfdfe;
+    background: #ffffff;
   }
 }
 
@@ -260,8 +309,8 @@ onMounted(() => {
     width: 120rpx;
     height: 120rpx;
     border-radius: 60rpx;
-    background: #f8faff;
-    border: 4rpx solid #f0f4ff;
+    background: var(--brand-primary-soft);
+    border: 4rpx solid rgba(219, 234, 254, 0.8);
   }
 }
 
@@ -281,20 +330,20 @@ onMounted(() => {
   .name {
     font-size: 32rpx;
     font-weight: 700;
-    color: #1e293b;
+    color: var(--text-main);
   }
   
   .title-tag {
     font-size: 22rpx;
-    color: #2e7ea7;
-    background: rgba(46, 126, 167, 0.08);
+    color: var(--brand-primary);
+    background: var(--brand-primary-soft);
     padding: 2rpx 12rpx;
-    border-radius: 8rpx;
+    border-radius: 9999rpx;
   }
   
   .dept-name {
     font-size: 26rpx;
-    color: #64748b;
+    color: var(--text-subtle);
   }
   
   .specialty-tags {
@@ -304,11 +353,11 @@ onMounted(() => {
     
     .tag {
       font-size: 22rpx;
-      color: #94a3b8;
-      background: #f8fafc;
+      color: var(--text-subtle);
+      background: var(--bg-muted);
       padding: 4rpx 16rpx;
-      border-radius: 20rpx;
-      border: 1rpx solid #f1f5f9;
+      border-radius: 9999rpx;
+      border: 1rpx solid rgba(226, 232, 240, 0.8);
     }
   }
 }
@@ -328,23 +377,23 @@ onMounted(() => {
   
   .fee-label {
     font-size: 20rpx;
-    color: #94a3b8;
+    color: var(--text-subtle);
   }
   
   .fee-amount {
     font-size: 28rpx;
     font-weight: 700;
-    color: #0d9488; // 使用辅色
+    color: var(--brand-primary);
   }
   
   .book-btn {
-    background: #2e7ea7;
+    background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-secondary) 100%);
     color: #ffffff;
     font-size: 24rpx;
     font-weight: 600;
     padding: 10rpx 28rpx;
-    border-radius: 24rpx;
-    box-shadow: 0 4rpx 10rpx rgba(46, 126, 167, 0.2);
+    border-radius: 9999rpx;
+    box-shadow: 0 8rpx 18rpx rgba(37, 99, 235, 0.18);
   }
 }
 
@@ -359,7 +408,7 @@ onMounted(() => {
 .empty-icon-box {
   width: 160rpx;
   height: 160rpx;
-  background: #f1f5f9;
+  background: var(--bg-muted);
   border-radius: 80rpx;
   display: flex;
   align-items: center;
@@ -370,12 +419,12 @@ onMounted(() => {
 .empty-text {
   font-size: 32rpx;
   font-weight: 600;
-  color: #64748b;
+  color: var(--text-main);
 }
 
 .empty-subtext {
   font-size: 26rpx;
-  color: #94a3b8;
+  color: var(--text-subtle);
 }
 
 .bottom-placeholder {

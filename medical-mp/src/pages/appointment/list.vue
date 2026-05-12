@@ -88,6 +88,27 @@
 import { ref, computed, onMounted } from 'vue'
 import { getMyAppointments, cancelAppointment } from '@/api/appointment'
 
+type AppointmentStatus = string | number
+
+interface AppointmentItem {
+  id: string | number
+  doctorName: string
+  department: string
+  date: string
+  time: string
+  status: AppointmentStatus
+}
+
+interface RawAppointment {
+  id?: string | number
+  doctorName?: string
+  departmentName?: string
+  appointmentDate?: string
+  startTime?: string
+  endTime?: string
+  status?: AppointmentStatus
+}
+
 const tabs = [
   { label: '全部', value: 'ALL' },
   { label: '待就诊', value: 'PENDING' },
@@ -95,7 +116,7 @@ const tabs = [
 ]
 
 const activeTab = ref('ALL')
-const appointments = ref<any[]>([])
+const appointments = ref<AppointmentItem[]>([])
 
 const filteredAppointments = computed(() => {
   if (activeTab.value === 'ALL') return appointments.value
@@ -106,8 +127,8 @@ const filteredAppointments = computed(() => {
   })
 })
 
-const statusText = (status: any) => {
-  const map: any = {
+const statusText = (status: AppointmentStatus) => {
+  const map: Record<string, string> = {
     0: '待就诊', 1: '已完成', 2: '已取消',
     PENDING: '待就诊', COMPLETED: '已完成', CANCELED: '已取消',
     '待就诊': '待就诊', '已完成': '已完成', '已取消': '已取消'
@@ -115,13 +136,13 @@ const statusText = (status: any) => {
   return map[status] ?? String(status)
 }
 
-const statusClass = (status: any) => {
+const statusClass = (status: AppointmentStatus) => {
   if (status === 0 || status === 'PENDING' || status === '待就诊') return 'pending'
   if (status === 1 || status === 'COMPLETED' || status === '已完成') return 'completed'
   return 'canceled'
 }
 
-const isPending = (status: any) => {
+const isPending = (status: AppointmentStatus) => {
   return status === 0 || status === 'PENDING' || status === '待就诊'
 }
 
@@ -135,14 +156,14 @@ const goChat = () => {
 
 const fetchAppointments = async () => {
   const res = await getMyAppointments({})
-  const list = Array.isArray(res) ? res : (res.records || [])
-  appointments.value = list.map((item: any) => ({
-    id: item.id,
+  const list: RawAppointment[] = Array.isArray(res) ? res : (res.records || [])
+  appointments.value = list.map((item) => ({
+    id: item.id ?? '',
     doctorName: item.doctorName || '未知医生',
     department: item.departmentName || '',
     date: item.appointmentDate || '',
     time: item.startTime ? `${item.startTime}${item.endTime ? '-' + item.endTime : ''}` : '',
-    status: item.status
+    status: item.status ?? '已取消'
   }))
 }
 
@@ -167,17 +188,19 @@ onMounted(fetchAppointments)
 </script>
 
 <style scoped lang="scss">
-$primary: #2e7ea7;
-$secondary: #1f5f82;
-$success: #41a56a;
-$warning: #d89b2b;
-$text-main: #1f2d3d;
-$text-sub: #5f6b76;
-$bg-light: #f5f8fb;
+$primary: var(--brand-primary);
+$secondary: var(--brand-secondary);
+$success: var(--brand-success);
+$warning: var(--brand-warning);
+$text-main: var(--text-main);
+$text-sub: var(--text-subtle);
+$bg-light: var(--bg-muted);
 
 .appointment-list-page {
   min-height: 100vh;
-  background: #f0f4f8;
+  background:
+    radial-gradient(circle at top right, rgba(37, 99, 235, 0.08), transparent 22%),
+    linear-gradient(180deg, #f8fbff 0%, #f7fafc 100%);
   display: flex;
   flex-direction: column;
 }
@@ -219,13 +242,14 @@ $bg-light: #f5f8fb;
 
 .appt-tabs {
   height: 100rpx;
-  background: #FFFFFF;
+  background: rgba(255, 255, 255, 0.92);
   display: flex;
   padding: 0 40rpx;
   position: sticky;
   top: 0;
   z-index: 10;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.02);
+  box-shadow: var(--shadow-sm);
+  border-bottom: 1rpx solid rgba(226, 232, 240, 0.8);
 }
 
 .tab-item {
@@ -279,10 +303,11 @@ $bg-light: #f5f8fb;
 }
 
 .appt-card {
-  background: #FFFFFF;
+  background: rgba(255, 255, 255, 0.94);
   border-radius: 28rpx;
   padding: 32rpx;
-  box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.03);
+  box-shadow: var(--shadow-sm);
+  border: 1rpx solid rgba(226, 232, 240, 0.88);
   transition: transform 0.2s;
   
   &:active {
@@ -306,7 +331,7 @@ $bg-light: #f5f8fb;
 .avatar-sm {
   width: 72rpx;
   height: 72rpx;
-  background: #eff6ff;
+  background: var(--brand-primary-soft);
   border-radius: 36rpx;
   display: flex;
   align-items: center;
@@ -335,17 +360,17 @@ $bg-light: #f5f8fb;
 .status-tag {
   font-size: 22rpx;
   padding: 6rpx 16rpx;
-  border-radius: 8rpx;
+  border-radius: 9999rpx;
   font-weight: 500;
   
-  &.pending { background: #fff7ed; color: $warning; }
-  &.completed { background: #ecfdf5; color: $success; }
-  &.canceled { background: #f1f5f9; color: $text-sub; }
+  &.pending { background: rgba(245, 158, 11, 0.12); color: $warning; }
+  &.completed { background: rgba(16, 185, 129, 0.12); color: $success; }
+  &.canceled { background: var(--bg-muted); color: $text-sub; }
 }
 
 .card-body {
   background: $bg-light;
-  border-radius: 20rpx;
+  border-radius: 22rpx;
   padding: 24rpx;
   display: flex;
   flex-direction: column;
@@ -357,7 +382,7 @@ $bg-light: #f5f8fb;
   align-items: center;
   gap: 12rpx;
   
-  .label {
+.label {
     font-size: 26rpx;
     color: $text-sub;
   }
@@ -378,10 +403,10 @@ $bg-light: #f5f8fb;
 
 .cancel-btn {
   padding: 10rpx 28rpx;
-  border: 2rpx solid #e2e8f0;
+  border: 2rpx solid rgba(226, 232, 240, 0.95);
   color: $text-sub;
   font-size: 24rpx;
-  border-radius: 30rpx;
+  border-radius: 9999rpx;
 }
 
 .detail-link {
@@ -403,7 +428,7 @@ $bg-light: #f5f8fb;
 .empty-icon-wrap {
   width: 160rpx;
   height: 160rpx;
-  background: #f8fafc;
+  background: var(--bg-muted);
   border-radius: 80rpx;
   display: flex;
   align-items: center;
@@ -412,7 +437,7 @@ $bg-light: #f5f8fb;
 }
 
 .empty-text {
-  color: #94a3b8;
+  color: var(--text-subtle);
   font-size: 28rpx;
 }
 
@@ -421,9 +446,9 @@ $bg-light: #f5f8fb;
   width: 240rpx;
   height: 80rpx;
   line-height: 80rpx;
-  background: $primary;
+  background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-secondary) 100%);
   color: #FFFFFF;
-  border-radius: 40rpx;
+  border-radius: 9999rpx;
   font-size: 28rpx;
   font-weight: 600;
 }

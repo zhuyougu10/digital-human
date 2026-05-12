@@ -107,9 +107,31 @@ import { onLoad } from '@dcloudio/uni-app'
 import { getDoctorById, getAvailableSlots } from '@/api/doctor'
 import { createAppointment } from '@/api/appointment'
 
+interface DoctorDetail {
+  id?: string | number
+  avatar?: string
+  name?: string
+  title?: string
+  departmentName?: string
+  departmentId?: string | number | null
+}
+
+interface SlotItem {
+  id: string | number
+  scheduleDate?: string
+  startTime?: string
+  endTime?: string
+  time: string
+  date: string
+  availableSlots?: number
+  totalSlots?: number
+  bookedSlots?: number
+  remaining: number
+}
+
 const doctorId = ref('')
-const doctor = ref<any>(null)
-const slots = ref<any[]>([])
+const doctor = ref<DoctorDetail | null>(null)
+const slots = ref<SlotItem[]>([])
 const activeDate = ref('')
 const selectedSlotId = ref('')
 const defaultAvatar = '/static/logo.png'
@@ -162,12 +184,26 @@ const fetchSlots = async (date?: string) => {
   try {
     const res = await getAvailableSlots({ doctorId: doctorId.value, date: queryDate })
     const list = Array.isArray(res) ? res : (res || [])
-    slots.value = list.map((s: any) => ({
+    slots.value = list.map((s: Record<string, unknown>) => {
+      const startTime = typeof s.startTime === 'string' ? s.startTime : ''
+      const endTime = typeof s.endTime === 'string' ? s.endTime : ''
+      const availableSlots = typeof s.availableSlots === 'number' ? s.availableSlots : undefined
+      const totalSlots = typeof s.totalSlots === 'number' ? s.totalSlots : undefined
+      const bookedSlots = typeof s.bookedSlots === 'number' ? s.bookedSlots : undefined
+
+      return {
       ...s,
-      date: s.scheduleDate || queryDate,
-      time: s.startTime ? `${s.startTime}${s.endTime ? '-' + s.endTime : ''}` : '',
-      remaining: s.availableSlots ?? (s.totalSlots - s.bookedSlots) ?? 0
-    }))
+      id: String(s.id ?? ''),
+      date: typeof s.scheduleDate === 'string' ? s.scheduleDate : queryDate,
+      startTime,
+      endTime,
+      time: startTime ? `${startTime}${endTime ? '-' + endTime : ''}` : '',
+      availableSlots,
+      totalSlots,
+      bookedSlots,
+      remaining: availableSlots ?? ((totalSlots ?? 0) - (bookedSlots ?? 0))
+      }
+    })
   } catch (e) {
     slots.value = []
   }
@@ -177,9 +213,9 @@ const selectDate = (date: string) => {
   fetchSlots(date)
 }
 
-const selectSlot = (slot: any) => {
+const selectSlot = (slot: SlotItem) => {
   if (slot.remaining <= 0) return
-  selectedSlotId.value = slot.id
+  selectedSlotId.value = String(slot.id)
 }
 
 const handleConfirm = async () => {

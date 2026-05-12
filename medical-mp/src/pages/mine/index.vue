@@ -29,7 +29,7 @@
           <view class="menu-item" hover-class="menu-item-hover" @click="go('/pages/appointment/list')">
             <view class="item-left">
               <view class="icon-box blue">
-                <uni-icons type="calendar" size="20" color="#2e7ea7"></uni-icons>
+                <uni-icons type="calendar" size="20" color="var(--brand-primary)"></uni-icons>
               </view>
               <text class="item-text">我的预约</text>
             </view>
@@ -39,7 +39,7 @@
           <view class="menu-item" hover-class="menu-item-hover" @click="go('/pages/chat/chat')">
             <view class="item-left">
               <view class="icon-box green">
-                <uni-icons type="chatbubble" size="20" color="#41a56a"></uni-icons>
+                <uni-icons type="chatbubble" size="20" color="var(--brand-success)"></uni-icons>
               </view>
               <text class="item-text">继续问安禾</text>
             </view>
@@ -49,7 +49,7 @@
           <view class="menu-item" hover-class="menu-item-hover" @click="showComingSoon">
             <view class="item-left">
               <view class="icon-box orange">
-                <uni-icons type="wallet" size="20" color="#f59e0b"></uni-icons>
+                <uni-icons type="wallet" size="20" color="var(--brand-warning)"></uni-icons>
               </view>
               <text class="item-text">就诊卡管理</text>
             </view>
@@ -61,7 +61,7 @@
           <view class="menu-item" hover-class="menu-item-hover" @click="showComingSoon">
             <view class="item-left">
               <view class="icon-box indigo">
-                <uni-icons type="help" size="20" color="#6366f1"></uni-icons>
+                <uni-icons type="help" size="20" color="var(--brand-secondary)"></uni-icons>
               </view>
               <text class="item-text">帮助中心</text>
             </view>
@@ -71,7 +71,7 @@
           <view class="menu-item" hover-class="menu-item-hover" @click="showAbout">
             <view class="item-left">
               <view class="icon-box slate">
-                <uni-icons type="info" size="20" color="#64748b"></uni-icons>
+                <uni-icons type="info" size="20" color="var(--text-subtle)"></uni-icons>
               </view>
               <text class="item-text">关于我们</text>
             </view>
@@ -148,7 +148,7 @@ onShow(loadUser)
 <style scoped lang="scss">
 .mine-page {
   min-height: 100vh;
-  background-color: #f5f8fb;
+  background-color: var(--bg-page);
   display: flex;
   flex-direction: column;
   font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
@@ -162,7 +162,7 @@ onShow(loadUser)
   flex-direction: column;
   justify-content: space-between;
   overflow: hidden;
-  background: linear-gradient(135deg, #2e7ea7 0%, #1f5f82 100%);
+  background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-hover) 100%);
 }
 
 .header-bg {
@@ -230,7 +230,7 @@ onShow(loadUser)
   border-radius: 70rpx;
   border: 4rpx solid rgba(255, 255, 255, 0.8);
   box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.15);
-  background-color: #f1f5f9;
+  background-color: var(--bg-muted);
 }
 
 .avatar-border {
@@ -326,7 +326,7 @@ onShow(loadUser)
   align-items: center;
   justify-content: center;
   
-  &.blue { background-color: rgba(46, 126, 167, 0.08); }
+  &.blue { background-color: rgba(37, 99, 235, 0.08); }
   &.green { background-color: rgba(65, 165, 106, 0.08); }
   &.orange { background-color: rgba(245, 158, 11, 0.08); }
   &.indigo { background-color: rgba(99, 102, 241, 0.08); }
@@ -336,12 +336,12 @@ onShow(loadUser)
 .item-text {
   font-size: 30rpx;
   font-weight: 500;
-  color: #1e293b;
+  color: var(--text-main);
 }
 
 .divider {
   height: 1rpx;
-  background-color: #f1f5f9;
+  background-color: var(--bg-muted);
   margin: 0 32rpx;
 }
 
