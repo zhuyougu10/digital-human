@@ -114,6 +114,35 @@ const hasMoreHistory = ref(false)
 const isLoadingHistory = ref(false)
 const BATCH_SIZE = 20
 
+// ---- Live2D 动作映射 ----
+const AVATAR_CUES = {
+  greeting: { expression: 'Star', motionGroup: '', motionIndex: 0 },
+  symptom_collection: { expression: null, motionGroup: 'Idle', motionIndex: 0 },
+  doctor_recommendation: { expression: 'Star', motionGroup: '', motionIndex: 1 },
+  slot_selection: { expression: null, motionGroup: 'Idle', motionIndex: 0 },
+  appointment_success: { expression: 'Star', motionGroup: '', motionIndex: 0 },
+  appointment_failure: { expression: 'Cry', motionGroup: 'Idle', motionIndex: 0 },
+  knowledge_explanation: { expression: null, motionGroup: '', motionIndex: 1 },
+  urgent_warning: { expression: 'Aozame', motionGroup: 'Idle', motionIndex: 0 },
+  fallback_error: { expression: 'Aozame', motionGroup: 'Idle', motionIndex: 0 }
+}
+
+const handleAvatarCue = (cue) => {
+  if (!renderer || !cue) return
+  const config = AVATAR_CUES[cue]
+  if (!config) return
+  
+  console.log('[Chat] Triggering avatar cue:', cue, config)
+  
+  if (config.expression) {
+    renderer.setExpression(config.expression)
+  }
+  
+  if (config.motionGroup !== undefined && config.motionIndex !== undefined) {
+    renderer.playMotion(config.motionGroup, config.motionIndex)
+  }
+}
+
 // ---- TTS 队列 ----
 let ttsQueue = []
 let ttsPlaying = false
@@ -234,6 +263,13 @@ const pickReusableTriageSession = (sessionList) => {
     })[0]
 }
 
+const resetAvatarToNeutral = () => {
+  if (!renderer) return
+  console.log('[Chat] Resetting avatar to neutral state')
+  renderer.setExpression('')
+  renderer.playMotion('Idle', 0)
+}
+
 const resetTtsState = () => {
   uni.$off('TTS_PLAY_ENDED')
   ttsQueue = []
@@ -242,6 +278,7 @@ const resetTtsState = () => {
   currentPlayIndex = 0
   currentTtsUrl.value = ''
   lipSync?.stop()
+  resetAvatarToNeutral()
 }
 
 const scrollToBottom = () => {
@@ -266,6 +303,7 @@ const sendToBackend = (text) => {
   isThinking.value = true
   statusText.value = '正在思考...'
   currentFullText = ''
+  let currentTurnCue = ''
 
   // 添加空的 AI 消息占位
   addMessage('assistant', '')
@@ -282,6 +320,21 @@ const sendToBackend = (text) => {
         console.log('[Chat] SSE消息:', _type, raw.substring(0, 120))
         try {
           const payload = JSON.parse(raw)
+          
+          const rawCue = payload.metadata?.avatarCue || payload.metadata?.cue || payload.avatarCue || payload.cue
+          let cueValue = ''
+          if (rawCue) {
+            if (typeof rawCue === 'object') {
+              cueValue = rawCue.bucket || rawCue.action || rawCue.expression || ''
+            } else if (typeof rawCue === 'string') {
+              cueValue = rawCue
+            }
+          }
+          if (cueValue && cueValue !== currentTurnCue) {
+            handleAvatarCue(cueValue)
+            currentTurnCue = cueValue
+          }
+
           if (payload.type === 'token') {
             currentFullText += payload.content || ''
             if (currentAiMessageIndex >= 0) {
@@ -369,6 +422,7 @@ const playNextTtsSegment = () => {
     if (currentPlayIndex >= ttsTotalSegments && ttsTotalSegments > 0) {
       lipSync?.stop()
       cleanupTtsAudio()
+      resetAvatarToNeutral()
     } else {
       playNextTtsSegment()
     }
@@ -577,7 +631,7 @@ onUnmounted(() => {
   flex-direction: column;
   width: 100vw;
   height: 100vh;
-  background: linear-gradient(180deg, #e8f4f8 0%, #f5f7fa 40%, #f5f7fa 100%);
+  background: var(--bg-page);
 }
 
 .page-loading-overlay {
@@ -588,7 +642,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   padding: 40rpx;
-  background: linear-gradient(180deg, #e8f4f8 0%, #f5f7fa 100%);
+  background: var(--bg-page);
 }
 
 .page-loading-card {
@@ -609,19 +663,19 @@ onUnmounted(() => {
   height: 72rpx;
   border-radius: 50%;
   border: 6rpx solid rgba(31, 79, 111, 0.12);
-  border-top-color: #2e7ea7;
+  border-top-color: var(--brand-primary);
   animation: page-loading-spin 0.9s linear infinite;
 }
 
 .page-loading-title {
   font-size: 34rpx;
   font-weight: 600;
-  color: #1f4f6f;
+  color: var(--text-main);
 }
 
 .page-loading-desc {
   font-size: 26rpx;
-  color: #5f6b76;
+  color: var(--text-subtle);
 }
 
 @keyframes page-loading-spin {
@@ -632,7 +686,7 @@ onUnmounted(() => {
 .live2d-area {
   position: relative;
   width: 100%;
-  background: linear-gradient(180deg, #c5e8f7 0%, #e8f4f8 100%);
+  background: linear-gradient(180deg, var(--brand-primary-muted) 0%, var(--bg-page) 100%);
   overflow: hidden;
 }
 
@@ -665,12 +719,12 @@ onUnmounted(() => {
 .assistant-name {
   font-size: 32rpx;
   font-weight: 600;
-  color: #1f4f6f;
+  color: var(--text-main);
 }
 
 .assistant-subtitle {
   font-size: 24rpx;
-  color: #5f6b76;
+  color: var(--text-subtle);
 }
 
 .status-bar {
@@ -683,11 +737,11 @@ onUnmounted(() => {
   width: 16rpx;
   height: 16rpx;
   border-radius: 50%;
-  background-color: #4CAF50;
+  background-color: var(--brand-success);
 }
 
 .status-dot.active {
-  background-color: #FF9800;
+  background-color: var(--brand-warning);
   animation: pulse 1s infinite;
 }
 
@@ -698,7 +752,7 @@ onUnmounted(() => {
 
 .status-text {
   font-size: 24rpx;
-  color: #5f6b76;
+  color: var(--text-subtle);
 }
 
 .new-chat-btn {
@@ -709,7 +763,7 @@ onUnmounted(() => {
   padding: 10rpx 24rpx;
   border-radius: 30rpx;
   background: rgba(255, 255, 255, 0.8);
-  border: 1rpx solid #ddd;
+  border: 1rpx solid var(--border-color);
 }
 
 .new-chat-btn text {
@@ -731,7 +785,7 @@ onUnmounted(() => {
 
 .load-more-tip text {
   font-size: 24rpx;
-  color: #999;
+  color: var(--text-subtle);
 }
 
 /* 底部输入区域 */
@@ -741,7 +795,7 @@ onUnmounted(() => {
   padding: 16rpx 20rpx;
   padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
   background: #fff;
-  border-top: 1rpx solid #eee;
+  border-top: 1rpx solid var(--border-color);
   gap: 16rpx;
 }
 
@@ -750,14 +804,14 @@ onUnmounted(() => {
   height: 72rpx;
   padding: 0 24rpx;
   border-radius: 36rpx;
-  background: #f5f5f5;
+  background: var(--bg-muted);
   font-size: 28rpx;
 }
 
 .send-btn {
   padding: 16rpx 32rpx;
   border-radius: 36rpx;
-  background: #4A90D9;
+  background: var(--brand-primary);
 }
 
 .send-btn.disabled {
