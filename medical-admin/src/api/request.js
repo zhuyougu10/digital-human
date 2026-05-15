@@ -1,6 +1,12 @@
 import axios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
+const AUTH_WHITELIST = [
+  '/api/user/auth/login',
+  '/api/user/auth/register',
+  '/api/user/auth/wx-login'
+]
+
 // Create axios instance
 const service = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
@@ -11,7 +17,9 @@ const service = axios.create({
 service.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token')
-    if (token) {
+    const requestPath = config.url || ''
+    const shouldAttachToken = !AUTH_WHITELIST.some((path) => requestPath.startsWith(path))
+    if (token && shouldAttachToken) {
       config.headers['Authorization'] = `Bearer ${token}`
     }
     return config
@@ -34,6 +42,7 @@ service.interceptors.response.use(
       if (res.code === 401) {
         // to re-login
         localStorage.removeItem('token')
+        localStorage.removeItem('userInfo')
         window.location.href = '/login'
       }
       return Promise.reject(new Error(res.msg || 'Error'))

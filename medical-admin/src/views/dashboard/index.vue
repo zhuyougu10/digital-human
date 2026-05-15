@@ -13,7 +13,6 @@
             <div class="stats-info">
               <div class="stats-title">{{ item.title }}</div>
               <div class="stats-value">
-                <count-to :startVal="0" :endVal="item.value" :duration="2000" />
                 {{ item.value }}
               </div>
             </div>
@@ -49,7 +48,7 @@
             <el-table-column prop="time" label="预约时间" width="180" />
             <el-table-column prop="status" label="状态">
               <template #default="{ row }">
-                <el-tag :type="getStatusType(row.status)" effect="light" round>{{ row.status }}</el-tag>
+                <el-tag :type="getStatusType(row.statusLabel || row.status)" effect="light" round>{{ row.statusLabel || row.status }}</el-tag>
               </template>
             </el-table-column>
             <el-table-column label="操作" align="right">
@@ -106,22 +105,88 @@ let pieChartInstance = null
 
 const currentDate = dayjs().format('YYYY-MM-DD')
 
+const normalizeTrendData = (trend = []) => {
+  const safeTrend = Array.isArray(trend) ? trend : []
+  return {
+    dates: safeTrend.map((item) => item?.date || ''),
+    values: safeTrend.map((item) => Number(item?.count || 0))
+  }
+}
+
+const buildDepartmentData = (trend = []) => {
+  const safeTrend = Array.isArray(trend) ? trend : []
+  const total = safeTrend.reduce((sum, item) => sum + Number(item?.count || 0), 0)
+  const today = Number(safeTrend.at(-1)?.count || 0)
+  const previous = Number(safeTrend.at(-2)?.count || 0)
+  const earlier = Math.max(total - today - previous, 0)
+
+  return [
+    { name: '今日预约', value: today },
+    { name: '昨日预约', value: previous },
+    { name: '更早预约', value: earlier }
+  ].filter((item) => item.value > 0)
+}
+
+const formatStatusLabel = (status) => {
+  const map = {
+    PENDING: '待就诊',
+    COMPLETED: '已完成',
+    CANCELLED: '已取消',
+    EXPIRED: '已过期',
+    0: '待就诊',
+    1: '已完成',
+    2: '已取消',
+    3: '已过期'
+  }
+  return map[status] || status || '-'
+}
+
+const formatAppointmentTime = (row) => {
+  const date = row?.appointmentDate || row?.date || ''
+  const startTime = row?.startTime || row?.time || ''
+  const endTime = row?.endTime || ''
+  if (date && startTime && endTime) {
+    return `${date} ${startTime}-${endTime}`
+  }
+  if (date && startTime) {
+    return `${date} ${startTime}`
+  }
+  return date || startTime || '-'
+}
+
+const normalizeDoctorAppointments = (payload) => {
+  const list = Array.isArray(payload)
+    ? payload
+    : payload?.records || payload?.list || payload?.items || []
+
+  return list.map((item) => ({
+    ...item,
+    patientName: item.patientNickname || item.patientName || `患者#${item.patientId || '-'}`,
+    time: formatAppointmentTime(item),
+    statusLabel: formatStatusLabel(item.status)
+  }))
+}
+
 const initAdminDashboard = async () => {
   try {
     const res = await getStatistics()
-    const data = res.data
+    const data = res.data || {}
+    const trend = Array.isArray(data.trend) ? data.trend : []
+    const trendData = normalizeTrendData(trend)
+    const totalAppointments = trendData.values.reduce((sum, value) => sum + value, 0)
+    const peakAppointments = trendData.values.length ? Math.max(...trendData.values) : 0
+    const avgAppointments = trendData.values.length ? Math.round(totalAppointments / trendData.values.length) : 0
     
-    // Using medical palette
     stats.value = [
-      { title: '今日预约数', value: data.todayAppointments, icon: Calendar, color: '#1677FF', bgColor: '#E6F4FF' },
-      { title: '活跃用户', value: data.activeUsers, icon: User, color: '#52C41A', bgColor: '#F6FFED' },
-      { title: 'AI对话量', value: data.aiChats, icon: ChatLineRound, color: '#FAAD14', bgColor: '#FFFBE6' },
-      { title: '知识库条目', value: data.knowledgeEntries, icon: Files, color: '#FF4D4F', bgColor: '#FFF1F0' }
+      { title: '今日预约数', value: Number(data.todayCount || 0), icon: Calendar, color: '#1677FF', bgColor: '#E6F4FF' },
+      { title: '近7日预约总数', value: totalAppointments, icon: User, color: '#52C41A', bgColor: '#F6FFED' },
+      { title: '单日预约峰值', value: peakAppointments, icon: ChatLineRound, color: '#FAAD14', bgColor: '#FFFBE6' },
+      { title: '日均预约量', value: avgAppointments, icon: Files, color: '#FF4D4F', bgColor: '#FFF1F0' }
     ]
 
     await nextTick()
-    initTrendChart(data.trendData)
-    initPieChart(data.departmentData)
+    initTrendChart(trendData)
+    initPieChart(buildDepartmentData(trend))
   } catch (error) {
     console.error('Failed to load admin stats:', error)
   }
@@ -131,11 +196,13 @@ const initDoctorDashboard = async () => {
   loading.value = true
   try {
     const res = await getDoctorTodayAppointments()
-    todayAppointments.value = res.data.records || res.data.list || []
+    const records = normalizeDoctorAppointments(res.data)
+    const pendingCount = records.filter((item) => item.status === 0 || item.status === 'PENDING' || item.statusLabel === '待就诊').length
+    todayAppointments.value = records
     
     stats.value = [
-      { title: '今日预约数', value: res.data.total || 0, icon: Calendar, color: '#1677FF', bgColor: '#E6F4FF' },
-      { title: '待接诊数', value: res.data.pending || 0, icon: List, color: '#52C41A', bgColor: '#F6FFED' }
+      { title: '今日预约数', value: records.length, icon: Calendar, color: '#1677FF', bgColor: '#E6F4FF' },
+      { title: '待接诊数', value: pendingCount, icon: List, color: '#52C41A', bgColor: '#F6FFED' }
     ]
   } catch (error) {
     console.error('Failed to load doctor appointments:', error)
@@ -208,9 +275,18 @@ const initPieChart = (data) => {
 
 const getStatusType = (status) => {
   const map = {
+    PENDING: 'primary',
+    COMPLETED: 'success',
+    CANCELLED: 'info',
+    EXPIRED: 'warning',
+    0: 'primary',
+    1: 'success',
+    2: 'info',
+    3: 'warning',
     '待就诊': 'primary',
     '已完成': 'success',
-    '已取消': 'info'
+    '已取消': 'info',
+    '已过期': 'warning'
   }
   return map[status] || 'info'
 }
