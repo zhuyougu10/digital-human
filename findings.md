@@ -39,3 +39,31 @@
 2. `agentType` / tool name：适合模式级动作
 3. `metadata` / summary：适合复盘态和长期情绪
 4. `token`：只适合口型和轻微跟随
+
+## 本轮实施后的确认结论（2026-05-12）
+
+### 数字人 cue 链路已落地
+- 后端 `medical-ai-service` 已在 `ChatServiceImpl` 中为 assistant 完整回复生成 `metadata.avatarCue`，并同时附加到 SSE `complete` / `tts` 事件以及 `ChatMessage.metadata` 持久化字段。
+- 前端 `medical-mp/src/pages/chat/chat.vue` 已按 `metadata.avatarCue.bucket` 消费语义 cue，并映射到现有 Live2D 表情/动作。
+- 已额外收口两个行为风险：
+  - 同一轮回复不会因为 `complete` 和 `tts` 同时带 cue 而重复触发动作。
+  - 播放结束 / 新会话 / 状态重置时会显式回到中性表情和 `Idle` 动作。
+- `medical-mp/src/lib/cubism-renderer.js` 已补 `resetExpression()` 包装，避免使用无效的 `setExpression('')` 伪复位。
+
+### 验证结论
+- `medical-mp` 已通过 `npm run type-check`。
+- `medical-mp` 已通过 `npm run build:mp-weixin`。
+- `medical-ai-service` 需要使用 `-am` 连同依赖模块一起构建；按该方式执行后，`compile` 和 `ChatServiceImplTest` 均通过。
+
+### Docker / 联调发现
+- `doctor-service` 与 `appointment-service` 初始退出的根因是 Seata 配置源指向 Nacos，但 Nacos 中缺少 `service.vgroupMapping.medical_tx_group`。
+- 已在 `medical-ai/docker/docker-compose.yml` 中给这两个服务补 `SEATA_CONFIG_TYPE=file`，现在两者都能正常启动。
+- `medical-admin-web` 容器中存在旧前端 bundle，实际运行产物曾写死 `baseURL:"/api"`，导致 `/api/api/...`。
+- 当前仓库源码侧已把 `medical-admin/.env.development` 修正为空 baseURL；同时对运行中的 `medical-admin-web` 做过容器内热修补以恢复现网请求路径。
+
+### 风险备注
+- `medical-admin-web` 的容器内热修补不是长期方案；若后续重建镜像，需要确保能成功拉取前端基础镜像并重新打入最新 bundle。
+
+### Seata 本地启动补充（2026-05-15）
+- `doctor-service` / `appointment-service` 在本地直跑时，主配置仍保留 Nacos 语义；仅在 `local` profile 下把 Seata 配置源切到 file。
+- 本地手动启动这两个服务前，需要先起 `seata-server`，否则仍会在 Seata 客户端初始化阶段失败。

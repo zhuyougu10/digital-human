@@ -37,3 +37,4 @@ tts-audio/
 
 .worktrees/
 medical-mp/.tmp/
+medical-ai/.local-dev/

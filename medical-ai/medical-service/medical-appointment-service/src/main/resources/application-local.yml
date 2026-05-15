@@ -1,0 +1,10 @@
+seata:
+  config:
+    type: file
+  registry:
+    type: file
+  service:
+    vgroupMapping:
+      medical_tx_group: default
+    default:
+      grouplist: 127.0.0.1:8091

@@ -294,6 +294,9 @@ MYSQL_PASSWORD=root123
 REDIS_HOST=redis
 MILVUS_HOST=milvus
 NACOS_ADDR=nacos:8848
+
+# 服务间内部鉴权（本地直跑建议统一设置；未设置时后端服务使用本地默认值）
+SECURITY_INTERNAL_API_SECRET=local-dev-internal-secret
 ```
 
 ### Gateway 路由配置
@@ -393,7 +396,7 @@ curl http://localhost:8080/api/user/user/list \
 ```bash
 # 1. 启动基础设施
 cd medical-ai/docker
-docker compose up -d mysql redis nacos milvus-etcd milvus-minio milvus
+docker compose up -d mysql redis nacos milvus-etcd milvus-minio milvus seata-server
 
 # 2. 编译项目
 cd medical-ai
@@ -402,7 +405,55 @@ mvn clean compile
 # 3. 启动单个服务（示例）
 cd medical-service/medical-user-service
 mvn spring-boot:run
+
+# 可选：显式覆盖服务间内部鉴权密钥（多个后端服务保持一致）
+# PowerShell
+$env:SECURITY_INTERNAL_API_SECRET="local-dev-internal-secret"
+mvn spring-boot:run
 ```
+
+说明：除网关外的后端服务都依赖内部接口鉴权配置 `security.internal-api.secret`。仓库现在已为本地开发提供默认值 `local-dev-internal-secret`，可以消除该密钥缺失导致的启动失败；如果你手动覆盖该环境变量，请确保所有后端服务使用同一个值，否则 Feign 内部调用会被目标服务拒绝。注意，这个修复仅覆盖内部接口鉴权密钥，其他基础设施依赖（如数据库、Redis、Nacos/Seata 等）仍需按各服务自身配置准备。
+
+#### 医生服务 / 预约服务本地启动
+
+这两个服务默认仍使用 Nacos 作为注册/配置中心；但本地手动启动时，可以切到仓库内置的 `local` profile，让 Seata 改用 file 配置 + file registry，直接连宿主机上的 `127.0.0.1:8091`，避免去拿 Docker 网桥里的 `172.18.x.x:8091`。
+
+```bash
+# 先确保 seata-server 已启动（与 Nacos、MySQL、Redis、RabbitMQ 一起即可）
+cd medical-ai/docker
+docker compose up -d mysql redis nacos rabbitmq seata-server
+
+# 回到 medical-ai 根目录后，在两个终端分别启动：
+cd ..
+
+# 终端 1：医生服务
+mvn -f medical-service/medical-doctor-service/pom.xml spring-boot:run -Dspring-boot.run.profiles=local
+
+# 终端 2：预约服务
+mvn -f medical-service/medical-appointment-service/pom.xml -Dmaven.test.skip=true spring-boot:run -Dspring-boot.run.profiles=local
+```
+
+上面这两条命令避免了 `mvn -pl ... spring-boot:run` 在聚合根下的 `Unable to find a suitable main class` 问题；预约服务本地直跑还需要 `-Dmaven.test.skip=true`，因为它的 testCompile 会先失败。`local` profile 只切换 Seata 的本地连接方式，不改变这两个服务默认的 Nacos 语义和分布式事务参与角色。
+
+#### Windows 一键启动脚本
+
+仓库提供了 PowerShell 5.1 本地开发启停脚本，会启动 Docker 基础设施、后端服务，以及 `medical-admin` 和 `medical-mp/live2d-h5` 的本地 dev 服务：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\medical-ai\scripts\Start-LocalBackend.ps1
+powershell -ExecutionPolicy Bypass -File .\medical-ai\scripts\Stop-LocalBackend.ps1
+```
+
+如果你希望“点一下就启动”，可以直接双击下面两个 CMD 启动器：
+
+```text
+medical-ai\scripts\Start-LocalBackend.cmd
+medical-ai\scripts\Stop-LocalBackend.cmd
+```
+
+这两个 `.cmd` 文件本质上是对 PowerShell 脚本的可点击包装：会自动用 `ExecutionPolicy Bypass` 调起对应的 `.ps1`。如果脚本执行失败，窗口会停住，方便直接看错误信息。
+
+启动脚本会按 `user-service -> doctor-service(local) -> knowledge-service -> appointment-service(local + skip tests) -> ai-service -> gateway -> admin-dev -> live2d-dev` 顺序拉起服务。每个服务会打开一个独立的 cmd 窗口并实时输出日志；进程元数据仍会写到 `medical-ai/.local-dev/backend-state.json`。如需先检查将要执行的命令，可加 `-DryRun`。
 
 #### 前端开发
 

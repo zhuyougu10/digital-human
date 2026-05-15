@@ -64,3 +64,7 @@ sa-token:
   is-share: true
   is-read-cookie: false
   is-read-header: true
+
+security:
+  internal-api:
+    secret: ${SECURITY_INTERNAL_API_SECRET:local-dev-internal-secret}
