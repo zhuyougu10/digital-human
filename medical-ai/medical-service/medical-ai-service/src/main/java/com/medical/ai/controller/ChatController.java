@@ -38,30 +38,30 @@ public class ChatController {
     private final ChatService chatService;
     private final TtsService ttsService;
 
-    @Value("${tts.cosyvoice.audio-path:tts-audio}")
+    @Value("${tts.audio-path:tts-audio}")
     private String ttsAudioPath;
 
     @PostMapping("/session")
     public R<ChatSessionVO> createSession(@RequestBody @Valid CreateSessionDTO dto) {
-        Long userId = SecurityUtil.getUserId();
+        Long userId = currentUserId();
         return R.ok(chatService.createSession(userId, dto.getSessionType()));
     }
 
     @GetMapping("/sessions")
     public R<List<ChatSessionVO>> listSessions() {
-        Long userId = SecurityUtil.getUserId();
+        Long userId = currentUserId();
         return R.ok(chatService.listSessions(userId));
     }
 
     @GetMapping("/session/{sessionId}/messages")
     public R<List<ChatMessageVO>> getMessages(@PathVariable Long sessionId) {
-        Long userId = SecurityUtil.getUserId();
+        Long userId = currentUserId();
         return R.ok(chatService.getSessionMessages(sessionId, userId));
     }
 
     @PostMapping(value = "/send", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public ResponseEntity<Flux<ServerSentEvent<SseMessageVO>>> chat(@RequestBody @Valid ChatRequestDTO dto) {
-        Long userId = SecurityUtil.getUserId();
+        Long userId = currentUserId();
         Flux<ServerSentEvent<SseMessageVO>> body = chatService.chat(dto.getSessionId(), userId, dto.getMessage())
             .map(msg -> ServerSentEvent.<SseMessageVO>builder()
                 .event(msg.getType())
@@ -90,16 +90,20 @@ public class ChatController {
 
     @PostMapping("/session/{sessionId}/end")
     public R<Void> endSession(@PathVariable Long sessionId) {
-        Long userId = SecurityUtil.getUserId();
+        Long userId = currentUserId();
         chatService.endSession(sessionId, userId);
         return R.ok();
     }
 
     @DeleteMapping("/session/{sessionId}")
     public R<Void> deleteSession(@PathVariable Long sessionId) {
-        Long userId = SecurityUtil.getUserId();
+        Long userId = currentUserId();
         chatService.deleteSession(sessionId, userId);
         return R.ok();
+    }
+
+    Long currentUserId() {
+        return SecurityUtil.getUserId();
     }
 
     @GetMapping("/tts/{fileName}")

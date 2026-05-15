@@ -49,13 +49,16 @@ ai:
     model: qwen-plus
 
 tts:
-  cosyvoice:
-    api-key: ${DASHSCOPE_API_KEY:your-dashscope-key}
-    model: cosyvoice-v3-flash
-    voice: longanhuan
-    volume: 50
-    speech-rate: 1.0
-    audio-path: ${TTS_AUDIO_PATH:D:/project/数字人/tts-audio}
+  audio-path: ${TTS_AUDIO_PATH:D:/project/数字人/tts-audio}
+  mimo:
+    api-key: ${MIMO_API_KEY:your-mimo-key}
+    base-url: ${MIMO_BASE_URL:https://api.xiaomimimo.com/v1}
+    model: ${MIMO_TTS_MODEL:mimo-v2-tts}
+    voice: ${MIMO_TTS_VOICE:mimo_default}
+    format: ${MIMO_TTS_FORMAT:wav}
+    connect-timeout-ms: ${MIMO_TTS_CONNECT_TIMEOUT_MS:3000}
+    read-timeout-ms: ${MIMO_TTS_READ_TIMEOUT_MS:30000}
+    mp3-bitrate: ${MIMO_TTS_MP3_BITRATE:128}
 
 sa-token:
   token-name: Authorization
