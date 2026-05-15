@@ -243,9 +243,10 @@ services:
       REDIS_PORT: ${REDIS_PORT:-6379}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
-      MIMO_API_KEY: ${MIMO_API_KEY:-}
-      MIMO_BASE_URL: ${MIMO_BASE_URL:-https://api.xiaomimimo.com/v1}
       MILVUS_HOST: ${MILVUS_HOST:-milvus}
+      ALIYUN_AK_ID: ${ALIYUN_AK_ID:-}
+      ALIYUN_AK_SECRET: ${ALIYUN_AK_SECRET:-}
+      ALIYUN_TTS_APPKEY: ${ALIYUN_TTS_APPKEY:-}
       TTS_AUDIO_PATH: /app/tts-audio
 
   appointment-service:

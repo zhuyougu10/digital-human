@@ -281,9 +281,9 @@ DEEPSEEK_API_KEY=your-deepseek-api-key
 DASHSCOPE_API_KEY=your-dashscope-api-key
 
 # TTS 语音服务（可选）
-MIMO_API_KEY=your-mimo-api-key
-MIMO_BASE_URL=https://api.xiaomimimo.com/v1
-TTS_AUDIO_PATH=/data/tts-audio
+ALIYUN_AK_ID=your-aliyun-ak-id
+ALIYUN_AK_SECRET=your-aliyun-ak-secret
+ALIYUN_TTS_APPKEY=your-tts-appkey
 
 # 微信小程序（患者端必填）
 WX_APPID=your-wechat-appid
