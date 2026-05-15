@@ -28,10 +28,12 @@ import org.springframework.test.web.servlet.MvcResult;
 import reactor.core.publisher.Flux;
 
 import java.util.Collections;
+import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -103,11 +105,26 @@ public class ChatControllerTest {
 
     @Test
     void sendMessage_sseStream() throws Exception {
-        SseMessageVO vo = new SseMessageVO();
-        vo.setType("message");
-        vo.setContent("Hello");
+        SseMessageVO token = new SseMessageVO();
+        token.setType("token");
+        token.setContent("Hello");
+
+        SseMessageVO complete = new SseMessageVO();
+        complete.setType("complete");
+        complete.setContent("持续三天了吗？");
+        complete.setMetadata(Map.of(
+            "source", "TRIAGE",
+            "avatarCue", Map.of(
+                "bucket", "symptom_collection",
+                "expression", "attentive",
+                "action", "listen",
+                "tone", "supportive",
+                "variant", "general"
+            ),
+            "suggestedReplies", java.util.List.of("三天了", "伴有发烧", "没有其他症状")
+        ));
         
-        when(chatService.chat(eq(1L), eq(1L), eq("Hello"))).thenReturn(Flux.just(vo));
+        when(chatService.chat(eq(1L), eq(1L), eq("Hello"))).thenReturn(Flux.just(token, complete));
 
         ChatRequestDTO dto = new ChatRequestDTO();
         dto.setSessionId(1L);
@@ -121,7 +138,11 @@ public class ChatControllerTest {
         
         mockMvc.perform(asyncDispatch(result))
                 .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM));
+                .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM))
+                .andExpect(content().string(containsString("\"type\":\"complete\"")))
+                .andExpect(content().string(containsString("\"type\":\"token\"")))
+                .andExpect(content().string(containsString("\"suggestedReplies\":[")))
+                .andExpect(content().string(containsString("event:complete")));
     }
 
     @Test

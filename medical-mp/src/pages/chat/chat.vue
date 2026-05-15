@@ -50,6 +50,9 @@
         v-for="(msg, index) in messages"
         :key="index"
         :message="msg"
+        :message-index="index"
+        :is-active-suggestion-owner="index === activeSuggestionOwnerIndex"
+        @suggestion-tap="handleSuggestionTap"
       />
     </scroll-view>
 
@@ -79,6 +82,7 @@ import { ref, onMounted, onUnmounted, nextTick, computed, getCurrentInstance } f
 import { onLoad, onHide, onShow } from '@dcloudio/uni-app'
 import { createSession, getMessageList, getSessionList } from '@/api/chat'
 import { createSSERequest } from '@/utils/sse'
+import { getActiveSuggestionOwnerIndex, processSuggestionTap } from '@/utils/suggestion-helper.mjs'
 import ChatMessage from '@/components/ChatMessage.vue'
 import TtsPlayer from '@/components/TtsPlayer.vue'
 import { createCubismRenderer } from '@/lib/cubism-renderer'
@@ -153,6 +157,23 @@ let currentPlayIndex = 0
 let currentAiMessageIndex = -1
 let currentFullText = ''
 
+const activeSuggestionOwnerIndex = computed(() => getActiveSuggestionOwnerIndex(messages.value))
+
+const handleSuggestionTap = (text, tapIndex) => {
+  const result = processSuggestionTap({
+    isSending: isSending.value,
+    activeIndex: activeSuggestionOwnerIndex.value,
+    messages: messages.value,
+    inputText: inputText.value
+  }, text, tapIndex)
+
+  if (!result.handled) return
+
+  messages.value = result.messages
+  inputText.value = result.inputText
+  handleSend()
+}
+
 const { apiBase } = getRuntimeConfig()
 
 const resolveTtsUrl = (ttsUrl) => {
@@ -222,8 +243,8 @@ const startLipSyncTicker = () => {
 
 // =============== 聊天逻辑 ===============
 
-const addMessage = (role, content, type = 'text') => {
-  messages.value.push({ role, content, type })
+const addMessage = (role, content, type = 'text', metadata = null) => {
+  messages.value.push({ role, content, type, metadata })
   scrollToBottom()
 }
 
@@ -231,6 +252,12 @@ const updateMessageContent = (index, content) => {
   if (index < 0 || index >= messages.value.length) return
   const target = messages.value[index]
   messages.value.splice(index, 1, { ...target, content })
+}
+
+const updateMessage = (index, patch) => {
+  if (index < 0 || index >= messages.value.length) return
+  const target = messages.value[index]
+  messages.value.splice(index, 1, { ...target, ...patch })
 }
 
 const parseSessionId = (payload) => {
@@ -306,7 +333,7 @@ const sendToBackend = (text) => {
   let currentTurnCue = ''
 
   // 添加空的 AI 消息占位
-  addMessage('assistant', '')
+  addMessage('assistant', '', 'text', {})
   currentAiMessageIndex = messages.value.length - 1
 
   // 重置 TTS 状态
@@ -361,9 +388,24 @@ const sendToBackend = (text) => {
           } else if (payload.type === 'tts_error') {
             console.warn('[Chat] TTS 合成失败:', payload.content)
           } else if (payload.type === 'complete') {
-            // 确保最终文本完整
-            if (currentAiMessageIndex >= 0 && currentFullText) {
-              updateMessageContent(currentAiMessageIndex, currentFullText)
+            // 确保最终文本完整，以 payload.content 为准
+            if (currentAiMessageIndex >= 0) {
+              if (payload.content) {
+                currentFullText = payload.content
+                updateMessage(currentAiMessageIndex, {
+                  content: currentFullText,
+                  metadata: payload.metadata || messages.value[currentAiMessageIndex]?.metadata || null
+                })
+              } else if (currentFullText) {
+                updateMessage(currentAiMessageIndex, {
+                  content: currentFullText,
+                  metadata: payload.metadata || messages.value[currentAiMessageIndex]?.metadata || null
+                })
+              } else if (payload.metadata) {
+                updateMessage(currentAiMessageIndex, {
+                  metadata: payload.metadata
+                })
+              }
             }
             if (typeof payload.totalSegments === 'number' && payload.totalSegments > 0) {
               ttsTotalSegments = payload.totalSegments
@@ -473,7 +515,8 @@ const loadHistory = async () => {
     messages.value = initial.map((msg) => ({
       role: msg.role === 'assistant' ? 'assistant' : 'user',
       content: msg.content,
-      type: 'text'
+      type: 'text',
+      metadata: msg.metadata || null
     }))
 
     scrollToBottom()
@@ -491,7 +534,8 @@ const loadMoreMessages = () => {
   const batchMessages = batch.reverse().map((msg) => ({
     role: msg.role === 'assistant' ? 'assistant' : 'user',
     content: msg.content,
-    type: 'text'
+    type: 'text',
+    metadata: msg.metadata || null
   }))
 
   messages.value = [...batchMessages, ...messages.value]

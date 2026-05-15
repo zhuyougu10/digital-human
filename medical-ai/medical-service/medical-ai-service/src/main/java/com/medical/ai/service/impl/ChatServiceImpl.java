@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -81,6 +82,10 @@ public class ChatServiceImpl implements ChatService {
     private static final String CUE_TONE_KEY = "tone";
     private static final String CUE_VARIANT_KEY = "variant";
     private static final String CUE_SOURCE_KEY = "source";
+    private static final String SUGGESTED_REPLIES_KEY = "suggestedReplies";
+    private static final int MAX_SUGGESTED_REPLY_LENGTH = 20;
+    private static final int MAX_SUGGESTED_REPLY_COUNT = 3;
+    private static final Pattern WHITESPACE_PATTERN = Pattern.compile("\\s+");
 
     private final ChatSessionMapper sessionMapper;
     private final ChatMessageMapper messageMapper;
@@ -162,7 +167,6 @@ public class ChatServiceImpl implements ChatService {
         StringBuilder ttsSentenceBuffer = new StringBuilder();
         AtomicReference<String> fullTextRef = new AtomicReference<>("");
         AtomicReference<ChatMessage> assistantMessageRef = new AtomicReference<>();
-        AtomicReference<Map<String, Object>> avatarCueRef = new AtomicReference<>();
         AtomicReference<String> firstTtsUrlRef = new AtomicReference<>();
         AtomicInteger nextTtsSegmentIndex = new AtomicInteger(0);
         AtomicInteger pendingTtsTasks = new AtomicInteger(0);
@@ -216,16 +220,16 @@ public class ChatServiceImpl implements ChatService {
             .concatWith(Mono.fromCallable(() -> {
                 String fullText = fullResponse.toString();
                 String guardedText = guardAppointmentSuccessReply(sessionId, userMsg.getId(), userId, message, fullText);
-                fullTextRef.set(guardedText);
-                Map<String, Object> avatarCueMetadata = buildAvatarCueMetadata(session, message, guardedText);
-                avatarCueRef.set(avatarCueMetadata);
+                String normalizedAssistantText = enforceSingleTriageQuestionTurn(session, guardedText);
+                fullTextRef.set(normalizedAssistantText);
+                Map<String, Object> metadata = buildAssistantMetadata(session, message, normalizedAssistantText);
 
                 // 先保存 assistant 消息，保证完整文本先落库
                 ChatMessage assistantMsg = new ChatMessage();
                 assistantMsg.setSessionId(sessionId);
                 assistantMsg.setRole("assistant");
-                assistantMsg.setContent(guardedText);
-                assistantMsg.setMetadata(writeMetadataJson(avatarCueMetadata));
+                assistantMsg.setContent(normalizedAssistantText);
+                assistantMsg.setMetadata(writeMetadataJson(metadata));
                 messageMapper.insert(assistantMsg);
                 assistantMessageRef.set(assistantMsg);
 
@@ -235,7 +239,7 @@ public class ChatServiceImpl implements ChatService {
                     sessionMapper.updateById(session);
                 }
 
-                List<String> finalSentences = filterSpeakableTtsSentences(splitTtsSentences(guardedText));
+                List<String> finalSentences = filterSpeakableTtsSentences(splitTtsSentences(normalizedAssistantText));
                 int totalSegments = finalSentences.size();
                 if (firstTtsUrlRef.get() != null) {
                     assistantMsg.setTtsUrl(firstTtsUrlRef.get());
@@ -252,16 +256,16 @@ public class ChatServiceImpl implements ChatService {
                         finalSentences.get(i),
                         i,
                         totalSegments,
-                        avatarCueMetadata
+                        buildAvatarCueMetadata(session, message, guardedText)
                     );
                 }
 
                 // 先下发 complete，句级 TTS 在独立异步链路中继续推进
                 SseMessageVO complete = new SseMessageVO();
                 complete.setType("complete");
-                complete.setContent(guardedText);
+                complete.setContent(normalizedAssistantText);
                 complete.setTtsUrl(null);
-                complete.setMetadata(avatarCueMetadata);
+                complete.setMetadata(metadata);
                 complete.setTotalSegments(totalSegments);
                 ttsSchedulingComplete.set(true);
                 if (pendingTtsTasks.get() == 0) {
@@ -389,6 +393,204 @@ public class ChatServiceImpl implements ChatService {
         metadata.put(AVATAR_CUE_KEY, avatarCue);
         metadata.put(CUE_SOURCE_KEY, resolveAvatarCueSource(agentType));
         return metadata;
+    }
+
+    private Map<String, Object> buildAssistantMetadata(ChatSession session, String userText, String assistantText) {
+        Map<String, Object> metadata = buildAvatarCueMetadata(session, userText, assistantText);
+        List<String> suggestedReplies = generateSuggestedReplies(session, userText, assistantText);
+        if (!suggestedReplies.isEmpty()) {
+            metadata.put(SUGGESTED_REPLIES_KEY, suggestedReplies);
+        }
+        return metadata;
+    }
+
+    private List<String> generateSuggestedReplies(ChatSession session, String userText, String assistantText) {
+        if (!shouldGenerateSuggestedReplies(session, assistantText)) {
+            return Collections.emptyList();
+        }
+
+        try {
+            Prompt prompt = new Prompt(List.of(
+                new SystemMessage("你是医疗导诊对话的建议回复生成器。请基于 assistant 的最后一句问句，为患者生成 3 条简短中文回复建议。"
+                    + "仅输出 JSON 数组字符串，例如 [\"三天了\",\"伴有发烧\",\"没有其他症状\"]。"
+                    + "每条都必须是患者可直接发送的一句话，不要解释，不要编号。"),
+                new UserMessage("用户上一条消息：\n" + safeText(userText)
+                    + "\n\nassistant 最终回复：\n" + safeText(assistantText))
+            ));
+            String response = chatModel.call(prompt).getResult().getOutput().getContent();
+            List<String> normalizedReplies = normalizeSuggestedReplies(parseSuggestedReplies(response));
+            if (!normalizedReplies.isEmpty()) {
+                return normalizedReplies;
+            }
+        } catch (Exception e) {
+            log.warn("Failed to generate suggested replies for agentType={}: {}",
+                session != null ? session.getAgentType() : null,
+                e.getMessage());
+        }
+
+        return buildFallbackSuggestedReplies(assistantText);
+    }
+
+    private boolean shouldGenerateSuggestedReplies(ChatSession session, String assistantText) {
+        if (session == null || assistantText == null || assistantText.isBlank()) {
+            return false;
+        }
+        return "TRIAGE".equals(session.getAgentType()) && isLastSentenceQuestion(assistantText);
+    }
+
+    private boolean isLastSentenceQuestion(String assistantText) {
+        if (assistantText == null || assistantText.isBlank()) {
+            return false;
+        }
+        String trimmed = assistantText.trim();
+        if (trimmed.isEmpty()) {
+            return false;
+        }
+        char lastChar = trimmed.charAt(trimmed.length() - 1);
+        return lastChar == '?' || lastChar == '？';
+    }
+
+    private List<String> parseSuggestedReplies(String rawResponse) {
+        if (rawResponse == null || rawResponse.isBlank()) {
+            return Collections.emptyList();
+        }
+        try {
+            return objectMapper.readValue(rawResponse, new TypeReference<List<String>>() {
+            });
+        } catch (Exception ignored) {
+            // fall through
+        }
+        try {
+            Map<String, Object> payload = objectMapper.readValue(rawResponse, new TypeReference<Map<String, Object>>() {
+            });
+            Object suggestedReplies = payload.get(SUGGESTED_REPLIES_KEY);
+            if (suggestedReplies instanceof List<?> list) {
+                return list.stream().map(item -> item == null ? null : String.valueOf(item)).toList();
+            }
+        } catch (Exception ignored) {
+            // fall through
+        }
+
+        return rawResponse.lines()
+            .map(String::trim)
+            .map(line -> line.replaceFirst("^[\\-•*\\d.、\\)\\(\\s]+", ""))
+            .toList();
+    }
+
+    private List<String> normalizeSuggestedReplies(List<String> replies) {
+        if (replies == null || replies.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        LinkedHashSet<String> normalizedReplies = new LinkedHashSet<>();
+        for (String reply : replies) {
+            String normalized = normalizeSuggestedReply(reply);
+            if (normalized == null) {
+                continue;
+            }
+            normalizedReplies.add(normalized);
+            if (normalizedReplies.size() >= MAX_SUGGESTED_REPLY_COUNT) {
+                break;
+            }
+        }
+        return new ArrayList<>(normalizedReplies);
+    }
+
+    private String normalizeSuggestedReply(String reply) {
+        if (reply == null) {
+            return null;
+        }
+        String normalized = WHITESPACE_PATTERN.matcher(reply.trim()).replaceAll(" ");
+        if (normalized.isBlank() || normalized.length() > MAX_SUGGESTED_REPLY_LENGTH) {
+            return null;
+        }
+        return normalized;
+    }
+
+    private String safeText(String text) {
+        return text == null ? "" : text;
+    }
+
+    private String enforceSingleTriageQuestionTurn(ChatSession session, String assistantText) {
+        if (session == null || assistantText == null || assistantText.isBlank()) {
+            return assistantText;
+        }
+        if (!"TRIAGE".equals(session.getAgentType())) {
+            return assistantText;
+        }
+
+        int firstQuestionIndex = findFirstQuestionMarkIndex(assistantText);
+        if (firstQuestionIndex < 0) {
+            return assistantText;
+        }
+
+        int secondQuestionIndex = findNextQuestionMarkIndex(assistantText, firstQuestionIndex + 1);
+        if (secondQuestionIndex < 0) {
+            return assistantText;
+        }
+
+        String truncated = assistantText.substring(0, firstQuestionIndex + 1).trim();
+        if (truncated.isEmpty()) {
+            return assistantText;
+        }
+
+        if (assistantText.contains(TRIAGE_TTS_EXCLUDED_DISCLAIMER) && !truncated.contains(TRIAGE_TTS_EXCLUDED_DISCLAIMER)) {
+            return truncated + TRIAGE_TTS_EXCLUDED_DISCLAIMER + "。";
+        }
+        return truncated;
+    }
+
+    private int findFirstQuestionMarkIndex(String text) {
+        return findNextQuestionMarkIndex(text, 0);
+    }
+
+    private int findNextQuestionMarkIndex(String text, int startIndex) {
+        if (text == null || text.isEmpty() || startIndex >= text.length()) {
+            return -1;
+        }
+        for (int i = Math.max(0, startIndex); i < text.length(); i++) {
+            char current = text.charAt(i);
+            if (current == '?' || current == '？') {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private List<String> buildFallbackSuggestedReplies(String assistantText) {
+        if (assistantText == null || assistantText.isBlank()) {
+            return Collections.emptyList();
+        }
+
+        List<String> fallbackReplies = new ArrayList<>();
+        String normalizedText = assistantText.replace('\r', '\n');
+
+        if (containsAny(normalizedText, "持续多久", "多久了", "几天了", "多长时间")) {
+            fallbackReplies.add("今天刚开始");
+            fallbackReplies.add("已经好几天了");
+        }
+        if (containsAny(normalizedText, "部位", "偏头痛", "后脑勺", "太阳穴")) {
+            fallbackReplies.add("太阳穴附近痛");
+            fallbackReplies.add("后脑勺疼");
+        }
+        if (containsAny(normalizedText, "其他不舒服", "发烧", "恶心", "呕吐", "头晕", "视力模糊", "脖子僵硬")) {
+            fallbackReplies.add("伴有头晕");
+            fallbackReplies.add("没有其他症状");
+        }
+
+        if (fallbackReplies.isEmpty()) {
+            fallbackReplies.add("今天刚开始");
+            fallbackReplies.add("已经好几天了");
+            fallbackReplies.add("没有其他症状");
+        }
+
+        if (fallbackReplies.size() < MAX_SUGGESTED_REPLY_COUNT) {
+            fallbackReplies.add("今天刚开始");
+            fallbackReplies.add("已经好几天了");
+            fallbackReplies.add("没有其他症状");
+        }
+
+        return normalizeSuggestedReplies(fallbackReplies);
     }
 
     private String resolveAvatarCueBucket(String agentType, String userText, String assistantText) {
@@ -648,7 +850,7 @@ public class ChatServiceImpl implements ChatService {
         try {
             return objectMapper.writeValueAsString(metadata);
         } catch (Exception e) {
-            log.warn("Failed to serialize avatar cue metadata: {}", e.getMessage());
+            log.warn("Failed to serialize assistant metadata: {}", e.getMessage());
             return null;
         }
     }

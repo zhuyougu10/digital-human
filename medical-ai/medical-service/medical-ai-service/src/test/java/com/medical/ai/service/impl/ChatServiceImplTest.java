@@ -26,6 +26,7 @@ import java.time.LocalTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,7 +48,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -168,8 +171,9 @@ class ChatServiceImplTest {
                 .block(Duration.ofSeconds(1));
 
         assertNotNull(events);
-        assertEquals("complete", events.get(1).getType());
-        assertEquals("抱歉，刚才尚未成功创建预约，请重新确认医生与时间后，我再为您提交预约。", events.get(1).getContent());
+        SseMessageVO complete = findFirstEventByType(events, "complete");
+        assertNotNull(complete);
+        assertEquals("抱歉，刚才尚未成功创建预约，请重新确认医生与时间后，我再为您提交预约。", complete.getContent());
     }
 
     @Test
@@ -361,6 +365,222 @@ class ChatServiceImplTest {
     }
 
     @Test
+    void chat_shouldGenerateNormalizedSuggestedRepliesForTriageCompleteEventAndPersistedMetadata() throws Exception {
+        ChatSession session = new ChatSession();
+        session.setId(1L);
+        session.setUserId(38L);
+        session.setAgentType("TRIAGE");
+        session.setTitle("新对话");
+        when(sessionMapper.selectById(1L)).thenReturn(session);
+        when(messageMapper.selectList(any())).thenReturn(Collections.emptyList());
+
+        Agent agent = mock(Agent.class);
+        when(agentFactory.getAgent("TRIAGE")).thenReturn(agent);
+        when(agent.getToolNames()).thenReturn(Collections.emptyList());
+        when(agent.getSystemPrompt()).thenReturn("triage-system");
+        when(agent.getAgentType()).thenReturn("TRIAGE");
+
+        when(chatModel.stream(any(Prompt.class))).thenReturn(Flux.just(
+            mockChatResponse("症状持续多久了？")
+        ));
+        when(chatModel.call(any(Prompt.class))).thenReturn(mockChatResponse("""
+            ["  三天了  ", "伴有   发烧", "", "这是一条一定会超过二十个字符因此必须过滤掉的回复", "没有其他症状", "三天了", "补充一句"]
+            """));
+        when(ttsService.synthesize(anyString())).thenReturn("/ai/chat/tts/triage-question.mp3");
+
+        List<SseMessageVO> events = chatService.chat(1L, 38L, "我咳嗽")
+            .take(5)
+            .collectList()
+            .block(Duration.ofSeconds(2));
+
+        assertNotNull(events);
+        SseMessageVO complete = findFirstEventByType(events, "complete");
+        assertNotNull(complete);
+        assertSuggestedReplies(complete.getMetadata(), "三天了", "伴有 发烧", "没有其他症状");
+        assertCue(complete.getMetadata(), "symptom_collection", "attentive", "listen", "TRIAGE");
+
+        SseMessageVO tokenEvent = findFirstEventByType(events, "token");
+        assertNotNull(tokenEvent);
+        assertNull(tokenEvent.getMetadata());
+
+        SseMessageVO ttsEvent = findFirstEventByType(events, "tts");
+        assertNotNull(ttsEvent);
+        assertCue(ttsEvent.getMetadata(), "symptom_collection", "attentive", "listen", "TRIAGE");
+        assertNoSuggestedReplies(ttsEvent.getMetadata());
+
+        ArgumentCaptor<ChatMessage> insertCaptor = ArgumentCaptor.forClass(ChatMessage.class);
+        verify(messageMapper, times(2)).insert(insertCaptor.capture());
+        ChatMessage assistantMessage = insertCaptor.getAllValues().stream()
+            .filter(message -> "assistant".equals(message.getRole()))
+            .findFirst()
+            .orElseThrow();
+        Map<String, Object> metadata = new ObjectMapper().readValue(assistantMessage.getMetadata(), Map.class);
+        assertSuggestedReplies(metadata, "三天了", "伴有 发烧", "没有其他症状");
+    }
+
+    @Test
+    void chat_shouldOnlyGenerateSuggestedRepliesForTriageQuestion() {
+        ChatSession qaSession = new ChatSession();
+        qaSession.setId(1L);
+        qaSession.setUserId(1L);
+        qaSession.setAgentType("QA");
+        qaSession.setTitle("新对话");
+        when(sessionMapper.selectById(1L)).thenReturn(qaSession);
+        when(messageMapper.selectList(any())).thenReturn(Collections.emptyList());
+
+        Agent qaAgent = mock(Agent.class);
+        when(agentFactory.getAgent("QA")).thenReturn(qaAgent);
+        when(qaAgent.getToolNames()).thenReturn(Collections.emptyList());
+        when(qaAgent.getSystemPrompt()).thenReturn("qa-system");
+        when(qaAgent.getAgentType()).thenReturn("QA");
+
+        when(chatModel.stream(any(Prompt.class))).thenReturn(Flux.just(mockChatResponse("请问还有别的问题吗？")));
+        when(ttsService.synthesize("请问还有别的问题吗？")).thenReturn("/ai/chat/tts/qa-question.mp3");
+
+        List<SseMessageVO> qaEvents = chatService.chat(1L, 1L, "咨询")
+            .take(3)
+            .collectList()
+            .block(Duration.ofSeconds(2));
+
+        assertNotNull(qaEvents);
+        SseMessageVO qaComplete = findFirstEventByType(qaEvents, "complete");
+        assertNotNull(qaComplete);
+        assertNoSuggestedReplies(qaComplete.getMetadata());
+        verify(chatModel, never()).call(any(Prompt.class));
+    }
+
+    @Test
+    void chat_shouldSkipSuggestedRepliesWhenFinalAssistantTextIsNotQuestion() {
+        ChatSession session = new ChatSession();
+        session.setId(1L);
+        session.setUserId(1L);
+        session.setAgentType("TRIAGE");
+        session.setTitle("新对话");
+        when(sessionMapper.selectById(1L)).thenReturn(session);
+        when(messageMapper.selectList(any())).thenReturn(Collections.emptyList());
+
+        Agent agent = mock(Agent.class);
+        when(agentFactory.getAgent("TRIAGE")).thenReturn(agent);
+        when(agent.getToolNames()).thenReturn(Collections.emptyList());
+        when(agent.getSystemPrompt()).thenReturn("triage-system");
+        when(agent.getAgentType()).thenReturn("TRIAGE");
+
+        when(chatModel.stream(any(Prompt.class))).thenReturn(Flux.just(mockChatResponse("建议先休息，多喝温水。")));
+        when(ttsService.synthesize("建议先休息，多喝温水。")).thenReturn("/ai/chat/tts/no-question.mp3");
+
+        List<SseMessageVO> events = chatService.chat(1L, 1L, "头痛")
+            .take(3)
+            .collectList()
+            .block(Duration.ofSeconds(2));
+
+        assertNotNull(events);
+        SseMessageVO complete = findFirstEventByType(events, "complete");
+        assertNotNull(complete);
+        assertNoSuggestedReplies(complete.getMetadata());
+        verify(chatModel, never()).call(any(Prompt.class));
+    }
+
+    @Test
+    void chat_shouldSkipSuggestedRepliesWhenEarlierSentenceHasQuestionButFinalSentenceIsNotQuestion() {
+        ChatSession session = new ChatSession();
+        session.setId(1L);
+        session.setUserId(1L);
+        session.setAgentType("TRIAGE");
+        session.setTitle("新对话");
+        when(sessionMapper.selectById(1L)).thenReturn(session);
+        when(messageMapper.selectList(any())).thenReturn(Collections.emptyList());
+
+        Agent agent = mock(Agent.class);
+        when(agentFactory.getAgent("TRIAGE")).thenReturn(agent);
+        when(agent.getToolNames()).thenReturn(Collections.emptyList());
+        when(agent.getSystemPrompt()).thenReturn("triage-system");
+        when(agent.getAgentType()).thenReturn("TRIAGE");
+
+        when(chatModel.stream(any(Prompt.class))).thenReturn(Flux.just(
+            mockChatResponse("持续多久了？建议先多喝温水。")
+        ));
+        when(ttsService.synthesize("持续多久了？")).thenReturn("/ai/chat/tts/mixed-1.mp3");
+        when(ttsService.synthesize("建议先多喝温水。")).thenReturn("/ai/chat/tts/mixed-2.mp3");
+
+        List<SseMessageVO> events = chatService.chat(1L, 1L, "头痛")
+            .take(4)
+            .collectList()
+            .block(Duration.ofSeconds(2));
+
+        assertNotNull(events);
+        SseMessageVO complete = findFirstEventByType(events, "complete");
+        assertNotNull(complete);
+        assertNoSuggestedReplies(complete.getMetadata());
+        verify(chatModel, never()).call(any(Prompt.class));
+    }
+
+    @Test
+    void chat_shouldOmitSuggestedRepliesWhenGenerationFails() {
+        ChatSession session = new ChatSession();
+        session.setId(1L);
+        session.setUserId(1L);
+        session.setAgentType("TRIAGE");
+        session.setTitle("新对话");
+        when(sessionMapper.selectById(1L)).thenReturn(session);
+        when(messageMapper.selectList(any())).thenReturn(Collections.emptyList());
+
+        Agent agent = mock(Agent.class);
+        when(agentFactory.getAgent("TRIAGE")).thenReturn(agent);
+        when(agent.getToolNames()).thenReturn(Collections.emptyList());
+        when(agent.getSystemPrompt()).thenReturn("triage-system");
+        when(agent.getAgentType()).thenReturn("TRIAGE");
+
+        when(chatModel.stream(any(Prompt.class))).thenReturn(Flux.just(mockChatResponse("疼了几天？")));
+        when(chatModel.call(any(Prompt.class))).thenThrow(new RuntimeException("model offline"));
+        when(ttsService.synthesize("疼了几天？")).thenReturn("/ai/chat/tts/fallback.mp3");
+
+        List<SseMessageVO> events = chatService.chat(1L, 1L, "腹痛")
+            .take(3)
+            .collectList()
+            .block(Duration.ofSeconds(2));
+
+        assertNotNull(events);
+        SseMessageVO complete = findFirstEventByType(events, "complete");
+        assertNotNull(complete);
+        assertSuggestedReplies(complete.getMetadata(), "今天刚开始", "已经好几天了", "没有其他症状");
+        verify(chatModel, times(1)).call(any(Prompt.class));
+    }
+
+    @Test
+    void chat_shouldTruncateMultiQuestionTriageReplyToSingleQuestionAndUseFallbackReplies() {
+        ChatSession session = new ChatSession();
+        session.setId(1L);
+        session.setUserId(1L);
+        session.setAgentType("TRIAGE");
+        session.setTitle("新对话");
+        when(sessionMapper.selectById(1L)).thenReturn(session);
+        when(messageMapper.selectList(any())).thenReturn(Collections.emptyList());
+
+        Agent agent = mock(Agent.class);
+        when(agentFactory.getAgent("TRIAGE")).thenReturn(agent);
+        when(agent.getToolNames()).thenReturn(Collections.emptyList());
+        when(agent.getSystemPrompt()).thenReturn("triage-system");
+        when(agent.getAgentType()).thenReturn("TRIAGE");
+
+        when(chatModel.stream(any(Prompt.class))).thenReturn(Flux.just(mockChatResponse(
+            "好的，头疼确实让人很不舒服。为了能更准确地帮您分析，我想再了解几个细节:1.头疼持续多久了?是今天刚开始，还是已经好几天了?2.头疼的部位在哪里?是整个头都疼，还是偏头痛、后脑勺痛，或者太阳穴附近痛?3.除了头疼，还有其他不舒服吗?比如发烧、恶心呕吐、头晕、视力模糊、脖子僵硬等情况?"
+        )));
+        when(chatModel.call(any(Prompt.class))).thenReturn(mockChatResponse("[]"));
+        when(ttsService.synthesize(anyString())).thenReturn("/ai/chat/tts/headache-followup.mp3");
+
+        List<SseMessageVO> events = chatService.chat(1L, 1L, "我头疼")
+            .take(12)
+            .collectList()
+            .block(Duration.ofSeconds(2));
+
+        assertNotNull(events);
+        SseMessageVO complete = findFirstEventByType(events, "complete");
+        assertNotNull(complete);
+        assertEquals("好的，头疼确实让人很不舒服。为了能更准确地帮您分析，我想再了解几个细节:1.头疼持续多久了?", complete.getContent());
+        assertSuggestedReplies(complete.getMetadata(), "今天刚开始", "已经好几天了", "没有其他症状");
+    }
+
+    @Test
     void chat_shouldSplitSafeSentencesIntoMultipleTtsSegments() {
         ChatSession session = new ChatSession();
         session.setId(1L);
@@ -405,7 +625,7 @@ class ChatServiceImplTest {
         assertEquals(1, ttsEvents.get(1).getSegmentIndex());
         assertEquals("/ai/chat/tts/seg-2.mp3", ttsEvents.get(1).getTtsUrl());
 
-        verify(messageMapper).updateById(argThat(hasTtsUrl("/ai/chat/tts/seg-1.mp3")));
+        verify(messageMapper).updateById(argThat(hasTtsUrl("/ai/chat/tts/seg-2.mp3")));
     }
 
     @Test
@@ -472,6 +692,31 @@ class ChatServiceImplTest {
         assertEquals(1, result.size());
         assertNotNull(result.get(0).getMetadata());
         assertCue(result.get(0).getMetadata(), "symptom_collection", "attentive", "listen", "TRIAGE");
+    }
+
+    @Test
+    void getSessionMessages_shouldDeserializeSuggestedRepliesFromStoredMetadata() {
+        ChatSession session = new ChatSession();
+        session.setId(9L);
+        session.setUserId(7L);
+        when(sessionMapper.selectById(9L)).thenReturn(session);
+
+        ChatMessage assistantMessage = new ChatMessage();
+        assistantMessage.setId(12L);
+        assistantMessage.setSessionId(9L);
+        assistantMessage.setRole("assistant");
+        assistantMessage.setContent("持续多久了？");
+        assistantMessage.setMetadata("{" +
+            "\"avatarCue\":{\"bucket\":\"symptom_collection\",\"expression\":\"attentive\",\"action\":\"listen\",\"tone\":\"supportive\",\"variant\":\"general\"}," +
+            "\"source\":\"TRIAGE\"," +
+            "\"suggestedReplies\":[\"三天了\",\"伴有发烧\",\"没有其他症状\"]}");
+        when(messageMapper.selectList(any())).thenReturn(List.of(assistantMessage));
+
+        List<ChatMessageVO> result = chatService.getSessionMessages(9L, 7L);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertSuggestedReplies(result.get(0).getMetadata(), "三天了", "伴有发烧", "没有其他症状");
     }
 
     @Test
@@ -554,5 +799,18 @@ class ChatServiceImplTest {
         assertEquals(expectedAction, avatarCue.get("action"));
         assertNotNull(avatarCue.get("tone"));
         assertNotNull(avatarCue.get("variant"));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void assertSuggestedReplies(Map<String, Object> metadata, String... expectedReplies) {
+        assertNotNull(metadata);
+        assertTrue(metadata.get("suggestedReplies") instanceof List);
+        List<Object> actualReplies = (List<Object>) metadata.get("suggestedReplies");
+        assertIterableEquals(List.of(expectedReplies), actualReplies.stream().map(item -> Objects.toString(item, null)).toList());
+    }
+
+    private static void assertNoSuggestedReplies(Map<String, Object> metadata) {
+        assertNotNull(metadata);
+        assertFalse(metadata.containsKey("suggestedReplies"));
     }
 }

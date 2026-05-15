@@ -1,5 +1,6 @@
 package com.medical.ai.agent;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -31,6 +32,8 @@ class TriageAgentTest {
         assertTrue(firstPrompt.contains("工具参数必须同时传 doctorId、doctorName、date"));
         assertTrue(firstPrompt.contains("createAppointment 时只能使用 getAvailableSlots 返回的真实 slotId"));
         assertTrue(firstPrompt.contains("系统当前显示挂号费为 0 元"));
+        assertTrue(firstPrompt.contains("每次回复最多只问一个问题"));
+        assertFalse(firstPrompt.contains("至少询问2-3个问题"));
         assertTrue(secondPrompt.contains("呼吸科、感染科"));
         verify(remoteDoctorService, times(1)).getDepartmentNames();
     }
