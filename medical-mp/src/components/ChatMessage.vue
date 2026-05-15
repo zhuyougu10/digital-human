@@ -1,4 +1,7 @@
 <script setup>
+import { computed } from 'vue'
+import { parseMarkdown } from '../utils/markdown'
+
 const props = defineProps({
   message: {
     type: Object,
@@ -11,6 +14,13 @@ const props = defineProps({
     })
   }
 })
+
+const parsedContent = computed(() => {
+  if (props.message.role === 'assistant' && props.message.type === 'text') {
+    return parseMarkdown(props.message.content)
+  }
+  return props.message.content
+})
 </script>
 
 <template>
@@ -19,7 +29,8 @@ const props = defineProps({
     <image v-if="message.role === 'assistant'" class="avatar" :src="'/static/logo.png'" mode="aspectFill" />
     <view class="content-wrapper">
       <view v-if="message.type === 'text'" class="bubble">
-        <text selectable>{{ message.content }}</text>
+        <text v-if="message.role === 'user'" selectable>{{ message.content }}</text>
+        <rich-text v-else :nodes="parsedContent"></rich-text>
       </view>
       <!-- Special message types slot -->
       <view v-else class="special-card">
@@ -68,11 +79,13 @@ const props = defineProps({
 }
 
 .message-ai .bubble {
-  background-color: var(--bg-card);
-  color: var(--text-main);
+  background-color: var(--bg-card, #ffffff);
+  color: var(--text-main, #333333);
   border-top-left-radius: 8rpx;
-  box-shadow: var(--shadow-sm);
-  border: 1rpx solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+  border: 1rpx solid rgba(226, 232, 240, 0.8);
+  padding: 24rpx 32rpx;
+  overflow: hidden;
 }
 
 .message-user .bubble {
