@@ -59,8 +59,9 @@ export const resolveLive2dBase = ({ explicitBase, apiBase, browserHost } = {}) =
 export const resolveTtsUrl = (ttsUrl, options = {}) => {
   if (!ttsUrl) return ''
   if (/^https?:\/\//.test(ttsUrl)) return ttsUrl
-  const apiOrigin = resolveApiOrigin(options)
-  return `${apiOrigin}${ttsUrl.startsWith('/') ? ttsUrl : `/${ttsUrl}`}`
+  const apiBase = resolveApiBase(options)
+  const normalizedPath = ttsUrl.startsWith('/') ? ttsUrl : `/${ttsUrl}`
+  return `${apiBase}${normalizedPath}`
 }
 
 export const getRuntimeConfig = (options = {}) => {

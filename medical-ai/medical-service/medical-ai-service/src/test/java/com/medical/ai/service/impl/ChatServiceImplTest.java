@@ -247,13 +247,14 @@ class ChatServiceImplTest {
         when(ttsService.synthesize(any())).thenReturn("/ai/chat/tts/auto-create-period.mp3");
 
         List<SseMessageVO> events = chatService.chat(1L, 38L, "下午")
-                .take(3)
+                .take(5)
                 .collectList()
                 .block(Duration.ofSeconds(1));
 
         assertNotNull(events);
-        assertEquals("complete", events.get(1).getType());
-        assertEquals("好的，我将为您重新预约李娜医生下午的时间段。\n- 医生：李娜医生（医生ID：4，内科，挂号费60元）\n- 预约时间：2026年4月16日 下午\n现在为您创建预约。好的，我已经为您成功创建了预约！\n\n预约ID：102", events.get(1).getContent());
+        SseMessageVO complete = findFirstEventByType(events, "complete");
+        assertNotNull(complete);
+        assertEquals("好的，我将为您重新预约李娜医生下午的时间段。\n- 医生：李娜医生（医生ID：4，内科，挂号费60元）\n- 预约时间：2026年4月16日 下午\n现在为您创建预约。好的，我已经为您成功创建了预约！\n\n预约ID：102", complete.getContent());
     }
 
     @Test
@@ -330,20 +331,22 @@ class ChatServiceImplTest {
         when(chatModel.stream(any(Prompt.class))).thenReturn(Flux.just(
                 mockChatResponse("好的，我已经为您成功创建了预约！\n预约ID：101")
         ));
-        when(ttsService.synthesize("好的，我已经为您成功创建了预约！\n预约ID：101"))
-                .thenReturn("/ai/chat/tts/appointment-success.mp3");
+        when(ttsService.synthesize("好的，我已经为您成功创建了预约！")).thenReturn("/ai/chat/tts/appointment-success-1.mp3");
+        when(ttsService.synthesize("预约ID：101")).thenReturn("/ai/chat/tts/appointment-success-2.mp3");
 
         List<SseMessageVO> events = chatService.chat(1L, 38L, "帮我预约")
-                .take(3)
+                .take(4)
                 .collectList()
                 .block(Duration.ofSeconds(1));
 
         assertNotNull(events);
-        assertEquals(3, events.size());
-        assertEquals("complete", events.get(1).getType());
-        assertCue(events.get(1).getMetadata(), "appointment_success", "relieved", "celebrate", "TRIAGE");
-        assertEquals("tts", events.get(2).getType());
-        assertCue(events.get(2).getMetadata(), "appointment_success", "relieved", "celebrate", "TRIAGE");
+        SseMessageVO complete = findFirstEventByType(events, "complete");
+        assertNotNull(complete);
+        assertCue(complete.getMetadata(), "appointment_success", "relieved", "celebrate", "TRIAGE");
+
+        SseMessageVO firstTts = findFirstEventByType(events, "tts");
+        assertNotNull(firstTts);
+        assertCue(firstTts.getMetadata(), "appointment_success", "relieved", "celebrate", "TRIAGE");
 
         ArgumentCaptor<ChatMessage> insertCaptor = ArgumentCaptor.forClass(ChatMessage.class);
         verify(messageMapper, times(2)).insert(insertCaptor.capture());
@@ -355,6 +358,97 @@ class ChatServiceImplTest {
         assertNotNull(assistantMessage.getMetadata());
         Map<String, Object> metadata = new ObjectMapper().readValue(assistantMessage.getMetadata(), Map.class);
         assertCue(metadata, "appointment_success", "relieved", "celebrate", "TRIAGE");
+    }
+
+    @Test
+    void chat_shouldSplitSafeSentencesIntoMultipleTtsSegments() {
+        ChatSession session = new ChatSession();
+        session.setId(1L);
+        session.setUserId(1L);
+        session.setAgentType("QA");
+        session.setTitle("新对话");
+        when(sessionMapper.selectById(1L)).thenReturn(session);
+        when(messageMapper.selectList(any())).thenReturn(Collections.emptyList());
+
+        Agent agent = mock(Agent.class);
+        when(agentFactory.getAgent("QA")).thenReturn(agent);
+        when(agent.getToolNames()).thenReturn(Collections.emptyList());
+        when(agent.getSystemPrompt()).thenReturn("system");
+        when(agent.getAgentType()).thenReturn("QA");
+
+        when(chatModel.stream(any(Prompt.class))).thenReturn(Flux.just(
+            mockChatResponse("第一句。第二句。")
+        ));
+        when(ttsService.synthesize("第一句。")).thenReturn("/ai/chat/tts/seg-1.mp3");
+        when(ttsService.synthesize("第二句。")).thenReturn("/ai/chat/tts/seg-2.mp3");
+
+        List<SseMessageVO> events = chatService.chat(1L, 1L, "请介绍一下")
+            .take(4)
+            .collectList()
+            .block(Duration.ofSeconds(2));
+
+        assertNotNull(events);
+        assertEquals(4, events.size());
+
+        SseMessageVO complete = findFirstEventByType(events, "complete");
+        assertNotNull(complete);
+        assertEquals("第一句。第二句。", complete.getContent());
+        assertEquals(2, complete.getTotalSegments());
+
+        List<SseMessageVO> ttsEvents = events.stream()
+            .filter(event -> "tts".equals(event.getType()))
+            .sorted((left, right) -> Integer.compare(left.getSegmentIndex(), right.getSegmentIndex()))
+            .toList();
+        assertEquals(2, ttsEvents.size());
+        assertEquals(0, ttsEvents.get(0).getSegmentIndex());
+        assertEquals("/ai/chat/tts/seg-1.mp3", ttsEvents.get(0).getTtsUrl());
+        assertEquals(1, ttsEvents.get(1).getSegmentIndex());
+        assertEquals("/ai/chat/tts/seg-2.mp3", ttsEvents.get(1).getTtsUrl());
+
+        verify(messageMapper).updateById(argThat(hasTtsUrl("/ai/chat/tts/seg-1.mp3")));
+    }
+
+    @Test
+    void chat_shouldExcludeTriageDisclaimerFromTtsSegments() {
+        ChatSession session = new ChatSession();
+        session.setId(1L);
+        session.setUserId(1L);
+        session.setAgentType("TRIAGE");
+        session.setTitle("新对话");
+        when(sessionMapper.selectById(1L)).thenReturn(session);
+        when(messageMapper.selectList(any())).thenReturn(Collections.emptyList());
+
+        Agent agent = mock(Agent.class);
+        when(agentFactory.getAgent("TRIAGE")).thenReturn(agent);
+        when(agent.getToolNames()).thenReturn(Collections.emptyList());
+        when(agent.getSystemPrompt()).thenReturn("triage-system");
+        when(agent.getAgentType()).thenReturn("TRIAGE");
+
+        when(chatModel.stream(any(Prompt.class))).thenReturn(Flux.just(
+            mockChatResponse("请先多喝温水，注意休息。AI导诊仅供参考，不能替代专业医生诊断。")
+        ));
+        when(ttsService.synthesize("请先多喝温水，注意休息。")).thenReturn("/ai/chat/tts/advice.mp3");
+
+        List<SseMessageVO> events = chatService.chat(1L, 1L, "我头痛")
+            .take(3)
+            .collectList()
+            .block(Duration.ofSeconds(2));
+
+        assertNotNull(events);
+
+        SseMessageVO complete = findFirstEventByType(events, "complete");
+        assertNotNull(complete);
+        assertEquals("请先多喝温水，注意休息。AI导诊仅供参考，不能替代专业医生诊断。", complete.getContent());
+        assertEquals(1, complete.getTotalSegments());
+
+        List<SseMessageVO> ttsEvents = events.stream()
+            .filter(event -> "tts".equals(event.getType()))
+            .toList();
+        assertEquals(1, ttsEvents.size());
+        assertEquals("/ai/chat/tts/advice.mp3", ttsEvents.get(0).getTtsUrl());
+
+        verify(ttsService, never()).synthesize("AI导诊仅供参考，不能替代专业医生诊断。");
+        verify(messageMapper).updateById(argThat(hasTtsUrl("/ai/chat/tts/advice.mp3")));
     }
 
     @Test
@@ -435,6 +529,13 @@ class ChatServiceImplTest {
 
     private static ArgumentMatcher<ChatMessage> hasTtsUrl(String expectedTtsUrl) {
         return message -> message != null && expectedTtsUrl.equals(message.getTtsUrl());
+    }
+
+    private static SseMessageVO findFirstEventByType(List<SseMessageVO> events, String type) {
+        return events.stream()
+            .filter(event -> type.equals(event.getType()))
+            .findFirst()
+            .orElse(null);
     }
 
     @SuppressWarnings("unchecked")

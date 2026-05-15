@@ -7,6 +7,22 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { buildAuthHeader } from '@/api/request'
+
+declare const wx:
+  | {
+      env?: {
+        USER_DATA_PATH?: string
+      }
+      downloadFile: (options: {
+        url: string
+        header?: Record<string, string>
+        filePath?: string
+        success?: (res: { statusCode: number; tempFilePath?: string; filePath?: string }) => void
+        fail?: (err: unknown) => void
+      }) => void
+    }
+  | undefined
 
 const props = defineProps<{
   ttsUrl: string
@@ -22,10 +38,79 @@ const emit = defineEmits<{
 
 const isPlaying = ref(false)
 let audioContext: UniApp.InnerAudioContext | null = null
+let activePlaybackToken = 0
 
 const statusText = computed(() => (isPlaying.value ? '播放中，点击暂停' : '点击播放语音'))
 
 const isAbsoluteUrl = (url: string) => /^https?:\/\//.test(url)
+
+const sanitizeAudioFileName = (url: string) => {
+  const lastSegment = url.split('/').pop()?.split('?')[0] || ''
+  const normalizedBaseName = lastSegment.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_')
+  const safeBaseName = normalizedBaseName || `tts_${Date.now()}`
+  return `${safeBaseName}.mp3`
+}
+
+const buildWechatAudioFilePath = (url: string) => {
+  if (typeof wx === 'undefined' || !wx.env?.USER_DATA_PATH) {
+    return ''
+  }
+
+  return `${wx.env.USER_DATA_PATH}/${sanitizeAudioFileName(url)}`
+}
+
+const isSamePlayback = (token: number) => token === activePlaybackToken
+
+const buildDownloadHeader = () => buildAuthHeader()
+
+const downloadAudioSource = (url: string, token: number) => {
+  return new Promise<string>((resolve, reject) => {
+    const onSuccess = (res: { statusCode: number; tempFilePath?: string; filePath?: string }) => {
+      if (!isSamePlayback(token)) {
+        resolve('')
+        return
+      }
+
+      const localPath = res.filePath || res.tempFilePath || ''
+      if (res.statusCode < 200 || res.statusCode >= 300 || !localPath) {
+        reject(new Error(`[TtsPlayer] 下载失败, statusCode=${res.statusCode}`))
+        return
+      }
+
+      resolve(localPath)
+    }
+
+    const onFail = (err: unknown) => {
+      if (!isSamePlayback(token)) {
+        resolve('')
+        return
+      }
+      reject(err)
+    }
+
+    // #ifdef MP-WEIXIN
+    const wechatApi = wx
+    const filePath = buildWechatAudioFilePath(url)
+    if (wechatApi?.downloadFile && filePath) {
+      wechatApi.downloadFile({
+        url,
+        header: buildDownloadHeader(),
+        filePath,
+        success: onSuccess,
+        fail: onFail
+      })
+      return
+    }
+    // #endif
+
+    uni.downloadFile({
+      url,
+      header: buildDownloadHeader(),
+      success: onSuccess,
+      fail: onFail
+    })
+  })
+}
 
 const postLive2dMessage = (type: 'START_LIPSYNC' | 'STOP_LIPSYNC') => {
   const payload = { type }
@@ -49,11 +134,14 @@ const getAudioErrorDetail = (error: unknown, key: 'errCode' | 'errMsg') => {
 }
 
 const destroyAudio = () => {
+  activePlaybackToken++
   if (!audioContext) return
   try {
     audioContext.stop()
     audioContext.destroy()
-  } catch (_) { /* ignore */ }
+  } catch (error) {
+    console.warn('[TtsPlayer] 销毁音频上下文失败:', error)
+  }
   audioContext = null
 }
 
@@ -105,7 +193,7 @@ const createFreshAudio = () => {
   return ctx
 }
 
-const playAudio = () => {
+const playAudio = async () => {
   if (!props.ttsUrl) return
   if (!isAbsoluteUrl(props.ttsUrl)) {
     console.error('[TtsPlayer] TTS URL 不是绝对地址:', props.ttsUrl)
@@ -116,31 +204,43 @@ const playAudio = () => {
 
   console.log('[TtsPlayer] 开始下载音频:', props.ttsUrl)
 
-  // 先下载到本地临时文件，再用本地路径播放（解决远程URL播放无声的已知问题）
-  uni.downloadFile({
-    url: props.ttsUrl,
-    success: (res) => {
-      if (res.statusCode !== 200 || !res.tempFilePath) {
-        console.error('[TtsPlayer] 下载失败, statusCode:', res.statusCode)
-        emitPlaybackEnded()
-        emit('error')
+  const playbackToken = ++activePlaybackToken
+
+  try {
+    const localAudioPath = await downloadAudioSource(props.ttsUrl, playbackToken)
+    if (!localAudioPath || !isSamePlayback(playbackToken)) {
+      return
+    }
+
+    console.log('[TtsPlayer] 下载成功, 播放本地文件:', localAudioPath)
+    const ctx = createFreshAudio()
+
+    let playbackTriggered = false
+    const triggerPlayback = (reason: 'canplay' | 'fallback') => {
+      if (playbackTriggered || !isSamePlayback(playbackToken)) {
         return
       }
-
-      console.log('[TtsPlayer] 下载成功, 播放本地文件:', res.tempFilePath)
-      const ctx = createFreshAudio()
-      ctx.src = res.tempFilePath
-      ctx.onCanplay(() => {
-        console.log('[TtsPlayer] onCanplay, 开始播放')
-        ctx.play()
-      })
-    },
-    fail: (err) => {
-      console.error('[TtsPlayer] 下载音频失败:', err)
-      emitPlaybackEnded()
-      emit('error')
+      playbackTriggered = true
+      console.log(`[TtsPlayer] ${reason === 'canplay' ? 'onCanplay' : 'fallback'}, 开始播放`)
+      ctx.play()
     }
-  })
+
+    ctx.onCanplay(() => {
+      triggerPlayback('canplay')
+    })
+    ctx.autoplay = true
+    ctx.src = localAudioPath
+    setTimeout(() => {
+      triggerPlayback('fallback')
+    }, 120)
+  } catch (err) {
+    if (!isSamePlayback(playbackToken)) {
+      return
+    }
+    console.error('[TtsPlayer] 下载音频失败:', err)
+    emitPlaybackEnded()
+    emit('error')
+  }
 }
 
 const stopAudio = () => {

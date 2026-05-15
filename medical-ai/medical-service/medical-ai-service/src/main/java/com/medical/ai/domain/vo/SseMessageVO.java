@@ -10,4 +10,6 @@ public class SseMessageVO {
     private String content;
     private Map<String, Object> metadata;
     private String ttsUrl;
+    private Integer segmentIndex;
+    private Integer totalSegments;
 }

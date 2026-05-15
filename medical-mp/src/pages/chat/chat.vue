@@ -352,7 +352,9 @@ const sendToBackend = (text) => {
                 ttsUrl: audioUrl,
                 fileName
               })
-              ttsTotalSegments = payload.totalSegments || 1
+              if (typeof payload.totalSegments === 'number' && payload.totalSegments > 0) {
+                ttsTotalSegments = payload.totalSegments
+              }
               ttsQueue.sort((a, b) => a.segmentIndex - b.segmentIndex)
               playNextTtsSegment()
             }
@@ -362,6 +364,9 @@ const sendToBackend = (text) => {
             // 确保最终文本完整
             if (currentAiMessageIndex >= 0 && currentFullText) {
               updateMessageContent(currentAiMessageIndex, currentFullText)
+            }
+            if (typeof payload.totalSegments === 'number' && payload.totalSegments > 0) {
+              ttsTotalSegments = payload.totalSegments
             }
           } else if (payload.type === 'error') {
             currentFullText += payload.content || '服务暂时不可用'

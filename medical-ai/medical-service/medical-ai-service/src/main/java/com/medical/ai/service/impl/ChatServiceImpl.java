@@ -35,6 +35,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.regex.Matcher;
@@ -51,6 +53,7 @@ import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
 
 @Slf4j
@@ -70,6 +73,7 @@ public class ChatServiceImpl implements ChatService {
     private static final Pattern APPOINTMENT_PERIOD_PATTERN = Pattern.compile("预约[^。\n]{0,20}(上午|下午)");
     private static final Pattern SIMPLE_PERIOD_PATTERN = Pattern.compile("(上午|下午)");
     private static final String APPOINTMENT_GUARD_FALLBACK_REPLY = "抱歉，刚才尚未成功创建预约，请重新确认医生与时间后，我再为您提交预约。";
+    private static final String TRIAGE_TTS_EXCLUDED_DISCLAIMER = "AI导诊仅供参考，不能替代专业医生诊断";
     private static final String AVATAR_CUE_KEY = "avatarCue";
     private static final String CUE_BUCKET_KEY = "bucket";
     private static final String CUE_EXPRESSION_KEY = "expression";
@@ -155,11 +159,19 @@ public class ChatServiceImpl implements ChatService {
         Prompt prompt = new Prompt(chatMessages, optionsBuilder.build());
 
         StringBuilder fullResponse = new StringBuilder();
+        StringBuilder ttsSentenceBuffer = new StringBuilder();
         AtomicReference<String> fullTextRef = new AtomicReference<>("");
         AtomicReference<ChatMessage> assistantMessageRef = new AtomicReference<>();
         AtomicReference<Map<String, Object>> avatarCueRef = new AtomicReference<>();
+        AtomicReference<String> firstTtsUrlRef = new AtomicReference<>();
+        AtomicInteger nextTtsSegmentIndex = new AtomicInteger(0);
+        AtomicInteger pendingTtsTasks = new AtomicInteger(0);
+        AtomicBoolean deferRemainingSentenceTts = new AtomicBoolean(false);
+        AtomicBoolean ttsSchedulingComplete = new AtomicBoolean(false);
+        List<String> earlySpokenSentences = Collections.synchronizedList(new ArrayList<>());
+        Sinks.Many<SseMessageVO> ttsSink = Sinks.many().unicast().onBackpressureBuffer();
 
-        return chatModel.stream(prompt)
+        Flux<SseMessageVO> chatEvents = chatModel.stream(prompt)
             .publishOn(Schedulers.boundedElastic())
             .map(chatResponse -> {
                 String token = "";
@@ -170,6 +182,27 @@ public class ChatServiceImpl implements ChatService {
                     }
                 }
                 fullResponse.append(token);
+                ttsSentenceBuffer.append(token);
+                List<String> readySentences = filterSpeakableTtsSentences(drainTtsSentences(ttsSentenceBuffer, false));
+                for (String sentence : readySentences) {
+                    if (!deferRemainingSentenceTts.get() && !shouldDeferSentenceLevelTts(session.getAgentType(), sentence)) {
+                        earlySpokenSentences.add(sentence);
+                        scheduleTtsSynthesis(
+                            ttsSink,
+                            pendingTtsTasks,
+                            ttsSchedulingComplete,
+                            assistantMessageRef,
+                            firstTtsUrlRef,
+                            sessionId,
+                            sentence,
+                            nextTtsSegmentIndex.getAndIncrement(),
+                            null,
+                            buildAvatarCueMetadata(session, message, sentence)
+                        );
+                    } else {
+                        deferRemainingSentenceTts.set(true);
+                    }
+                }
                 SseMessageVO vo = new SseMessageVO();
                 vo.setType("token");
                 vo.setContent(token);
@@ -178,6 +211,7 @@ public class ChatServiceImpl implements ChatService {
             .doOnError(e -> {
                 Tracer.trace(e);
                 log.error("Chat stream error for session {}: {}", sessionId, e.getMessage(), e);
+                ttsSink.tryEmitError(e);
             })
             .concatWith(Mono.fromCallable(() -> {
                 String fullText = fullResponse.toString();
@@ -201,46 +235,43 @@ public class ChatServiceImpl implements ChatService {
                     sessionMapper.updateById(session);
                 }
 
-                // 先下发 complete，避免被后续 TTS 拖住
+                List<String> finalSentences = filterSpeakableTtsSentences(splitTtsSentences(guardedText));
+                int totalSegments = finalSentences.size();
+                if (firstTtsUrlRef.get() != null) {
+                    assistantMsg.setTtsUrl(firstTtsUrlRef.get());
+                    messageMapper.updateById(assistantMsg);
+                }
+                for (int i = earlySpokenSentences.size(); i < finalSentences.size(); i++) {
+                    scheduleTtsSynthesis(
+                        ttsSink,
+                        pendingTtsTasks,
+                        ttsSchedulingComplete,
+                        assistantMessageRef,
+                        firstTtsUrlRef,
+                        sessionId,
+                        finalSentences.get(i),
+                        i,
+                        totalSegments,
+                        avatarCueMetadata
+                    );
+                }
+
+                // 先下发 complete，句级 TTS 在独立异步链路中继续推进
                 SseMessageVO complete = new SseMessageVO();
                 complete.setType("complete");
                 complete.setContent(guardedText);
                 complete.setTtsUrl(null);
                 complete.setMetadata(avatarCueMetadata);
+                complete.setTotalSegments(totalSegments);
+                ttsSchedulingComplete.set(true);
+                if (pendingTtsTasks.get() == 0) {
+                    ttsSink.tryEmitComplete();
+                }
                 return complete;
             }))
-            .concatWith(Mono.defer(() -> Mono.fromCallable(() -> {
-                String fullText = fullTextRef.get();
-                String ttsUrl = ttsService.synthesize(fullText);
-                if (ttsUrl == null || ttsUrl.isBlank()) {
-                    SseMessageVO error = new SseMessageVO();
-                    error.setType("tts_error");
-                    error.setContent("TTS 合成失败");
-                    return error;
-                }
+            ;
 
-                ChatMessage assistantMsg = assistantMessageRef.get();
-                if (assistantMsg != null) {
-                    assistantMsg.setTtsUrl(ttsUrl);
-                    messageMapper.updateById(assistantMsg);
-                }
-
-                SseMessageVO tts = new SseMessageVO();
-                tts.setType("tts");
-                tts.setTtsUrl(ttsUrl);
-                tts.setMetadata(avatarCueRef.get());
-                return tts;
-            })
-                .subscribeOn(Schedulers.boundedElastic())
-                .timeout(Duration.ofSeconds(30))
-                .onErrorResume(e -> {
-                    Tracer.trace(e);
-                    log.error("TTS 合成失败, sessionId={}: {}", sessionId, e.getMessage(), e);
-                    SseMessageVO error = new SseMessageVO();
-                    error.setType("tts_error");
-                    error.setContent("TTS 超时");
-                    return Mono.just(error);
-                })))
+        return Flux.merge(chatEvents, ttsSink.asFlux())
             .doFinally(signalType -> sentinelEntry.exit());
     }
 
@@ -458,6 +489,156 @@ public class ChatServiceImpl implements ChatService {
             }
         }
         return false;
+    }
+
+    private List<String> splitTtsSentences(String text) {
+        return drainTtsSentences(new StringBuilder(text == null ? "" : text), true);
+    }
+
+    private List<String> filterSpeakableTtsSentences(List<String> sentences) {
+        if (sentences == null || sentences.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return sentences.stream()
+            .filter(sentence -> !shouldSkipTtsSentence(sentence))
+            .toList();
+    }
+
+    private List<String> drainTtsSentences(StringBuilder buffer, boolean flushRemainder) {
+        List<String> sentences = new ArrayList<>();
+        if (buffer == null || buffer.isEmpty()) {
+            return sentences;
+        }
+
+        int sentenceStart = 0;
+        for (int i = 0; i < buffer.length(); i++) {
+            if (!isTtsSentenceBoundary(buffer.charAt(i))) {
+                continue;
+            }
+            String sentence = buffer.substring(sentenceStart, i + 1).trim();
+            if (!sentence.isBlank()) {
+                sentences.add(sentence);
+            }
+            sentenceStart = i + 1;
+        }
+
+        if (flushRemainder) {
+            String tail = buffer.substring(sentenceStart).trim();
+            if (!tail.isBlank()) {
+                sentences.add(tail);
+            }
+            buffer.setLength(0);
+        } else if (sentenceStart > 0) {
+            buffer.delete(0, sentenceStart);
+        }
+
+        return sentences;
+    }
+
+    private boolean isTtsSentenceBoundary(char currentChar) {
+        return currentChar == '。'
+            || currentChar == '！'
+            || currentChar == '？'
+            || currentChar == '!'
+            || currentChar == '?'
+            || currentChar == ';'
+            || currentChar == '；';
+    }
+
+    private boolean shouldSkipTtsSentence(String sentence) {
+        if (sentence == null || sentence.isBlank()) {
+            return true;
+        }
+
+        String normalized = sentence.trim()
+            .replaceAll("[。.!！?？；;]+$", "")
+            .trim();
+        return TRIAGE_TTS_EXCLUDED_DISCLAIMER.equals(normalized);
+    }
+
+    private boolean shouldDeferSentenceLevelTts(String agentType, String sentence) {
+        if (!"TRIAGE".equals(agentType) || sentence == null || sentence.isBlank()) {
+            return false;
+        }
+
+        String normalized = sentence.toLowerCase();
+        return APPOINTMENT_SUCCESS_PATTERN.matcher(sentence).find()
+            || APPOINTMENT_ID_PATTERN.matcher(sentence).find()
+            || containsAny(normalized, "现在为您创建预约", "为您创建预约", "创建预约");
+    }
+
+    private void scheduleTtsSynthesis(Sinks.Many<SseMessageVO> ttsSink,
+                                      AtomicInteger pendingTtsTasks,
+                                      AtomicBoolean ttsSchedulingComplete,
+                                      AtomicReference<ChatMessage> assistantMessageRef,
+                                      AtomicReference<String> firstTtsUrlRef,
+                                      Long sessionId,
+                                      String sentence,
+                                      int segmentIndex,
+                                      Integer totalSegments,
+                                      Map<String, Object> metadata) {
+        if (sentence == null || sentence.isBlank()) {
+            return;
+        }
+
+        pendingTtsTasks.incrementAndGet();
+        Mono.fromCallable(() -> buildTtsEvent(sentence, segmentIndex, totalSegments, metadata, sessionId))
+            .subscribeOn(Schedulers.boundedElastic())
+            .timeout(Duration.ofSeconds(30))
+            .subscribe(event -> {
+                if (event.getTtsUrl() != null
+                    && !event.getTtsUrl().isBlank()
+                    && firstTtsUrlRef.compareAndSet(null, event.getTtsUrl())) {
+                    ChatMessage assistantMessage = assistantMessageRef.get();
+                    if (assistantMessage != null) {
+                        assistantMessage.setTtsUrl(event.getTtsUrl());
+                        messageMapper.updateById(assistantMessage);
+                    }
+                }
+                ttsSink.tryEmitNext(event);
+            }, error -> {
+                Tracer.trace(error);
+                log.error("TTS 合成失败, sessionId={}: {}", sessionId, error.getMessage(), error);
+                SseMessageVO ttsError = new SseMessageVO();
+                ttsError.setType("tts_error");
+                ttsError.setContent("TTS 超时");
+                ttsError.setSegmentIndex(segmentIndex);
+                ttsError.setTotalSegments(totalSegments);
+                ttsSink.tryEmitNext(ttsError);
+            }, () -> {
+                if (pendingTtsTasks.decrementAndGet() == 0 && ttsSchedulingComplete.get()) {
+                    ttsSink.tryEmitComplete();
+                }
+            });
+    }
+
+    private SseMessageVO buildTtsEvent(String sentence,
+                                       int segmentIndex,
+                                       Integer totalSegments,
+                                       Map<String, Object> metadata,
+                                       Long sessionId) {
+        String ttsUrl = ttsService.synthesize(sentence);
+        if (ttsUrl == null || ttsUrl.isBlank()) {
+            SseMessageVO error = new SseMessageVO();
+            error.setType("tts_error");
+            error.setContent("TTS 合成失败");
+            error.setSegmentIndex(segmentIndex);
+            error.setTotalSegments(totalSegments);
+            return error;
+        }
+
+        SseMessageVO tts = new SseMessageVO();
+        tts.setType("tts");
+        tts.setTtsUrl(ttsUrl);
+        tts.setMetadata(metadata);
+        tts.setSegmentIndex(segmentIndex);
+        tts.setTotalSegments(totalSegments);
+        log.info("TTS: 分段下发, sessionId={}, segmentIndex={}, totalSegments={}, text={}",
+            sessionId,
+            segmentIndex,
+            totalSegments,
+            sentence.length() > 60 ? sentence.substring(0, 60) + "..." : sentence);
+        return tts;
     }
 
     private String writeMetadataJson(Map<String, Object> metadata) {

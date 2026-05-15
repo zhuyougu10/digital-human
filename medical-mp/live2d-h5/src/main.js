@@ -423,7 +423,9 @@ async function bootstrap() {
                   ttsUrl: payload.ttsUrl,
                   fileName: fileName
                 })
-                ttsTotalSegments = payload.totalSegments || 1
+                if (typeof payload.totalSegments === 'number' && payload.totalSegments > 0) {
+                  ttsTotalSegments = payload.totalSegments
+                }
                 
                 // 保证顺序并尝试播放
                 ttsQueue.sort((a, b) => a.segmentIndex - b.segmentIndex)
@@ -433,6 +435,9 @@ async function bootstrap() {
               console.warn('[H5] TTS 合成失败:', payload.content)
             } else if (payload.type === 'complete') {
               // 确保最终渲染完整内容
+              if (typeof payload.totalSegments === 'number' && payload.totalSegments > 0) {
+                ttsTotalSegments = payload.totalSegments
+              }
               updateAiBubble()
               // 增强展示卡片
               enhanceBubbleWithCards(currentAiBubble, currentFullText)
