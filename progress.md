@@ -1,5 +1,10 @@
 # 进度日志
 
+## 2026-05-16 10:41:29 [DONE] 小程序发送按钮解锁时机调整
+- 根因：`medical-mp/src/pages/chat/chat.vue` 原先只在 SSE `onComplete` 中释放 `isSending`，而该连接会继续承载 TTS 事件，导致按钮要等 TTS 返回/流结束后才能再次发送。
+- 修复：收到文本完成事件 `payload.type === 'complete'` 后立即释放发送锁；SSE `onComplete` 保留为兜底；同时增加 `activeSendTurnId` 轮次校验，避免上一轮 SSE 收尾影响下一轮发送状态。
+- 验证：`npm run type-check --prefix medical-mp` 通过。
+
 ## 2026-05-12
 - 已创建本次 UniApp 重构的计划与发现记录文件。
 - 已启动后台探查任务，等待项目结构与视觉问题总结。

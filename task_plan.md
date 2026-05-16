@@ -19,6 +19,11 @@
 - [x] 修复 `doctor-service` / `appointment-service` 的 Seata 启动失败问题。
 - [x] 定位并修复 `medical-admin-web` 的 `/api/api/...` 请求路径问题（源码修复 + 运行容器热修补）。
 
+### 4. 小程序聊天发送解锁
+- [x] 将发送按钮解锁时机从 SSE/TTS 流结束调整为文本 `complete` 返回后立即解锁。
+- [x] 增加发送轮次校验，避免上一轮 SSE 收尾误释放下一轮发送状态。
+- [x] 完成 `medical-mp` 类型检查验证。
+
 ## 当前遗留注意事项
 - `medical-admin-web` 当前运行实例包含容器内热修补；后续重新 build 镜像时，需要确保新 bundle 带上最新源码修复。
 - `medical-admin` 的 Docker 重建曾受镜像拉取网络问题影响，若后续重建失败需优先检查镜像源可达性。

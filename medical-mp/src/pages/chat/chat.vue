@@ -156,6 +156,7 @@ let currentPlayIndex = 0
 // ---- SSE 流式状态 ----
 let currentAiMessageIndex = -1
 let currentFullText = ''
+let activeSendTurnId = 0
 
 const activeSuggestionOwnerIndex = computed(() => getActiveSuggestionOwnerIndex(messages.value))
 
@@ -314,6 +315,14 @@ const scrollToBottom = () => {
   })
 }
 
+const releaseSendLock = (turnId) => {
+  if (turnId !== activeSendTurnId) return
+  isSending.value = false
+  isThinking.value = false
+  statusText.value = '正在为您服务...'
+  currentAiMessageIndex = -1
+}
+
 const handleSend = () => {
   const text = inputText.value.trim()
   if (!text || isSending.value) return
@@ -326,6 +335,7 @@ const handleSend = () => {
 const sendToBackend = (text) => {
   if (!sessionId.value) return
 
+  const sendTurnId = ++activeSendTurnId
   isSending.value = true
   isThinking.value = true
   statusText.value = '正在思考...'
@@ -410,11 +420,13 @@ const sendToBackend = (text) => {
             if (typeof payload.totalSegments === 'number' && payload.totalSegments > 0) {
               ttsTotalSegments = payload.totalSegments
             }
+            releaseSendLock(sendTurnId)
           } else if (payload.type === 'error') {
             currentFullText += payload.content || '服务暂时不可用'
             if (currentAiMessageIndex >= 0) {
               updateMessageContent(currentAiMessageIndex, currentFullText)
             }
+            releaseSendLock(sendTurnId)
           }
         } catch (e) {
           // 非 JSON，当作纯文本 token
@@ -426,20 +438,14 @@ const sendToBackend = (text) => {
         }
       },
       onComplete: () => {
-        isSending.value = false
-        isThinking.value = false
-        statusText.value = '正在为您服务...'
-        currentAiMessageIndex = -1
+        releaseSendLock(sendTurnId)
       },
       onError: (err) => {
         console.error('[Chat] SSE 请求失败:', err)
-        isSending.value = false
-        isThinking.value = false
-        statusText.value = '正在为您服务...'
-        if (currentAiMessageIndex >= 0 && !currentFullText) {
+        if (sendTurnId === activeSendTurnId && currentAiMessageIndex >= 0 && !currentFullText) {
           updateMessageContent(currentAiMessageIndex, '抱歉，服务暂时不可用，请稍后重试')
         }
-        currentAiMessageIndex = -1
+        releaseSendLock(sendTurnId)
       }
     }
   )
