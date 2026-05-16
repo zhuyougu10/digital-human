@@ -17,6 +17,7 @@ import com.medical.doctor.mapper.ScheduleSlotMapper;
 import com.medical.doctor.mapper.ScheduleTemplateMapper;
 import java.time.LocalDate;
 import java.util.List;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -33,6 +34,11 @@ class ScheduleServiceSentinelTest {
                 mock(DoctorProfileMapper.class),
                 mock(DoctorDepartmentMapper.class),
                 mock(RedisUtil.class));
+    }
+
+    @AfterEach
+    void tearDown() {
+        ParamFlowRuleManager.loadRules(List.of());
     }
 
     @Test

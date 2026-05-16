@@ -221,7 +221,7 @@ class DoctorProfileServiceImplTest {
 
         when(doctorProfileMapper.selectList(any())).thenReturn(List.of());
         when(departmentMapper.selectList(argThat(wrapper -> wrapper != null))).thenReturn(List.of(internalMedicine));
-        when(doctorDepartmentMapper.selectList(argThat(wrapper -> wrapper != null))).thenReturn(List.of(relation), List.of());
+        when(doctorDepartmentMapper.selectList(argThat(wrapper -> wrapper != null))).thenReturn(List.of(relation), List.of(relation));
         when(doctorProfileMapper.selectBatchIds(List.of(2L))).thenReturn(List.of(mappedDoctor));
         when(departmentMapper.selectBatchIds(any(Collection.class))).thenReturn(List.of(internalMedicine));
 

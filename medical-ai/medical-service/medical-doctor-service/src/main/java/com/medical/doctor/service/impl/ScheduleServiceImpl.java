@@ -175,6 +175,7 @@ public class ScheduleServiceImpl implements ScheduleService {
     }
 
     @Override
+    @Transactional
     public List<ScheduleSlotVO> getAvailableSlots(Long doctorId, LocalDate date) {
         final Entry sentinelEntry;
         try {
@@ -197,9 +198,12 @@ public class ScheduleServiceImpl implements ScheduleService {
                             .eq(ScheduleSlot::getStatus, 0)
                             .orderByAsc(ScheduleSlot::getStartTime));
             if (slots.isEmpty()) {
-                redisUtil.set(cacheKey, Collections.emptyList(),
-                        DoctorCacheConstants.SCHEDULE_SLOTS_TTL_SECONDS, TimeUnit.SECONDS);
-                return Collections.emptyList();
+                slots = materializeSlotsFromTemplatesIfMissing(doctorId, date);
+                if (slots.isEmpty()) {
+                    redisUtil.set(cacheKey, Collections.emptyList(),
+                            DoctorCacheConstants.SCHEDULE_SLOTS_TTL_SECONDS, TimeUnit.SECONDS);
+                    return Collections.emptyList();
+                }
             }
             DoctorProfile doctor = doctorProfileMapper.selectById(doctorId);
             String doctorName = doctor == null ? "" : doctor.getName();
@@ -211,6 +215,44 @@ public class ScheduleServiceImpl implements ScheduleService {
         } finally {
             sentinelEntry.exit();
         }
+    }
+
+    private List<ScheduleSlot> materializeSlotsFromTemplatesIfMissing(Long doctorId, LocalDate date) {
+        List<ScheduleSlot> existingSlots = scheduleSlotMapper.selectList(
+                new LambdaQueryWrapper<ScheduleSlot>()
+                        .eq(ScheduleSlot::getDoctorId, doctorId)
+                        .eq(ScheduleSlot::getScheduleDate, date)
+                        .orderByAsc(ScheduleSlot::getStartTime));
+        if (!existingSlots.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        int dayOfWeek = convertDayOfWeek(date.getDayOfWeek());
+        List<ScheduleTemplate> templates = scheduleTemplateMapper.selectList(
+                new LambdaQueryWrapper<ScheduleTemplate>()
+                        .eq(ScheduleTemplate::getDoctorId, doctorId)
+                        .eq(ScheduleTemplate::getDayOfWeek, dayOfWeek)
+                        .eq(ScheduleTemplate::getStatus, 0)
+                        .orderByAsc(ScheduleTemplate::getStartTime));
+        if (templates.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<ScheduleSlot> generatedSlots = new ArrayList<>();
+        for (ScheduleTemplate template : templates) {
+            ScheduleSlot slot = new ScheduleSlot();
+            slot.setDoctorId(template.getDoctorId());
+            slot.setScheduleDate(date);
+            slot.setPeriod(template.getPeriod());
+            slot.setStartTime(template.getStartTime());
+            slot.setEndTime(template.getEndTime());
+            slot.setTotalSlots(template.getMaxPatients() == null ? 0 : template.getMaxPatients());
+            slot.setBookedSlots(0);
+            slot.setStatus(0);
+            scheduleSlotMapper.insert(slot);
+            generatedSlots.add(slot);
+        }
+        return generatedSlots;
     }
 
     @Override

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -26,6 +27,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
@@ -139,6 +141,62 @@ class ScheduleServiceImplTest {
         assertEquals(1, result.size());
         assertEquals("Dr. Li", result.get(0).getDoctorName());
         verify(redisUtil).set("schedule:slots:3:2026-03-10", result, 60L, TimeUnit.SECONDS);
+    }
+
+    @Test
+    void getAvailableSlots_shouldMaterializeSlotsFromActiveTemplateWhenRowsAreMissing() {
+        LocalDate date = LocalDate.of(2026, 5, 18);
+        ScheduleTemplate morningTemplate = new ScheduleTemplate();
+        morningTemplate.setDoctorId(4L);
+        morningTemplate.setDayOfWeek(1);
+        morningTemplate.setPeriod("morning");
+        morningTemplate.setStartTime(LocalTime.of(8, 0));
+        morningTemplate.setEndTime(LocalTime.of(12, 0));
+        morningTemplate.setMaxPatients(20);
+        morningTemplate.setStatus(0);
+        ScheduleTemplate afternoonTemplate = new ScheduleTemplate();
+        afternoonTemplate.setDoctorId(4L);
+        afternoonTemplate.setDayOfWeek(1);
+        afternoonTemplate.setPeriod("afternoon");
+        afternoonTemplate.setStartTime(LocalTime.of(14, 0));
+        afternoonTemplate.setEndTime(LocalTime.of(18, 0));
+        afternoonTemplate.setMaxPatients(20);
+        afternoonTemplate.setStatus(0);
+        DoctorProfile doctor = new DoctorProfile();
+        doctor.setId(4L);
+        doctor.setName("赵六");
+
+        when(redisUtil.get("schedule:slots:4:2026-05-18")).thenReturn(null);
+        when(scheduleSlotMapper.selectList(any()))
+                .thenReturn(Collections.emptyList())
+                .thenReturn(Collections.emptyList());
+        when(scheduleTemplateMapper.selectList(any())).thenReturn(List.of(morningTemplate, afternoonTemplate));
+        when(doctorProfileMapper.selectById(4L)).thenReturn(doctor);
+
+        List<ScheduleSlotVO> result = scheduleService.getAvailableSlots(4L, date);
+
+        assertEquals(2, result.size());
+        assertEquals("赵六", result.get(0).getDoctorName());
+        assertEquals("morning", result.get(0).getPeriod());
+        assertEquals(20, result.get(0).getAvailableSlots());
+        ArgumentCaptor<ScheduleSlot> slotCaptor = ArgumentCaptor.forClass(ScheduleSlot.class);
+        verify(scheduleSlotMapper, times(2)).insert(slotCaptor.capture());
+        List<ScheduleSlot> insertedSlots = slotCaptor.getAllValues();
+        ScheduleSlot insertedMorning = insertedSlots.get(0);
+        assertEquals(4L, insertedMorning.getDoctorId());
+        assertEquals(date, insertedMorning.getScheduleDate());
+        assertEquals("morning", insertedMorning.getPeriod());
+        assertEquals(20, insertedMorning.getTotalSlots());
+        assertEquals(0, insertedMorning.getBookedSlots());
+        assertEquals(0, insertedMorning.getStatus());
+        ScheduleSlot insertedAfternoon = insertedSlots.get(1);
+        assertEquals(4L, insertedAfternoon.getDoctorId());
+        assertEquals(date, insertedAfternoon.getScheduleDate());
+        assertEquals("afternoon", insertedAfternoon.getPeriod());
+        assertEquals(20, insertedAfternoon.getTotalSlots());
+        assertEquals(0, insertedAfternoon.getBookedSlots());
+        assertEquals(0, insertedAfternoon.getStatus());
+        verify(redisUtil).set("schedule:slots:4:2026-05-18", result, 60L, TimeUnit.SECONDS);
     }
 
     @Test

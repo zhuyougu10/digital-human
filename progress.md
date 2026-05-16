@@ -1,5 +1,16 @@
 # 进度日志
 
+## 2026-05-16 11:02:00 [NEEDS_CONTEXT] 号源查询返回空排查假设
+- 现象：小程序/AI 查询赵六医生 2026-05-18（周一）提示没有可预约号源，但数据库存在赵六医生周一启用排班模板。
+- 栈路：AI `DoctorSearchTool.getAvailableSlots` -> Feign `RemoteScheduleService.getAvailableSlots` -> doctor-service `/schedule/inner/slots` -> `ScheduleServiceImpl.getAvailableSlots`。
+- 数据验证：`doctor_profile` 中赵六 doctorId=4；`schedule_template` 中 doctorId=4、day_of_week=1 有 morning/afternoon 启用模板；`schedule_slot` 中 doctorId=4、schedule_date=2026-05-18 没有每日号源行；直连 `http://localhost:8082/schedule/slots?doctorId=4&date=2026-05-18` 返回空数组。
+- 假设：当前服务只查每日 `schedule_slot`，当未来日期尚未由定时任务/手工生成每日行时，没有按周模板即时物化，导致“有排班模板但查不到号源”。
+
+## 2026-05-16 11:08:00 [DONE] 预约号源查询修复
+- 修复：`ScheduleServiceImpl.getAvailableSlots` 在当天没有任何 `schedule_slot` 行时，会读取该医生当天星期的启用 `schedule_template`，即时生成每日号源并返回，同时缓存结果；若当天已有号源行但均不可约，则仍返回空，避免重复生成。
+- 测试：新增 `getAvailableSlots_shouldMaterializeSlotsFromActiveTemplateWhenRowsAreMissing`，先红后绿；同时修复 `ScheduleServiceSentinelTest` 清理 Sentinel 规则、`DoctorProfileServiceImplTest` 科室关系桩数据，保证 doctor-service 全量测试可稳定通过。
+- 验证：`mvn test -pl medical-service/medical-doctor-service -f medical-ai/pom.xml` 通过；`mvn test -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml "-Dtest=DoctorSearchToolTest" "-Dsurefire.failIfNoSpecifiedTests=false"` 通过。
+
 ## 2026-05-16 10:41:29 [DONE] 小程序发送按钮解锁时机调整
 - 根因：`medical-mp/src/pages/chat/chat.vue` 原先只在 SSE `onComplete` 中释放 `isSending`，而该连接会继续承载 TTS 事件，导致按钮要等 TTS 返回/流结束后才能再次发送。
 - 修复：收到文本完成事件 `payload.type === 'complete'` 后立即释放发送锁；SSE `onComplete` 保留为兜底；同时增加 `activeSendTurnId` 轮次校验，避免上一轮 SSE 收尾影响下一轮发送状态。
