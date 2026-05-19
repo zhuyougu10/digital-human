@@ -269,6 +269,84 @@ class ChatServiceImplTest {
     }
 
     @Test
+    void chat_shouldAcceptVerifiedAppointmentIdWhenAssistantReplyOmitsDoctorId() {
+        ChatSession session = new ChatSession();
+        session.setId(1L);
+        session.setUserId(38L);
+        session.setAgentType("TRIAGE");
+        session.setTitle("鏂板璇?");
+        when(sessionMapper.selectById(1L)).thenReturn(session);
+        when(messageMapper.selectList(any())).thenReturn(Collections.emptyList());
+
+        Agent agent = mock(Agent.class);
+        when(agentFactory.getAgent("TRIAGE")).thenReturn(agent);
+        when(agent.getToolNames()).thenReturn(Collections.emptyList());
+        when(agent.getSystemPrompt()).thenReturn("triage-system");
+        when(agent.getAgentType()).thenReturn("TRIAGE");
+
+        String assistantText = "\u9884\u7ea6\u6210\u529f\uff0c\u9884\u7ea6\u7f16\u53f7\uff1a101";
+        when(chatModel.stream(any(Prompt.class))).thenReturn(Flux.just(mockChatResponse(assistantText)));
+
+        AppointmentDTO appointment = new AppointmentDTO();
+        appointment.setId(101L);
+        appointment.setPatientId(38L);
+        appointment.setSessionId(1L);
+        when(remoteAppointmentService.getAppointmentSnapshot(101L)).thenReturn(R.ok(appointment));
+        when(ttsService.synthesize(any())).thenReturn("/ai/chat/tts/verified-appointment.mp3");
+
+        List<SseMessageVO> events = chatService.chat(1L, 38L, "confirm")
+                .take(3)
+                .collectList()
+                .block(Duration.ofSeconds(1));
+
+        assertNotNull(events);
+        SseMessageVO complete = findFirstEventByType(events, "complete");
+        assertNotNull(complete);
+        assertEquals(assistantText, complete.getContent());
+        verify(remoteAppointmentService).getAppointmentSnapshot(101L);
+        verify(remoteAppointmentService, never()).createAppointment(any(), any(), any(), any());
+    }
+
+    @Test
+    void chat_shouldVerifyAppointmentIdFromNumericCandidatesWhenLabelVaries() {
+        ChatSession session = new ChatSession();
+        session.setId(1L);
+        session.setUserId(38L);
+        session.setAgentType("TRIAGE");
+        session.setTitle("鏂板璇?");
+        when(sessionMapper.selectById(1L)).thenReturn(session);
+        when(messageMapper.selectList(any())).thenReturn(Collections.emptyList());
+
+        Agent agent = mock(Agent.class);
+        when(agentFactory.getAgent("TRIAGE")).thenReturn(agent);
+        when(agent.getToolNames()).thenReturn(Collections.emptyList());
+        when(agent.getSystemPrompt()).thenReturn("triage-system");
+        when(agent.getAgentType()).thenReturn("TRIAGE");
+
+        String assistantText = "\u9884\u7ea6\u6210\u529f\uff0c2026\u5e745\u670825\u65e5\u4e0a\u5348\uff0c\u6302\u53f7\u8d390\u5143\uff0c\u9884\u7ea6\u5355\u53f7\uff1a101";
+        when(chatModel.stream(any(Prompt.class))).thenReturn(Flux.just(mockChatResponse(assistantText)));
+
+        AppointmentDTO appointment = new AppointmentDTO();
+        appointment.setId(101L);
+        appointment.setPatientId(38L);
+        appointment.setSessionId(1L);
+        when(remoteAppointmentService.getAppointmentSnapshot(101L)).thenReturn(R.ok(appointment));
+        when(ttsService.synthesize(any())).thenReturn("/ai/chat/tts/verified-candidate.mp3");
+
+        List<SseMessageVO> events = chatService.chat(1L, 38L, "confirm")
+                .take(3)
+                .collectList()
+                .block(Duration.ofSeconds(1));
+
+        assertNotNull(events);
+        SseMessageVO complete = findFirstEventByType(events, "complete");
+        assertNotNull(complete);
+        assertEquals(assistantText, complete.getContent());
+        verify(remoteAppointmentService).getAppointmentSnapshot(101L);
+        verify(remoteAppointmentService, never()).createAppointment(any(), any(), any(), any());
+    }
+
+    @Test
     void endSession_shouldGenerateTriageSummaryWithAppointmentIdWhenSessionBound() {
         ChatSession session = new ChatSession();
         session.setId(1L);

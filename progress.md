@@ -1,5 +1,14 @@
 # 进度日志
 
+## 2026-05-20 00:45:00 [DONE] 使用指定患者 token 复测并修复预约成功文案误判
+- 复测 token：指定患者 token 对应 `userId=4`，真实网关路径为 `/api/ai/chat/**`、`/api/appointment/appointment/**`。
+- 复现：`sessionId=250/251/252` 中 AI 工具实际创建预约 `appointmentId=79/80/81`，患者端和医生端均可见，摘要也能绑定预约，但最终 assistant 回复被守卫改写为“尚未成功创建预约”。
+- 根因：真实模型成功文案可能只包含“预约编号：xx”，不包含 `doctorId`，原守卫只能按 `doctorId + slotId` 反查，且首次补的 appointmentId 正则未覆盖真实中文变体。
+- 修复：`ChatServiceImpl` 在无 tool 落库消息时，先从成功文案中解析/候选提取预约编号，按预约快照校验 `patientId` 和 `sessionId`，验证通过则保留成功文案；保留原 `patientId + slotId` 兜底创建/绑定逻辑。
+- 验证：新增 `chat_shouldAcceptVerifiedAppointmentIdWhenAssistantReplyOmitsDoctorId`、`chat_shouldVerifyAppointmentIdFromNumericCandidatesWhenLabelVaries`，并通过目标单测。
+- 真实复测：热更新并重启 `medical-ai-service` 后，使用同一 token 预约李四医生 `doctorId=2`、`slotId=463`、`2026-05-25 afternoon`，生成 `sessionId=253`、`appointmentId=82`；患者预约可见、医生预约列表可见、`summary/session/253` 与 `summary/appointment/82` 均返回 `appointmentId=82`，最终 AI 回复保留“预约已成功创建/预约编号：82”。
+- 备注：`docker compose build --no-cache ai-service` 本次超过 15 分钟卡住，已停止卡住的构建进程；为完成复测，采用本地 Maven 打包后复制 jar 到运行容器并重启的方式热更新。
+
 ## 2026-05-19 23:45:00 [DONE] 导诊预约链路修复并完成真实流程复测
 - 修复：AI 创建预约时传递 `sessionId`，预约服务保存 `appointment.session_id`；会话结束时根据 `sessionId` 反查预约并生成带 `appointmentId` 的导诊摘要。
 - 修复：当 Spring AI 工具调用已真实创建预约但未持久化 `role=tool/toolName=createAppointment` 消息时，`ChatServiceImpl` 会按患者和号源反查既有预约并绑定会话，不再把真实成功误判为“模型假成功”。

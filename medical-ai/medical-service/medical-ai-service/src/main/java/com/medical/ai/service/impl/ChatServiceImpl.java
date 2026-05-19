@@ -65,6 +65,8 @@ public class ChatServiceImpl implements ChatService {
 
     public static final String CHAT_STREAM_RESOURCE = "svc:ai:chatStream";
     private static final int MAX_CONTEXT_MESSAGES = 20;
+    private static final Pattern APPOINTMENT_ID_VALUE_PATTERN = Pattern.compile("(?:appointmentId|\u9884\u7ea6ID|\u9884\u7ea6\u7f16\u53f7)\\s*[:\uFF1A=]?\\s*(\\d+)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern NUMBER_PATTERN = Pattern.compile("\\d+");
     private static final String DEFAULT_SESSION_TITLE = "新对话";
     private static final Pattern APPOINTMENT_SUCCESS_PATTERN = Pattern.compile("预约成功|成功创建了预约|已经为您成功创建了预约");
     private static final Pattern APPOINTMENT_ID_PATTERN = Pattern.compile("预约ID|appointmentId", Pattern.CASE_INSENSITIVE);
@@ -892,6 +894,13 @@ public class ChatServiceImpl implements ChatService {
             return assistantText;
         }
 
+        Long verifiedAppointmentId = findVerifiedAppointmentFromReply(userId, sessionId, assistantText);
+        if (verifiedAppointmentId != null) {
+            log.info("Guard verified existing appointment from assistant reply, sessionId={}, userMessageId={}, patientId={}, appointmentId={}",
+                    sessionId, userMessageId, userId, verifiedAppointmentId);
+            return assistantText;
+        }
+
         Long doctorId = extractLongByPattern(assistantText, DOCTOR_ID_PATTERN);
         Long slotId = extractLongByPattern(assistantText, SLOT_ID_PATTERN);
 
@@ -944,6 +953,71 @@ public class ChatServiceImpl implements ChatService {
         log.warn("Guarded potential fake appointment success reply, sessionId={}, userMessageId={}, assistantText={}",
                 sessionId, userMessageId, assistantText);
         return APPOINTMENT_GUARD_FALLBACK_REPLY;
+    }
+
+    private Long findVerifiedAppointmentFromReply(Long patientId, Long sessionId, String assistantText) {
+        if (patientId == null) {
+            return null;
+        }
+        Long appointmentId = extractLongByPattern(assistantText, APPOINTMENT_ID_VALUE_PATTERN);
+        Long verifiedAppointmentId = verifyAppointmentFromReply(patientId, sessionId, appointmentId);
+        if (verifiedAppointmentId != null) {
+            return verifiedAppointmentId;
+        }
+
+        List<Long> candidates = new ArrayList<>();
+        Matcher matcher = NUMBER_PATTERN.matcher(assistantText == null ? "" : assistantText);
+        while (matcher.find()) {
+            try {
+                candidates.add(Long.parseLong(matcher.group()));
+            } catch (NumberFormatException ignored) {
+                // Ignore numbers outside Long range.
+            }
+        }
+        for (int i = candidates.size() - 1; i >= 0; i--) {
+            verifiedAppointmentId = verifyAppointmentFromReply(patientId, sessionId, candidates.get(i));
+            if (verifiedAppointmentId != null) {
+                return verifiedAppointmentId;
+            }
+        }
+        return null;
+    }
+
+    private Long verifyAppointmentFromReply(Long patientId, Long sessionId, Long appointmentId) {
+        if (appointmentId == null) {
+            return null;
+        }
+        try {
+            R<AppointmentDTO> response = remoteAppointmentService.getAppointmentSnapshot(appointmentId);
+            if (response == null || !response.isSuccess() || response.getData() == null) {
+                return null;
+            }
+            AppointmentDTO appointment = response.getData();
+            if (!Objects.equals(appointment.getPatientId(), patientId)) {
+                log.warn("Assistant appointment id belongs to another patient, appointmentId={}, expectedPatientId={}, actualPatientId={}",
+                        appointmentId, patientId, appointment.getPatientId());
+                return null;
+            }
+            if (sessionId != null && appointment.getSessionId() == null) {
+                R<Void> bindResult = remoteAppointmentService.bindSession(appointmentId, sessionId);
+                if (bindResult == null || !bindResult.isSuccess()) {
+                    log.warn("Failed to bind assistant appointment id, appointmentId={}, sessionId={}, result={}",
+                            appointmentId, sessionId, bindResult);
+                    return null;
+                }
+                return appointmentId;
+            }
+            if (sessionId != null && !Objects.equals(appointment.getSessionId(), sessionId)) {
+                log.warn("Assistant appointment id belongs to another session, appointmentId={}, expectedSessionId={}, actualSessionId={}",
+                        appointmentId, sessionId, appointment.getSessionId());
+                return null;
+            }
+            return appointmentId;
+        } catch (Exception e) {
+            log.warn("Failed to verify assistant appointment id, appointmentId={}, patientId={}, sessionId={}, error={}",
+                    appointmentId, patientId, sessionId, e.getMessage());
+            return null;
+        }
     }
 
     private Long findAndBindExistingAppointment(Long patientId, Long slotId, Long sessionId) {
