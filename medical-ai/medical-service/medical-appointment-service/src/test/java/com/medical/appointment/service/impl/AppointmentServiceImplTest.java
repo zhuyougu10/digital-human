@@ -252,6 +252,44 @@ class AppointmentServiceImplTest {
     }
 
     @Test
+    void getAppointmentByPatientAndSlot_shouldReturnSessionAndSlotSnapshot() {
+        Appointment appointment = new Appointment();
+        appointment.setId(100L);
+        appointment.setPatientId(1L);
+        appointment.setDoctorId(2L);
+        appointment.setSlotId(4L);
+        appointment.setSessionId(9L);
+        appointment.setAppointmentDate(LocalDate.of(2026, 5, 21));
+        appointment.setStartTime(LocalTime.of(8, 0));
+        appointment.setEndTime(LocalTime.of(12, 0));
+        appointment.setStatus(0);
+
+        when(appointmentMapper.selectOne(any())).thenReturn(appointment);
+
+        var result = appointmentService.getAppointmentByPatientAndSlot(1L, 4L);
+
+        assertEquals(100L, result.getId());
+        assertEquals(4L, result.getSlotId());
+        assertEquals(9L, result.getSessionId());
+    }
+
+    @Test
+    void bindSession_shouldAttachSessionWhenAppointmentIsUnbound() {
+        Appointment appointment = new Appointment();
+        appointment.setId(100L);
+        appointment.setPatientId(1L);
+        appointment.setDoctorId(2L);
+        appointment.setSlotId(4L);
+
+        when(appointmentMapper.selectById(100L)).thenReturn(appointment);
+
+        appointmentService.bindSession(100L, 9L);
+
+        assertEquals(9L, appointment.getSessionId());
+        verify(appointmentMapper).updateById(appointment);
+    }
+
+    @Test
     void cancelAppointment_shouldWriteOutboxEventAfterStatusUpdateSucceeds() {
         Appointment appointment = new Appointment();
         appointment.setId(200L);

@@ -67,6 +67,17 @@ public class AppointmentController {
         return R.ok(appointmentService.getAppointmentSnapshot(id));
     }
 
+    @GetMapping("/inner/session/{sessionId}")
+    public R<AppointmentDTO> innerDetailBySession(@PathVariable("sessionId") Long sessionId) {
+        return R.ok(appointmentService.getAppointmentBySession(sessionId));
+    }
+
+    @GetMapping("/inner/patient-slot")
+    public R<AppointmentDTO> innerDetailByPatientAndSlot(@RequestParam("patientId") Long patientId,
+                                                         @RequestParam("slotId") Long slotId) {
+        return R.ok(appointmentService.getAppointmentByPatientAndSlot(patientId, slotId));
+    }
+
     @SaCheckLogin
     @PutMapping("/{id}/cancel")
     public R<Void> cancel(@PathVariable("id") Long id) {
@@ -103,5 +114,12 @@ public class AppointmentController {
         dto.setDepartmentId(departmentId == null ? 0L : departmentId);
         dto.setSessionId(sessionId);
         return R.ok(appointmentService.createAppointment(dto));
+    }
+
+    @PostMapping("/inner/{id}/session")
+    public R<Void> bindSession(@PathVariable("id") Long id,
+                               @RequestParam("sessionId") Long sessionId) {
+        appointmentService.bindSession(id, sessionId);
+        return R.ok();
     }
 }

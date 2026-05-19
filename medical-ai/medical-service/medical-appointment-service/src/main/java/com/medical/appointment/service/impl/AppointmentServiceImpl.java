@@ -229,10 +229,62 @@ public class AppointmentServiceImpl implements AppointmentService {
         if (appointment == null || Objects.equals(appointment.getDeleted(), 1)) {
             throw new BusinessException(ErrorCode.APPOINTMENT_NOT_FOUND);
         }
+        return toDTO(appointment);
+    }
+
+    @Override
+    public AppointmentDTO getAppointmentBySession(Long sessionId) {
+        Appointment appointment = appointmentMapper.selectOne(
+                new LambdaQueryWrapper<Appointment>()
+                        .eq(Appointment::getSessionId, sessionId)
+                        .eq(Appointment::getDeleted, 0)
+                        .orderByDesc(Appointment::getCreateTime)
+                        .last("LIMIT 1"));
+        if (appointment == null) {
+            return null;
+        }
+        return toDTO(appointment);
+    }
+
+    @Override
+    public AppointmentDTO getAppointmentByPatientAndSlot(Long patientId, Long slotId) {
+        Appointment appointment = appointmentMapper.selectOne(
+                new LambdaQueryWrapper<Appointment>()
+                        .eq(Appointment::getPatientId, patientId)
+                        .eq(Appointment::getSlotId, slotId)
+                        .eq(Appointment::getDeleted, 0)
+                        .orderByDesc(Appointment::getCreateTime)
+                        .last("LIMIT 1"));
+        if (appointment == null) {
+            return null;
+        }
+        return toDTO(appointment);
+    }
+
+    @Override
+    @Transactional
+    public void bindSession(Long appointmentId, Long sessionId) {
+        Appointment appointment = appointmentMapper.selectById(appointmentId);
+        if (appointment == null || Objects.equals(appointment.getDeleted(), 1)) {
+            throw new BusinessException(ErrorCode.APPOINTMENT_NOT_FOUND);
+        }
+        if (Objects.equals(appointment.getSessionId(), sessionId)) {
+            return;
+        }
+        if (appointment.getSessionId() != null) {
+            throw new BusinessException(ErrorCode.FAIL, "预约已绑定其他导诊会话");
+        }
+        appointment.setSessionId(sessionId);
+        appointmentMapper.updateById(appointment);
+    }
+
+    private AppointmentDTO toDTO(Appointment appointment) {
         AppointmentDTO dto = new AppointmentDTO();
         dto.setId(appointment.getId());
         dto.setPatientId(appointment.getPatientId());
         dto.setDoctorId(appointment.getDoctorId());
+        dto.setSlotId(appointment.getSlotId());
+        dto.setSessionId(appointment.getSessionId());
         dto.setAppointmentDate(appointment.getAppointmentDate());
         dto.setStartTime(appointment.getStartTime());
         dto.setEndTime(appointment.getEndTime());

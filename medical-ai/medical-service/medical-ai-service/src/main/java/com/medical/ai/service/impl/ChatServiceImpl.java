@@ -20,6 +20,7 @@ import com.medical.ai.service.ChatService;
 import com.medical.ai.service.SummaryService;
 import com.medical.ai.service.TtsService;
 import com.medical.api.appointment.RemoteAppointmentService;
+import com.medical.api.appointment.dto.AppointmentDTO;
 import com.medical.api.doctor.RemoteScheduleService;
 import com.medical.api.doctor.dto.SlotInfoDTO;
 import com.medical.common.core.domain.R;
@@ -287,7 +288,7 @@ public class ChatServiceImpl implements ChatService {
         sessionMapper.updateById(session);
         if ("TRIAGE".equals(session.getSessionType())) {
             try {
-                summaryService.generateSummary(sessionId, null);
+                summaryService.generateSummary(sessionId, resolveAppointmentIdForSession(sessionId));
             } catch (Exception e) {
                 log.warn("摘要生成失败: {}", e.getMessage());
             }
@@ -298,6 +299,18 @@ public class ChatServiceImpl implements ChatService {
     public void deleteSession(Long sessionId, Long userId) {
         assertSessionOwner(sessionId, userId);
         sessionMapper.deleteById(sessionId);
+    }
+
+    private Long resolveAppointmentIdForSession(Long sessionId) {
+        try {
+            R<AppointmentDTO> response = remoteAppointmentService.getAppointmentBySession(sessionId);
+            if (response != null && response.isSuccess() && response.getData() != null) {
+                return response.getData().getId();
+            }
+        } catch (Exception e) {
+            log.warn("Failed to resolve appointment for session {}: {}", sessionId, e.getMessage());
+        }
+        return null;
     }
 
     private ChatSession assertSessionOwner(Long sessionId, Long userId) {
@@ -320,7 +333,9 @@ public class ChatServiceImpl implements ChatService {
         String systemPrompt = agent.getSystemPrompt();
         if ("TRIAGE".equals(agent.getAgentType()) && userId != null) {
             systemPrompt += "\n\n当前患者信息：\n- patientId = " + userId
+                + "\n- sessionId = " + sessionId
                 + "\n在调用 createAppointment 工具时，请务必使用上面的 patientId。"
+                + "\n在调用 createAppointment 工具时，请务必使用上面的 sessionId。"
                 + "\n只有在 createAppointment 工具明确返回 success=true 且 appointmentId 非空时，才允许回复“预约成功”或输出预约ID；"
                 + "若未实际调用 createAppointment，或工具返回失败/缺少appointmentId，必须明确告知“尚未创建预约”，并引导用户重试。";
         }
@@ -897,12 +912,25 @@ public class ChatServiceImpl implements ChatService {
             }
             if (slotId != null) {
                 try {
-                    R<Long> createResult = remoteAppointmentService.createAppointment(userId, doctorId, slotId);
+                    Long existingAppointmentId = findAndBindExistingAppointment(userId, slotId, sessionId);
+                    if (existingAppointmentId != null) {
+                        log.info("Guard found existing appointment, sessionId={}, userMessageId={}, patientId={}, doctorId={}, slotId={}, appointmentId={}",
+                                sessionId, userMessageId, userId, doctorId, slotId, existingAppointmentId);
+                        return buildAutoCreateSuccessReply(assistantText, existingAppointmentId);
+                    }
+
+                    R<Long> createResult = remoteAppointmentService.createAppointment(userId, doctorId, slotId, sessionId);
                     if (createResult != null && createResult.isSuccess() && createResult.getData() != null) {
                         Long appointmentId = createResult.getData();
                         log.info("Guard fallback auto-created appointment, sessionId={}, userMessageId={}, patientId={}, doctorId={}, slotId={}, appointmentId={}",
                                 sessionId, userMessageId, userId, doctorId, slotId, appointmentId);
                         return buildAutoCreateSuccessReply(assistantText, appointmentId);
+                    }
+                    existingAppointmentId = findAndBindExistingAppointment(userId, slotId, sessionId);
+                    if (existingAppointmentId != null) {
+                        log.info("Guard recovered existing appointment after create failure, sessionId={}, userMessageId={}, patientId={}, doctorId={}, slotId={}, appointmentId={}, result={}",
+                                sessionId, userMessageId, userId, doctorId, slotId, existingAppointmentId, createResult);
+                        return buildAutoCreateSuccessReply(assistantText, existingAppointmentId);
                     }
                     log.warn("Guard fallback auto-create failed, sessionId={}, userMessageId={}, patientId={}, doctorId={}, slotId={}, result={}",
                             sessionId, userMessageId, userId, doctorId, slotId, createResult);
@@ -916,6 +944,31 @@ public class ChatServiceImpl implements ChatService {
         log.warn("Guarded potential fake appointment success reply, sessionId={}, userMessageId={}, assistantText={}",
                 sessionId, userMessageId, assistantText);
         return APPOINTMENT_GUARD_FALLBACK_REPLY;
+    }
+
+    private Long findAndBindExistingAppointment(Long patientId, Long slotId, Long sessionId) {
+        if (patientId == null || slotId == null) {
+            return null;
+        }
+        try {
+            R<AppointmentDTO> response = remoteAppointmentService.getAppointmentByPatientAndSlot(patientId, slotId);
+            if (response == null || !response.isSuccess() || response.getData() == null) {
+                return null;
+            }
+            AppointmentDTO appointment = response.getData();
+            if (sessionId != null && appointment.getId() != null && appointment.getSessionId() == null) {
+                R<Void> bindResult = remoteAppointmentService.bindSession(appointment.getId(), sessionId);
+                if (bindResult == null || !bindResult.isSuccess()) {
+                    log.warn("Failed to bind appointment session, appointmentId={}, sessionId={}, result={}",
+                            appointment.getId(), sessionId, bindResult);
+                }
+            }
+            return appointment.getId();
+        } catch (Exception e) {
+            log.warn("Failed to find existing appointment, patientId={}, slotId={}, sessionId={}, error={}",
+                    patientId, slotId, sessionId, e.getMessage());
+            return null;
+        }
     }
 
     private boolean isPotentialFakeSuccessReply(String text) {

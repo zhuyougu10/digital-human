@@ -10,6 +10,8 @@ public class AppointmentDTO {
     private Long id;
     private Long patientId;
     private Long doctorId;
+    private Long slotId;
+    private Long sessionId;
     private String doctorName;
     private String departmentName;
     private LocalDate appointmentDate;

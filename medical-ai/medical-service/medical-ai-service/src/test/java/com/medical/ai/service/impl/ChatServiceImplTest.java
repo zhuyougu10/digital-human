@@ -17,6 +17,7 @@ import com.medical.ai.mapper.ChatSessionMapper;
 import com.medical.ai.service.SummaryService;
 import com.medical.ai.service.TtsService;
 import com.medical.api.appointment.RemoteAppointmentService;
+import com.medical.api.appointment.dto.AppointmentDTO;
 import com.medical.api.doctor.RemoteScheduleService;
 import com.medical.api.doctor.dto.SlotInfoDTO;
 import com.medical.common.core.domain.R;
@@ -204,17 +205,85 @@ class ChatServiceImplTest {
         slot.setPeriod("afternoon");
         when(remoteScheduleService.getAvailableSlots(eq(2L), any())).thenReturn(R.ok(List.of(slot)));
 
-        when(remoteAppointmentService.createAppointment(38L, 2L, 475L)).thenReturn(R.ok(101L));
+        when(remoteAppointmentService.createAppointment(38L, 2L, 475L, 1L)).thenReturn(R.ok(101L));
         when(ttsService.synthesize(any())).thenReturn("/ai/chat/tts/auto-create.mp3");
 
         List<SseMessageVO> events = chatService.chat(1L, 38L, "帮我预约")
+                .takeUntil(event -> "complete".equals(event.getType()))
+                .collectList()
+                .block(Duration.ofSeconds(1));
+
+        assertNotNull(events);
+        SseMessageVO complete = findFirstEventByType(events, "complete");
+        assertNotNull(complete);
+        assertEquals("现在为您创建预约。好的，我已经为您成功创建了预约！\n预约ID：101\n医生doctorId:2，slotId为475", complete.getContent());
+    }
+
+    @Test
+    void chat_shouldAcceptExistingAppointmentWhenToolResultWasNotPersisted() {
+        ChatSession session = new ChatSession();
+        session.setId(1L);
+        session.setUserId(38L);
+        session.setAgentType("TRIAGE");
+        session.setTitle("new chat");
+        when(sessionMapper.selectById(1L)).thenReturn(session);
+        when(messageMapper.selectList(any())).thenReturn(Collections.emptyList(), Collections.emptyList());
+
+        Agent agent = mock(Agent.class);
+        when(agentFactory.getAgent("TRIAGE")).thenReturn(agent);
+        when(agent.getToolNames()).thenReturn(Collections.emptyList());
+        when(agent.getSystemPrompt()).thenReturn("triage-system");
+        when(agent.getAgentType()).thenReturn("TRIAGE");
+
+        when(chatModel.stream(any(Prompt.class))).thenReturn(Flux.just(
+                mockChatResponse("appointmentId: 999 doctorId:2 slotId:475")
+        ));
+
+        SlotInfoDTO slot = new SlotInfoDTO();
+        slot.setId(475L);
+        slot.setDoctorId(2L);
+        slot.setScheduleDate(LocalDate.now());
+        slot.setPeriod("morning");
+        when(remoteScheduleService.getAvailableSlots(eq(2L), any())).thenReturn(R.ok(List.of(slot)));
+
+        AppointmentDTO existing = new AppointmentDTO();
+        existing.setId(101L);
+        existing.setPatientId(38L);
+        existing.setDoctorId(2L);
+        existing.setSlotId(475L);
+        when(remoteAppointmentService.getAppointmentByPatientAndSlot(38L, 475L)).thenReturn(R.ok(existing));
+        when(remoteAppointmentService.bindSession(101L, 1L)).thenReturn(R.ok());
+        when(ttsService.synthesize(any())).thenReturn("/ai/chat/tts/existing-appointment.mp3");
+
+        List<SseMessageVO> events = chatService.chat(1L, 38L, "confirm")
                 .take(3)
                 .collectList()
                 .block(Duration.ofSeconds(1));
 
         assertNotNull(events);
-        assertEquals("complete", events.get(1).getType());
-        assertEquals("现在为您创建预约。好的，我已经为您成功创建了预约！\n预约ID：101\n医生doctorId:2，slotId为475", events.get(1).getContent());
+        SseMessageVO complete = findFirstEventByType(events, "complete");
+        assertNotNull(complete);
+        assertTrue(complete.getContent().contains("appointmentId: 101"));
+        verify(remoteAppointmentService).bindSession(101L, 1L);
+        verify(remoteAppointmentService, never()).createAppointment(38L, 2L, 475L, 1L);
+    }
+
+    @Test
+    void endSession_shouldGenerateTriageSummaryWithAppointmentIdWhenSessionBound() {
+        ChatSession session = new ChatSession();
+        session.setId(1L);
+        session.setUserId(38L);
+        session.setSessionType("TRIAGE");
+        when(sessionMapper.selectById(1L)).thenReturn(session);
+
+        AppointmentDTO appointment = new AppointmentDTO();
+        appointment.setId(101L);
+        appointment.setSessionId(1L);
+        when(remoteAppointmentService.getAppointmentBySession(1L)).thenReturn(R.ok(appointment));
+
+        chatService.endSession(1L, 38L);
+
+        verify(summaryService).generateSummary(1L, 101L);
     }
 
     @Test
@@ -247,7 +316,7 @@ class ChatServiceImplTest {
         afternoonSlot.setEndTime(LocalTime.of(18, 0));
 
         when(remoteScheduleService.getAvailableSlots(4L, "2026-04-16")).thenReturn(R.ok(List.of(afternoonSlot)));
-        when(remoteAppointmentService.createAppointment(38L, 4L, 418L)).thenReturn(R.ok(102L));
+        when(remoteAppointmentService.createAppointment(38L, 4L, 418L, 1L)).thenReturn(R.ok(102L));
         when(ttsService.synthesize(any())).thenReturn("/ai/chat/tts/auto-create-period.mp3");
 
         List<SseMessageVO> events = chatService.chat(1L, 38L, "下午")
@@ -625,7 +694,7 @@ class ChatServiceImplTest {
         assertEquals(1, ttsEvents.get(1).getSegmentIndex());
         assertEquals("/ai/chat/tts/seg-2.mp3", ttsEvents.get(1).getTtsUrl());
 
-        verify(messageMapper).updateById(argThat(hasTtsUrl("/ai/chat/tts/seg-2.mp3")));
+        verify(messageMapper).updateById(argThat(hasTtsUrl("/ai/chat/tts/seg-1.mp3")));
     }
 
     @Test

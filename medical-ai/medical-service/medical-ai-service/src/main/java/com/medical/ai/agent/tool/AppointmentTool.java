@@ -30,11 +30,11 @@ public class AppointmentTool {
     @Description("为患者创建预约挂号。输入patientId、doctorId、slotId。返回预约ID。")
     public Function<CreateAppointmentRequest, Map<String, Object>> createAppointment() {
         return request -> {
-            log.info("Function call: createAppointment, patientId={}, doctorId={}, slotId={}",
-                    request.getPatientId(), request.getDoctorId(), request.getSlotId());
+            log.info("Function call: createAppointment, patientId={}, doctorId={}, slotId={}, sessionId={}",
+                    request.getPatientId(), request.getDoctorId(), request.getSlotId(), request.getSessionId());
             return CompletableFuture.supplyAsync(() -> {
                 R<Long> result = remoteAppointmentService.createAppointment(
-                        request.getPatientId(), request.getDoctorId(), request.getSlotId());
+                        request.getPatientId(), request.getDoctorId(), request.getSlotId(), request.getSessionId());
                 if (result.isSuccess()) {
                     return Map.<String, Object>of("success", true, "appointmentId", result.getData());
                 }

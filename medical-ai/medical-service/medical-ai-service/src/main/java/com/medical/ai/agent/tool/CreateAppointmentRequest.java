@@ -7,4 +7,5 @@ public class CreateAppointmentRequest {
     private Long patientId;
     private Long doctorId;
     private Long slotId;
+    private Long sessionId;
 }

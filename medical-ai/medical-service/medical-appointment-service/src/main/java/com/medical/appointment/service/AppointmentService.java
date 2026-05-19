@@ -25,6 +25,12 @@ public interface AppointmentService {
 
     AppointmentDTO getAppointmentSnapshot(Long appointmentId);
 
+    AppointmentDTO getAppointmentBySession(Long sessionId);
+
+    AppointmentDTO getAppointmentByPatientAndSlot(Long patientId, Long slotId);
+
+    void bindSession(Long appointmentId, Long sessionId);
+
     PageResult<AppointmentListVO> listAll(AppointmentQueryDTO queryDTO, PageQuery pageQuery);
 
     Map<String, Object> getStatistics(LocalDate startDate, LocalDate endDate);
