@@ -35,6 +35,8 @@ public class TriageAppointmentFlowService {
     private static final Pattern SLOT_ID_PATTERN = Pattern.compile("slotId\\s*[:：=]?\\s*(\\d+)", Pattern.CASE_INSENSITIVE);
     private static final Pattern OPTION_SELECTION_PATTERN = Pattern.compile("(?:选|选择|第)\\s*(\\d+)\\s*(?:个|位|名)?");
     private static final Pattern DOCTOR_OPTION_PATTERN = Pattern.compile("(\\d+)\\.\\s*([^\\n（(]+).*?doctorId=(\\d+)");
+    private static final Pattern DOCTOR_OPTION_DISPLAY_PATTERN = Pattern.compile("(\\d+)\\.\\s*([^\\n（(]+)");
+    private static final Pattern CONFIRMATION_DOCTOR_PATTERN = Pattern.compile("医生[：:]\\s*([^（\\n]+)");
     private static final List<String> SYMPTOM_KEYWORDS = List.of(
             "咳嗽", "发热", "发烧", "感冒", "嗓子痛", "咽痛", "头痛", "头疼", "头晕", "眩晕",
             "胸痛", "胸闷", "腹痛", "胃痛", "皮疹", "失眠", "心悸", "鼻塞", "流涕", "恶心");
@@ -122,16 +124,12 @@ public class TriageAppointmentFlowService {
             reply.append(i + 1)
                     .append(". ")
                     .append(candidate.doctor().getName())
-                    .append("（doctorId=")
-                    .append(candidate.doctor().getId())
-                    .append("，")
+                    .append("（")
                     .append(nullToDash(candidate.doctor().getDepartmentNames()))
                     .append("，")
                     .append(nullToDash(candidate.doctor().getTitle()))
                     .append("，挂号费=")
                     .append(candidate.doctor().getConsultationFee() == null ? "系统当前显示挂号费为0元" : candidate.doctor().getConsultationFee() + "元")
-                    .append("，slotId=")
-                    .append(candidate.slot().getId())
                     .append("）\n");
         }
         reply.append("\n请回复“选1”或医生姓名。").append(DISCLAIMER);
@@ -158,16 +156,16 @@ public class TriageAppointmentFlowService {
 
     private String buildAppointmentConfirmationReply(SelectedDoctor selectedDoctor, SlotInfoDTO slot) {
         return "已为您选定医生和时间：\n\n"
-                + "- 医生：" + selectedDoctor.name() + "（doctorId=" + selectedDoctor.doctorId() + "）\n"
+                + "- 医生：" + selectedDoctor.name() + "\n"
                 + "- 就诊时间：" + slot.getScheduleDate() + " " + displayPeriod(slot.getPeriod())
                 + " " + slot.getStartTime() + "-" + slot.getEndTime() + "\n"
-                + "- 号源：slotId=" + slot.getId() + "，剩余 " + slot.getAvailableSlots() + " 个\n\n"
+                + "- 剩余号源：" + slot.getAvailableSlots() + " 个\n\n"
                 + "请回复“确认预约”，我就为您创建预约。" + DISCLAIMER;
     }
 
     private String buildAppointmentSuccessReply(SelectedDoctor selectedDoctor, SlotInfoDTO slot, Long appointmentId) {
         return "预约已成功创建！\n\n"
-                + "- 医生：" + selectedDoctor.name() + "（doctorId=" + selectedDoctor.doctorId() + "）\n"
+                + "- 医生：" + selectedDoctor.name() + "\n"
                 + "- 就诊时间：" + slot.getScheduleDate() + " " + displayPeriod(slot.getPeriod())
                 + " " + slot.getStartTime() + "-" + slot.getEndTime() + "\n"
                 + "- 预约编号：" + appointmentId + "\n\n"
@@ -223,11 +221,14 @@ public class TriageAppointmentFlowService {
         if (doctorId == null) {
             doctorId = resolveDoctorIdFromOption(context);
         }
-        if (doctorId == null) {
-            doctorId = resolveDoctorIdByName(context);
-        }
         if (doctorId == null && isConfirming(context.latestUserText()) && context.lastAssistantText().contains("确认预约")) {
             doctorId = extractLong(context.lastAssistantText(), DOCTOR_ID_PATTERN);
+        }
+        if (doctorId == null && isConfirming(context.latestUserText())) {
+            doctorId = resolveDoctorIdFromConfirmation(context);
+        }
+        if (doctorId == null) {
+            doctorId = resolveDoctorIdByName(context);
         }
         if (doctorId != null) {
             R<DoctorInfoDTO> response = remoteDoctorService.getDoctorById(doctorId);
@@ -245,6 +246,24 @@ public class TriageAppointmentFlowService {
             if (latestUserText.contains(option.name())) {
                 return option.doctorId();
             }
+        }
+        if (!latestUserText.isBlank()) {
+            R<DoctorInfoDTO> response = remoteDoctorService.getDoctorByName(latestUserText.trim());
+            if (response != null && response.isSuccess() && response.getData() != null) {
+                return response.getData().getId();
+            }
+        }
+        return null;
+    }
+
+    private Long resolveDoctorIdFromConfirmation(FlowContext context) {
+        Matcher matcher = CONFIRMATION_DOCTOR_PATTERN.matcher(context.lastAssistantText());
+        if (!matcher.find()) {
+            return null;
+        }
+        R<DoctorInfoDTO> response = remoteDoctorService.getDoctorByName(matcher.group(1).trim());
+        if (response != null && response.isSuccess() && response.getData() != null) {
+            return response.getData().getId();
         }
         return null;
     }
@@ -354,12 +373,27 @@ public class TriageAppointmentFlowService {
 
     private List<DoctorOption> extractDoctorOptions(String text) {
         List<DoctorOption> options = new ArrayList<>();
-        Matcher matcher = DOCTOR_OPTION_PATTERN.matcher(text == null ? "" : text);
+        String source = text == null ? "" : text;
+        Matcher matcher = DOCTOR_OPTION_PATTERN.matcher(source);
         while (matcher.find()) {
             options.add(new DoctorOption(
                     Integer.parseInt(matcher.group(1)),
                     matcher.group(2).trim(),
                     Long.parseLong(matcher.group(3))));
+        }
+        if (!options.isEmpty()) {
+            return options;
+        }
+        Matcher displayMatcher = DOCTOR_OPTION_DISPLAY_PATTERN.matcher(source);
+        while (displayMatcher.find()) {
+            String name = displayMatcher.group(2).trim();
+            R<DoctorInfoDTO> response = remoteDoctorService.getDoctorByName(name);
+            if (response != null && response.isSuccess() && response.getData() != null) {
+                options.add(new DoctorOption(
+                        Integer.parseInt(displayMatcher.group(1)),
+                        name,
+                        response.getData().getId()));
+            }
         }
         return options;
     }

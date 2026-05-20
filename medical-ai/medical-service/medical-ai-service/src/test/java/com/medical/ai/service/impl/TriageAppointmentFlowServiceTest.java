@@ -131,8 +131,11 @@ class TriageAppointmentFlowServiceTest {
                         user("想预约2026年5月25日上午")));
 
         assertTrue(result.reply().contains("请回复序号或医生姓名选择"));
-        assertTrue(result.reply().contains("doctorId=2"));
-        assertTrue(result.reply().contains("slotId=462"));
+        assertTrue(result.reply().contains("李四"));
+        assertTrue(result.reply().contains("内科"));
+        assertTrue(result.reply().contains("副主任医师"));
+        assertTrue(!result.reply().contains("doctorId"));
+        assertTrue(!result.reply().contains("slotId"));
         assertTrue(result.suggestedReplies().contains("选1"));
         verify(remoteDoctorService).searchBySymptom("咳嗽");
     }
@@ -141,6 +144,7 @@ class TriageAppointmentFlowServiceTest {
     void handle_shouldCreateAppointmentAfterDoctorSelectionAndConfirmation() {
         DoctorInfoDTO doctor = doctor(2L, "李四");
         SlotInfoDTO slot = slot(462L, 2L, "李四", "morning");
+        when(remoteDoctorService.getDoctorByName("李四")).thenReturn(R.ok(doctor));
         when(remoteDoctorService.getDoctorById(2L)).thenReturn(R.ok(doctor));
         when(remoteScheduleService.getAvailableSlots(2L, "2026-05-25")).thenReturn(R.ok(List.of(slot)));
         when(remoteAppointmentService.getAppointmentByPatientAndSlot(4L, 462L)).thenReturn(R.ok(null));
@@ -155,14 +159,16 @@ class TriageAppointmentFlowServiceTest {
                         user("没有其他症状"),
                         user("症状较轻，不影响日常活动"),
                         user("想预约2026年5月25日上午"),
-                        assistant("1. 李四（doctorId=2，内科，slotId=462）"),
+                        assistant("1. 李四（内科，副主任医师，挂号费=0.00元）"),
                         user("选1"),
-                        assistant("医生：李四（doctorId=2）\nslotId=462，请回复“确认预约”"),
+                        assistant("医生：李四\n就诊时间：2026-05-25 上午 08:00-12:00\n请回复“确认预约”"),
                         user("确认预约")));
 
         assertEquals(82L, result.appointmentId());
         assertTrue(result.reply().contains("预约已成功创建"));
         assertTrue(result.reply().contains("预约编号：82"));
+        assertTrue(!result.reply().contains("doctorId"));
+        assertTrue(!result.reply().contains("slotId"));
     }
 
     private ChatMessage user(String content) {

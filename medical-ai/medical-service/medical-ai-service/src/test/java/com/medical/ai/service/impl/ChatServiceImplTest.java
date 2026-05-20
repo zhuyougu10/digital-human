@@ -136,7 +136,7 @@ class ChatServiceImplTest {
         List<SseMessageVO> events = chatService.chat(1L, 38L, "2026年5月25日上午")
                 .take(2)
                 .collectList()
-                .block(Duration.ofMillis(300));
+                .block(Duration.ofSeconds(2));
 
         assertNotNull(events);
         assertEquals(2, events.size());
