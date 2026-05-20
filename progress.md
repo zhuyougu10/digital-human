@@ -1,5 +1,13 @@
 # 进度日志
 
+## 2026-05-20 21:04:00 [DONE] 导诊摘要完成后增加知识库判断与就医确认
+- 根因：摘要完整后流程仍会直接进入预约时间/查医生阶段，缺少“先检索知识库、给出疑似判断、再询问是否就医”的决策层，导致患者没有被明确告知初步判断，也无法选择先观察。
+- 修复：`TriageAppointmentFlowService` 在主诉、持续时间、伴随症状、严重程度、既往史完整后，先调用 `RemoteKnowledgeService.search` 检索知识库，生成“疑似与某类问题相关”的初步判断，并提供“需要就医/暂时先观察/帮我预约”气泡。
+- 修复：患者明确拒绝就医时停在观察建议，不再查医生；患者确认需要就医后，才继续进入预约时间、查医生、选医生、确认预约状态机。
+- 调整：`ChatServiceImpl` 在导诊摘要完整后即切入确定性状态机，由状态机负责知识库判断和后续预约，不再等用户先给预约时间才切换。
+- 调整：`TriageAgent` 工具列表加入 `searchKnowledge`，提示词明确病情完整后先检索知识库并询问是否就医，再进入预约工具链。
+- 验证：`mvn test -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml "-Dtest=TriageAgentTest,TriageAppointmentFlowServiceTest,ChatServiceImplTest" "-Dsurefire.failIfNoSpecifiedTests=false"` 通过，34 tests；`mvn clean package -DskipTests -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml` 通过；已热更新并重启 `medical-ai-service` 容器。
+
 ## 2026-05-20 14:48:00 [DONE] 导诊恢复为 Agent 自主追问和工具调用
 - 根因：上一版为了稳定性把 `TRIAGE` 强制短路到确定性状态机，`TriageAgent` 本身没有工具列表，只能按固定模板问答；这不符合“像人一样”的导诊体验，也限制了模型基于上下文自主判断和调用工具。
 - 修复：`TriageAgent` 恢复 `searchDoctorBySymptom`、`getAvailableSlots`、`createAppointment` 三个工具，并重写系统提示词，要求模型根据当前结构化导诊摘要自然追问、一次只问关键缺口、信息完整后再进入预约工具链。

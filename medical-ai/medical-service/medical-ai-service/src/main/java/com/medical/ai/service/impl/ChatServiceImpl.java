@@ -352,7 +352,7 @@ public class ChatServiceImpl implements ChatService {
     }
 
     private boolean shouldUseDeterministicAppointmentFlow(List<ChatMessage> messages, ConversationSummaryVO summary) {
-        return isTriageSummaryReadyForAppointment(summary) && isAppointmentFlowStarted(messages);
+        return isTriageSummaryReadyForAppointment(summary);
     }
 
     private boolean isTriageSummaryReadyForAppointment(ConversationSummaryVO summary) {

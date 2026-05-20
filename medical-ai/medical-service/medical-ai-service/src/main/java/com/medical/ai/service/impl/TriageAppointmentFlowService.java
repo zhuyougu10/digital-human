@@ -8,6 +8,9 @@ import com.medical.api.doctor.RemoteDoctorService;
 import com.medical.api.doctor.RemoteScheduleService;
 import com.medical.api.doctor.dto.DoctorInfoDTO;
 import com.medical.api.doctor.dto.SlotInfoDTO;
+import com.medical.api.knowledge.RemoteKnowledgeService;
+import com.medical.api.knowledge.dto.KnowledgeSearchRequest;
+import com.medical.api.knowledge.dto.KnowledgeSearchResult;
 import com.medical.common.core.domain.R;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -46,6 +49,7 @@ public class TriageAppointmentFlowService {
     private final RemoteDoctorService remoteDoctorService;
     private final RemoteScheduleService remoteScheduleService;
     private final RemoteAppointmentService remoteAppointmentService;
+    private final RemoteKnowledgeService remoteKnowledgeService;
 
     public TriageFlowResult handle(Long sessionId, Long patientId, List<ChatMessage> messages, ConversationSummaryVO summary) {
         FlowContext context = FlowContext.from(messages);
@@ -83,10 +87,30 @@ public class TriageAppointmentFlowService {
                     List.of("没有基础病和过敏史", "有高血压", "有药物过敏史"));
         }
 
+        if (!hasCareDecisionPrompt(context)) {
+            return new TriageFlowResult(buildCareDecisionPrompt(context, summary),
+                    null,
+                    List.of("需要就医", "暂时先观察", "帮我预约"));
+        }
+        if (declinesMedicalCare(context.latestUserText())) {
+            return new TriageFlowResult("""
+                    好的，您可以先观察病情变化，注意休息和补水。
+
+                    如果症状加重、持续不缓解，或出现高热、胸闷气短、剧烈疼痛等情况，请及时就医。""".strip() + DISCLAIMER,
+                    null,
+                    List.of("我想预约", "再问问症状", "结束"));
+        }
+        if (!wantsMedicalCare(context.latestUserText()) && !isAppointmentFlowInProgress(context)) {
+            return new TriageFlowResult("您是否需要我继续帮您预约医生就诊？"
+                    + DISCLAIMER,
+                    null,
+                    List.of("需要就医", "暂时先观察", "帮我预约"));
+        }
+
         AppointmentTime appointmentTime = extractAppointmentTime(context.allUserText());
         if (appointmentTime == null) {
             return new TriageFlowResult("""
-                    病情信息已经基本够用了。接下来请告诉我想预约的日期和时段。
+                    好的，我继续帮您预约。请告诉我想预约的日期和时段。
 
                     例如：2026年5月25日上午，或 2026-05-25 下午。""".strip() + DISCLAIMER,
                     null,
@@ -119,6 +143,124 @@ public class TriageAppointmentFlowService {
                     List.of("确认预约", "换个时间", "重新选择医生"));
         }
         return new TriageFlowResult(buildAppointmentSuccessReply(selectedDoctor, selectedSlot, appointmentId), appointmentId);
+    }
+
+    private String buildCareDecisionPrompt(FlowContext context, ConversationSummaryVO summary) {
+        String query = buildKnowledgeQuery(context.allUserText(), summary);
+        String assessment = searchKnowledgeAssessment(query);
+        if (!hasSummaryValue(assessment)) {
+            assessment = summary == null ? null : summary.getAiAssessment();
+        }
+        if (!hasSummaryValue(assessment) || isGenericAssessment(assessment)) {
+            assessment = "疑似与" + suspectedCondition(query) + "相关，建议结合后续变化和医生面诊进一步确认。";
+        }
+        return """
+                目前信息基本完整。结合您的描述和知识库资料，我的初步判断是：
+
+                %s
+
+                您需要我继续帮您预约医生就诊吗？""".strip().formatted(assessment) + DISCLAIMER;
+    }
+
+    private String buildKnowledgeQuery(String userText, ConversationSummaryVO summary) {
+        StringBuilder query = new StringBuilder();
+        if (summary != null) {
+            appendIfSummaryValue(query, summary.getChiefComplaint());
+            appendIfSummaryValue(query, summary.getSymptoms());
+            appendIfSummaryValue(query, summary.getDuration());
+            appendIfSummaryValue(query, summary.getSeverity());
+            appendIfSummaryValue(query, summary.getMedicalHistory());
+        }
+        if (query.isEmpty() && userText != null) {
+            query.append(userText);
+        }
+        return query.toString().trim();
+    }
+
+    private void appendIfSummaryValue(StringBuilder target, String value) {
+        if (hasSummaryValue(value)) {
+            if (!target.isEmpty()) {
+                target.append(' ');
+            }
+            target.append(value);
+        }
+    }
+
+    private String searchKnowledgeAssessment(String query) {
+        if (query == null || query.isBlank()) {
+            return null;
+        }
+        KnowledgeSearchRequest request = new KnowledgeSearchRequest();
+        request.setQuery(query);
+        request.setTopK(3);
+        try {
+            R<List<KnowledgeSearchResult>> response = remoteKnowledgeService.search(request);
+            if (response == null || !response.isSuccess() || response.getData() == null || response.getData().isEmpty()) {
+                return null;
+            }
+            KnowledgeSearchResult result = response.getData().stream()
+                    .filter(Objects::nonNull)
+                    .filter(item -> item.getContent() != null && !item.getContent().isBlank())
+                    .findFirst()
+                    .orElse(null);
+            if (result == null) {
+                return null;
+            }
+            String content = compactText(result.getContent(), 90);
+            String condition = suspectedCondition(query + " " + result.getContent());
+            return "疑似与" + condition + "相关。知识库中相近资料提示：" + content + "。建议由医生面诊确认。";
+        } catch (Exception ex) {
+            log.warn("Failed to search knowledge before triage care decision, query={}", query, ex);
+            return null;
+        }
+    }
+
+    private String compactText(String text, int maxLength) {
+        String compacted = text == null ? "" : text.replaceAll("\\s+", " ").trim();
+        if (compacted.length() <= maxLength) {
+            return compacted;
+        }
+        return compacted.substring(0, maxLength) + "...";
+    }
+
+    private boolean isGenericAssessment(String assessment) {
+        return containsAny(assessment, "已记录主诉", "继续补充结构化病情信息", "AI判断", "未提及");
+    }
+
+    private String suspectedCondition(String text) {
+        String combined = text == null ? "" : text;
+        if (containsAny(combined, "咳嗽", "发热", "发烧", "感冒", "嗓子痛", "咽痛", "鼻塞", "流涕", "上呼吸道")) {
+            return "上呼吸道感染或感冒相关问题";
+        }
+        if (containsAny(combined, "头痛", "头疼", "头晕", "眩晕")) {
+            return "头痛头晕相关问题";
+        }
+        if (containsAny(combined, "腹痛", "胃痛", "恶心", "呕吐", "腹泻")) {
+            return "消化道不适相关问题";
+        }
+        if (containsAny(combined, "皮疹", "湿疹", "过敏", "痤疮")) {
+            return "皮肤或过敏相关问题";
+        }
+        return "当前症状相关疾病";
+    }
+
+    private boolean hasCareDecisionPrompt(FlowContext context) {
+        return containsAny(context.allAssistantText(), "初步判断", "疑似", "需要我继续帮您预约医生就诊", "需要我继续帮您预约");
+    }
+
+    private boolean wantsMedicalCare(String text) {
+        return containsAny(text, "需要就医", "帮我预约", "我要预约", "想预约", "预约医生", "挂号", "看医生", "继续预约");
+    }
+
+    private boolean declinesMedicalCare(String text) {
+        return containsAny(text, "暂时先观察", "先观察", "不用", "不需要", "暂时不用", "先不预约", "不预约");
+    }
+
+    private boolean isAppointmentFlowInProgress(FlowContext context) {
+        return extractAppointmentTime(context.allUserText()) != null
+                || containsAny(context.allAssistantText(), "请回复序号", "请选择医生", "已为您选定医生", "确认预约", "就诊时间")
+                || OPTION_SELECTION_PATTERN.matcher(context.latestUserText()).find()
+                || isConfirming(context.latestUserText());
     }
 
     private TriageFlowResult buildDoctorSelectionResult(FlowContext context, AppointmentTime appointmentTime) {
@@ -549,6 +691,14 @@ public class TriageAppointmentFlowService {
         String allUserText() {
             return messages.stream()
                     .filter(message -> "user".equals(message.getRole()))
+                    .map(ChatMessage::getContent)
+                    .filter(Objects::nonNull)
+                    .reduce("", (left, right) -> left + "\n" + right);
+        }
+
+        String allAssistantText() {
+            return messages.stream()
+                    .filter(message -> "assistant".equals(message.getRole()))
                     .map(ChatMessage::getContent)
                     .filter(Objects::nonNull)
                     .reduce("", (left, right) -> left + "\n" + right);

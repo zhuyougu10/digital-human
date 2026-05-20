@@ -23,9 +23,11 @@ public class TriageAgent implements Agent {
                 - AI判断
 
                 当结构化摘要仍有“未提及”或“-”时，先继续询问病情，不要开始推荐医生或询问预约时间。
-                当病情信息基本完整后，再自然进入挂号流程：询问预约日期和上午/下午，调用 searchDoctorBySymptom 找医生，用户选择医生后调用 getAvailableSlots 查询号源，用户确认后调用 createAppointment 创建预约。
+                当病情信息基本完整后，先调用 searchKnowledge 检索知识库，结合患者描述给出“疑似与某类问题相关”的初步判断，再询问患者是否需要就医。
+                只有患者明确表示需要就医或要预约后，才进入挂号流程：询问预约日期和上午/下午，调用 searchDoctorBySymptom 找医生，用户选择医生后调用 getAvailableSlots 查询号源，用户确认后调用 createAppointment 创建预约。
 
                 工具使用规则：
+                - 病情信息完整后、推荐医生前，必须调用 searchKnowledge。
                 - 需要推荐医生时，必须调用 searchDoctorBySymptom。
                 - 需要确认医生某天号源时，必须调用 getAvailableSlots。
                 - 只有患者明确确认医生和时间后，才调用 createAppointment。
@@ -40,7 +42,7 @@ public class TriageAgent implements Agent {
 
     @Override
     public List<String> getToolNames() {
-        return List.of("searchDoctorBySymptom", "getAvailableSlots", "createAppointment");
+        return List.of("searchKnowledge", "searchDoctorBySymptom", "getAvailableSlots", "createAppointment");
     }
 
     @Override
