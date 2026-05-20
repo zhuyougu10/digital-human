@@ -1,5 +1,12 @@
 # 进度日志
 
+## 2026-05-20 21:56:00 [DONE] 修复用户确认就医后未立即进入预约状态机
+- 根因：`ChatServiceImpl` 只有在结构化摘要完全就绪时才切入确定性导诊状态机；截图中用户已经表达“线上问诊/挂号/就诊”意图后，仍可能继续由模型自由回复，导致绕回解释、推荐医生顺序不稳定、跳过号源确认。
+- 修复：导诊入口改为满足任一条件即进入状态机：摘要完整、用户在就医确认问题后明确接受就医、或上一轮已经是确定性预约提示。这样用户确认就医后会立即进入“先选时间”状态机。
+- 修复：就医意图识别补充 `线上问诊/在线问诊/问诊/就诊/需要看医生` 等表达；状态机中的就医确认识别同步补齐。
+- 保持流程：状态机仍严格按“先预约日期和时段 -> 查该时段有号源医生 -> 用户选医生 -> 返回医生+时间确认 -> 用户确认 -> 创建预约”推进。
+- 验证：`mvn test -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml "-Dtest=TriageAppointmentFlowServiceTest,ChatServiceImplTest" "-Dsurefire.failIfNoSpecifiedTests=false"` 通过，35 tests；`mvn clean package -DskipTests -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml` 通过；已热更新并重启 `medical-ai-service` 容器。
+
 ## 2026-05-20 21:04:00 [DONE] 导诊摘要完成后增加知识库判断与就医确认
 - 根因：摘要完整后流程仍会直接进入预约时间/查医生阶段，缺少“先检索知识库、给出疑似判断、再询问是否就医”的决策层，导致患者没有被明确告知初步判断，也无法选择先观察。
 - 修复：`TriageAppointmentFlowService` 在主诉、持续时间、伴随症状、严重程度、既往史完整后，先调用 `RemoteKnowledgeService.search` 检索知识库，生成“疑似与某类问题相关”的初步判断，并提供“需要就医/暂时先观察/帮我预约”气泡。

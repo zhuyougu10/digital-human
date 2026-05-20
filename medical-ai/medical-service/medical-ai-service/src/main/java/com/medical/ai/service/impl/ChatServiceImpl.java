@@ -352,7 +352,9 @@ public class ChatServiceImpl implements ChatService {
     }
 
     private boolean shouldUseDeterministicAppointmentFlow(List<ChatMessage> messages, ConversationSummaryVO summary) {
-        return isTriageSummaryReadyForAppointment(summary);
+        return isTriageSummaryReadyForAppointment(summary)
+                || isCareDecisionAccepted(messages)
+                || hasDeterministicAppointmentPrompt(messages);
     }
 
     private boolean isTriageSummaryReadyForAppointment(ConversationSummaryVO summary) {
@@ -384,6 +386,52 @@ public class ChatServiceImpl implements ChatService {
                 || containsAny(lastAssistantText, "请回复序号", "请选择医生", "已为您选定医生", "确认预约", "就诊时间");
     }
 
+    private boolean isCareDecisionAccepted(List<ChatMessage> messages) {
+        String allAssistantText = roleMessageText(messages, "assistant");
+        String latestUserText = latestMessageText(messages, "user");
+        return hasCareDecisionPrompt(allAssistantText) && wantsMedicalCare(latestUserText);
+    }
+
+    private boolean hasDeterministicAppointmentPrompt(List<ChatMessage> messages) {
+        String lastAssistantText = latestMessageText(messages, "assistant");
+        return containsAny(lastAssistantText,
+                "请告诉我想预约的日期和时段",
+                "该时间段查到了这些可预约医生",
+                "请回复序号或医生姓名选择",
+                "已为您选定医生和时间",
+                "请回复“确认预约”",
+                "我暂时没有找到该时段有可用号源");
+    }
+
+    private boolean hasCareDecisionPrompt(String assistantText) {
+        return containsAny(assistantText,
+                "需要我继续帮您预约医生就诊",
+                "需要我继续帮您预约",
+                "是否需要就医",
+                "需要就医吗",
+                "是否需要看医生",
+                "要不要就医");
+    }
+
+    private boolean wantsMedicalCare(String userText) {
+        return containsAny(userText,
+                "需要就医",
+                "需要看医生",
+                "看医生",
+                "我要就医",
+                "想就医",
+                "帮我预约",
+                "我要预约",
+                "想预约",
+                "预约医生",
+                "挂号",
+                "线上问诊",
+                "在线问诊",
+                "问诊",
+                "就诊",
+                "继续预约");
+    }
+
     private boolean hasAppointmentTimeSignal(String text) {
         if (text == null || text.isBlank()) {
             return false;
@@ -399,6 +447,17 @@ public class ChatServiceImpl implements ChatService {
             return "";
         }
         return messages.stream()
+                .map(ChatMessage::getContent)
+                .filter(Objects::nonNull)
+            .collect(Collectors.joining("\n"));
+    }
+
+    private String roleMessageText(List<ChatMessage> messages, String role) {
+        if (messages == null || messages.isEmpty()) {
+            return "";
+        }
+        return messages.stream()
+                .filter(message -> message != null && role.equals(message.getRole()))
                 .map(ChatMessage::getContent)
                 .filter(Objects::nonNull)
                 .collect(Collectors.joining("\n"));

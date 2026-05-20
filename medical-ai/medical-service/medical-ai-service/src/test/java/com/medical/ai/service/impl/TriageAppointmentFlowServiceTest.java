@@ -268,6 +268,26 @@ class TriageAppointmentFlowServiceTest {
         verify(remoteDoctorService, never()).searchBySymptom(org.mockito.ArgumentMatchers.anyString());
     }
 
+    @Test
+    void handle_shouldAskAppointmentTimeWhenPatientAcceptsOnlineConsultation() {
+        TriageAppointmentFlowService.TriageFlowResult result = flowService.handle(
+                10L,
+                4L,
+                List.of(
+                        user("我感冒咳嗽"),
+                        user("已经三天了"),
+                        user("没有其他症状"),
+                        user("症状较轻，不影响日常活动"),
+                        user("没有基础病和过敏史"),
+                        assistant("初步判断：疑似与上呼吸道感染相关。您需要我继续帮您预约医生就诊吗？"),
+                        user("好的，帮我试试线上问诊")),
+                summary("感冒", "无其他明显伴随症状", "三天", "较轻", "无特殊既往史"));
+
+        assertTrue(result.reply().contains("请告诉我想预约的日期和时段"));
+        assertTrue(result.suggestedReplies().contains("明天上午"));
+        verify(remoteDoctorService, never()).searchBySymptom(org.mockito.ArgumentMatchers.anyString());
+    }
+
     private ChatMessage user(String content) {
         ChatMessage message = new ChatMessage();
         message.setRole("user");

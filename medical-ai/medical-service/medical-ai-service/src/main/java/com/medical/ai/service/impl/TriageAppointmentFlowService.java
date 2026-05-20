@@ -245,11 +245,34 @@ public class TriageAppointmentFlowService {
     }
 
     private boolean hasCareDecisionPrompt(FlowContext context) {
-        return containsAny(context.allAssistantText(), "初步判断", "疑似", "需要我继续帮您预约医生就诊", "需要我继续帮您预约");
+        return containsAny(context.allAssistantText(),
+                "初步判断",
+                "疑似",
+                "需要我继续帮您预约医生就诊",
+                "需要我继续帮您预约",
+                "是否需要就医",
+                "需要就医吗",
+                "是否需要看医生",
+                "要不要就医");
     }
 
     private boolean wantsMedicalCare(String text) {
-        return containsAny(text, "需要就医", "帮我预约", "我要预约", "想预约", "预约医生", "挂号", "看医生", "继续预约");
+        return containsAny(text,
+                "需要就医",
+                "需要看医生",
+                "看医生",
+                "我要就医",
+                "想就医",
+                "帮我预约",
+                "我要预约",
+                "想预约",
+                "预约医生",
+                "挂号",
+                "线上问诊",
+                "在线问诊",
+                "问诊",
+                "就诊",
+                "继续预约");
     }
 
     private boolean declinesMedicalCare(String text) {

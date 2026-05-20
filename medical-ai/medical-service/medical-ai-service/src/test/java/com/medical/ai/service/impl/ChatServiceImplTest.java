@@ -211,6 +211,50 @@ class ChatServiceImplTest {
     }
 
     @Test
+    void chat_shouldEnterStateMachineImmediatelyAfterPatientAcceptsCareDecision() {
+        ChatSession session = new ChatSession();
+        session.setId(1L);
+        session.setUserId(38L);
+        session.setAgentType("TRIAGE");
+        session.setTitle("新对话");
+        when(sessionMapper.selectById(1L)).thenReturn(session);
+
+        ChatMessage assistantMessage = new ChatMessage();
+        assistantMessage.setSessionId(1L);
+        assistantMessage.setRole("assistant");
+        assistantMessage.setContent("初步判断：疑似与上呼吸道感染相关。您需要我继续帮您预约医生就诊吗？");
+        ChatMessage userMessage = new ChatMessage();
+        userMessage.setSessionId(1L);
+        userMessage.setRole("user");
+        userMessage.setContent("好的，帮我试试线上问诊");
+        when(messageMapper.selectList(any())).thenReturn(List.of(assistantMessage, userMessage));
+
+        ConversationSummaryVO summary = new ConversationSummaryVO();
+        summary.setChiefComplaint("感冒");
+        summary.setSymptoms("咳嗽");
+        summary.setDuration("三天");
+        summary.setSeverity("较轻");
+        summary.setMedicalHistory("未提及");
+        summary.setAiAssessment("疑似上呼吸道感染。");
+        when(summaryService.syncTriageSummary(eq(1L), eq(38L), eq(null), any())).thenReturn(summary);
+        when(triageAppointmentFlowService.handle(eq(1L), eq(38L), any(), eq(summary)))
+                .thenReturn(new TriageAppointmentFlowService.TriageFlowResult("好的，我继续帮您预约。请告诉我想预约的日期和时段。", null, List.of("明天上午")));
+        lenient().when(ttsService.synthesize(any())).thenReturn("/ai/chat/tts/triage-flow.mp3");
+
+        List<SseMessageVO> events = chatService.chat(1L, 38L, "好的，帮我试试线上问诊")
+                .takeUntil(event -> "complete".equals(event.getType()))
+                .collectList()
+                .block(Duration.ofSeconds(2));
+
+        assertNotNull(events);
+        SseMessageVO complete = findFirstEventByType(events, "complete");
+        assertNotNull(complete);
+        assertTrue(complete.getContent().contains("请告诉我想预约的日期和时段"));
+        verify(chatModel, never()).stream(any(Prompt.class));
+        verify(triageAppointmentFlowService).handle(eq(1L), eq(38L), any(), eq(summary));
+    }
+
+    @Test
     void chat_shouldInjectAppointmentSuccessGuardIntoTriageSystemPrompt() {
         ChatSession session = new ChatSession();
         session.setId(1L);
