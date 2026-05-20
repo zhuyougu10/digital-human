@@ -65,11 +65,11 @@ public class ChatServiceImpl implements ChatService {
 
     public static final String CHAT_STREAM_RESOURCE = "svc:ai:chatStream";
     private static final int MAX_CONTEXT_MESSAGES = 20;
-    private static final Pattern APPOINTMENT_ID_VALUE_PATTERN = Pattern.compile("(?:appointmentId|\u9884\u7ea6ID|\u9884\u7ea6\u7f16\u53f7)\\s*[:\uFF1A=]?\\s*(\\d+)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern APPOINTMENT_ID_VALUE_PATTERN = Pattern.compile("(?:appointmentId|\u9884\u7ea6ID|\u9884\u7ea6\u7f16\u53f7|\u9884\u7ea6\u5355\u53f7)\\s*[:\uFF1A=]?\\s*(\\d+)", Pattern.CASE_INSENSITIVE);
     private static final Pattern NUMBER_PATTERN = Pattern.compile("\\d+");
     private static final String DEFAULT_SESSION_TITLE = "新对话";
     private static final Pattern APPOINTMENT_SUCCESS_PATTERN = Pattern.compile("预约成功|成功创建了预约|已经为您成功创建了预约");
-    private static final Pattern APPOINTMENT_ID_PATTERN = Pattern.compile("预约ID|appointmentId", Pattern.CASE_INSENSITIVE);
+    private static final Pattern APPOINTMENT_ID_PATTERN = Pattern.compile("\u9884\u7ea6ID|\u9884\u7ea6\u7f16\u53f7|\u9884\u7ea6\u5355\u53f7|appointmentId", Pattern.CASE_INSENSITIVE);
     private static final Pattern DOCTOR_ID_PATTERN = Pattern.compile("(?:doctorId|医生ID)\s*[:：]\s*(\\d+)", Pattern.CASE_INSENSITIVE);
     private static final Pattern SLOT_ID_PATTERN = Pattern.compile("(?:slotId|时间段ID)\s*(?:为|是|=|:|：)?\s*(\\d+)", Pattern.CASE_INSENSITIVE);
     private static final Pattern DATE_PATTERN = Pattern.compile("(20\\d{2})[年/-](\\d{1,2})[月/-](\\d{1,2})");
@@ -429,7 +429,8 @@ public class ChatServiceImpl implements ChatService {
                 + "\n- sessionId = " + sessionId
                 + "\n在调用 createAppointment 工具时，请务必使用上面的 patientId。"
                 + "\n在调用 createAppointment 工具时，请务必使用上面的 sessionId。"
-                + "\n只有在 createAppointment 工具明确返回 success=true 且 appointmentId 非空时，才允许回复“预约成功”或输出预约ID；"
+                + "\n只有在 createAppointment 工具明确返回 success=true 且 appointmentId 非空时，才允许回复“预约成功”；"
+                + "面向患者的回复不得输出 patientId、doctorId、slotId、appointmentId、预约ID、预约编号、预约单号、时间段ID 等内部标识；"
                 + "若未实际调用 createAppointment，或工具返回失败/缺少appointmentId，必须明确告知“尚未创建预约”，并引导用户重试。";
         }
         messages.add(new SystemMessage(systemPrompt));
@@ -982,14 +983,14 @@ public class ChatServiceImpl implements ChatService {
 
         boolean hasSuccessfulCreate = toolMessages.stream().anyMatch(this::isCreateAppointmentSuccessToolMessage);
         if (hasSuccessfulCreate) {
-            return assistantText;
+            return stripPatientVisibleInternalIdentifiers(assistantText);
         }
 
         Long verifiedAppointmentId = findVerifiedAppointmentFromReply(userId, sessionId, assistantText);
         if (verifiedAppointmentId != null) {
             log.info("Guard verified existing appointment from assistant reply, sessionId={}, userMessageId={}, patientId={}, appointmentId={}",
                     sessionId, userMessageId, userId, verifiedAppointmentId);
-            return assistantText;
+            return buildAutoCreateSuccessReply(assistantText, verifiedAppointmentId);
         }
 
         Long doctorId = extractLongByPattern(assistantText, DOCTOR_ID_PATTERN);
@@ -1180,12 +1181,28 @@ public class ChatServiceImpl implements ChatService {
     }
 
     private String buildAutoCreateSuccessReply(String originalText, Long appointmentId) {
-        String merged = originalText.replaceAll("(?i)appointmentId\\s*[:：]?\\s*\\d+", "appointmentId: " + appointmentId)
-                .replaceAll("预约ID\\s*[:：]?\\s*\\d+", "预约ID：" + appointmentId);
-        if (merged.contains("预约ID")) {
-            return merged;
+        return stripPatientVisibleInternalIdentifiers(originalText);
+    }
+
+    private String stripPatientVisibleInternalIdentifiers(String text) {
+        if (text == null || text.isBlank()) {
+            return text;
         }
-        return merged + "\n\n预约ID：" + appointmentId;
+        String sanitized = text
+                .replaceAll("(?i)(?:patientId|doctorId|slotId|appointmentId)\\s*(?:为|是|=|:|：)?\\s*\\d+\\s*[，,、；;]?", "")
+                .replaceAll("(?:患者ID|医生ID|时间段ID|预约ID|预约编号|预约单号)\\s*(?:为|是|=|:|：)?\\s*\\d+\\s*[，,、；;]?", "")
+                .replaceAll("[，,、；;]?\\s*(?:patientId|doctorId|slotId|appointmentId|患者ID|医生ID|时间段ID|预约ID|预约编号|预约单号)\\s*(?:为|是|=|:|：)?\\s*", "")
+                .replaceAll("（\\s*）", "")
+                .replaceAll("\\(\\s*\\)", "")
+                .replaceAll("[，,、；;]\\s*([）)])", "$1")
+                .replaceAll("[，,、；;]\\s*$", "")
+                .replaceAll("(?m)^\\s*(?:医生|患者|时间段)?\\s*(?:\\R|$)", "")
+                .replaceAll("\\n[ \\t]*\\n[ \\t]*\\n+", "\n\n")
+                .trim();
+        if (sanitized.isBlank()) {
+            return "预约已成功创建。请按时就诊。";
+        }
+        return sanitized;
     }
 
     private Long resolveSlotIdFromUserChoice(Long doctorId, String userText, String assistantText, LocalDate date) {

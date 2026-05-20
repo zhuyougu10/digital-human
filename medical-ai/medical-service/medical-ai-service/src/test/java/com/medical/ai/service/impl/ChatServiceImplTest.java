@@ -256,7 +256,8 @@ class ChatServiceImplTest {
         assertNotNull(events);
         SseMessageVO complete = findFirstEventByType(events, "complete");
         assertNotNull(complete);
-        assertEquals("现在为您创建预约。好的，我已经为您成功创建了预约！\n预约ID：101\n医生doctorId:2，slotId为475", complete.getContent());
+        assertEquals("现在为您创建预约。好的，我已经为您成功创建了预约！", complete.getContent());
+        assertNoPatientVisibleInternalIdentifiers(complete.getContent());
     }
 
     @Test
@@ -303,7 +304,8 @@ class ChatServiceImplTest {
         assertNotNull(events);
         SseMessageVO complete = findFirstEventByType(events, "complete");
         assertNotNull(complete);
-        assertTrue(complete.getContent().contains("appointmentId: 101"));
+        assertEquals("预约已成功创建。请按时就诊。", complete.getContent());
+        assertNoPatientVisibleInternalIdentifiers(complete.getContent());
         verify(remoteAppointmentService).bindSession(101L, 1L);
         verify(remoteAppointmentService, never()).createAppointment(38L, 2L, 475L, 1L);
     }
@@ -342,7 +344,8 @@ class ChatServiceImplTest {
         assertNotNull(events);
         SseMessageVO complete = findFirstEventByType(events, "complete");
         assertNotNull(complete);
-        assertEquals(assistantText, complete.getContent());
+        assertEquals("预约成功", complete.getContent());
+        assertNoPatientVisibleInternalIdentifiers(complete.getContent());
         verify(remoteAppointmentService).getAppointmentSnapshot(101L);
         verify(remoteAppointmentService, never()).createAppointment(any(), any(), any(), any());
     }
@@ -381,7 +384,8 @@ class ChatServiceImplTest {
         assertNotNull(events);
         SseMessageVO complete = findFirstEventByType(events, "complete");
         assertNotNull(complete);
-        assertEquals(assistantText, complete.getContent());
+        assertEquals("预约成功，2026年5月25日上午，挂号费0元", complete.getContent());
+        assertNoPatientVisibleInternalIdentifiers(complete.getContent());
         verify(remoteAppointmentService).getAppointmentSnapshot(101L);
         verify(remoteAppointmentService, never()).createAppointment(any(), any(), any(), any());
     }
@@ -445,7 +449,10 @@ class ChatServiceImplTest {
         assertNotNull(events);
         SseMessageVO complete = findFirstEventByType(events, "complete");
         assertNotNull(complete);
-        assertEquals("好的，我将为您重新预约李娜医生下午的时间段。\n- 医生：李娜医生（医生ID：4，内科，挂号费60元）\n- 预约时间：2026年4月16日 下午\n现在为您创建预约。好的，我已经为您成功创建了预约！\n\n预约ID：102", complete.getContent());
+        assertTrue(complete.getContent().contains("李娜医生"));
+        assertTrue(complete.getContent().contains("2026年4月16日 下午"));
+        assertTrue(complete.getContent().contains("好的，我已经为您成功创建了预约！"));
+        assertNoPatientVisibleInternalIdentifiers(complete.getContent());
     }
 
     @Test
@@ -523,7 +530,6 @@ class ChatServiceImplTest {
                 mockChatResponse("好的，我已经为您成功创建了预约！\n预约ID：101")
         ));
         when(ttsService.synthesize("好的，我已经为您成功创建了预约！")).thenReturn("/ai/chat/tts/appointment-success-1.mp3");
-        when(ttsService.synthesize("预约ID：101")).thenReturn("/ai/chat/tts/appointment-success-2.mp3");
 
         List<SseMessageVO> events = chatService.chat(1L, 38L, "帮我预约")
                 .take(4)
@@ -533,6 +539,7 @@ class ChatServiceImplTest {
         assertNotNull(events);
         SseMessageVO complete = findFirstEventByType(events, "complete");
         assertNotNull(complete);
+        assertNoPatientVisibleInternalIdentifiers(complete.getContent());
         assertCue(complete.getMetadata(), "appointment_success", "relieved", "celebrate", "TRIAGE");
 
         SseMessageVO firstTts = findFirstEventByType(events, "tts");
@@ -547,6 +554,7 @@ class ChatServiceImplTest {
                 .orElseThrow();
 
         assertNotNull(assistantMessage.getMetadata());
+        assertNoPatientVisibleInternalIdentifiers(assistantMessage.getContent());
         Map<String, Object> metadata = new ObjectMapper().readValue(assistantMessage.getMetadata(), Map.class);
         assertCue(metadata, "appointment_success", "relieved", "celebrate", "TRIAGE");
     }
@@ -999,5 +1007,19 @@ class ChatServiceImplTest {
     private static void assertNoSuggestedReplies(Map<String, Object> metadata) {
         assertNotNull(metadata);
         assertFalse(metadata.containsKey("suggestedReplies"));
+    }
+
+    private static void assertNoPatientVisibleInternalIdentifiers(String content) {
+        assertNotNull(content);
+        assertFalse(content.contains("patientId"));
+        assertFalse(content.contains("doctorId"));
+        assertFalse(content.contains("slotId"));
+        assertFalse(content.contains("appointmentId"));
+        assertFalse(content.contains("患者ID"));
+        assertFalse(content.contains("医生ID"));
+        assertFalse(content.contains("时间段ID"));
+        assertFalse(content.contains("预约ID"));
+        assertFalse(content.contains("预约编号"));
+        assertFalse(content.contains("预约单号"));
     }
 }

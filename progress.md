@@ -1,5 +1,11 @@
 # 进度日志
 
+## 2026-05-20 13:15:00 [DONE] 修复预约成功文案继续暴露内部编号
+- 根因：导诊确定性流程已隐藏 `doctorId/slotId`，但成功文案仍展示 `预约编号`；同时 ChatService 的兜底成功守卫会把 `appointmentId/预约ID` 重新拼回患者可见回复，且已验证预约成功分支会原样返回模型文案。
+- 修复：确定性导诊成功文案移除预约编号；ChatService 对成功工具、已验证预约、兜底创建/绑定成功的最终回复统一执行患者可见清洗，移除 `patientId/doctorId/slotId/appointmentId/患者ID/医生ID/时间段ID/预约ID/预约编号/预约单号` 等内部标识，同时保留医生、时间、挂号费等可读信息；纯 ID 文案清空后返回固定成功提示。
+- 验证：`mvn test -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml "-Dtest=ChatServiceImplTest,TriageAppointmentFlowServiceTest" "-Dsurefire.failIfNoSpecifiedTests=false"` 通过，29 个用例成功；`mvn clean package -DskipTests -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml` 通过。
+- 部署：已将新 `medical-ai-service-1.0.0.jar` 复制到运行中的 `medical-ai-service` 容器并重启，容器当前为运行状态。
+
 ## 2026-05-20 12:22:00 [DONE] 隐藏导诊回复中的内部 ID 字段
 - 修复：患者可见导诊文案不再显示 `doctorId`、`slotId` 等内部技术字段；医生列表只展示医生姓名、科室、职称、挂号费，确认与成功文案只展示医生和就诊时间。
 - 调整：后端选择逻辑改为通过“选1”对应的展示医生姓名、确认文案中的医生姓名反查医生，避免依赖把内部 ID 暴露给用户。

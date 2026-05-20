@@ -167,8 +167,7 @@ public class TriageAppointmentFlowService {
         return "预约已成功创建！\n\n"
                 + "- 医生：" + selectedDoctor.name() + "\n"
                 + "- 就诊时间：" + slot.getScheduleDate() + " " + displayPeriod(slot.getPeriod())
-                + " " + slot.getStartTime() + "-" + slot.getEndTime() + "\n"
-                + "- 预约编号：" + appointmentId + "\n\n"
+                + " " + slot.getStartTime() + "-" + slot.getEndTime() + "\n\n"
                 + "请您按时就诊，祝您早日康复！" + DISCLAIMER;
     }
 

@@ -166,7 +166,8 @@ class TriageAppointmentFlowServiceTest {
 
         assertEquals(82L, result.appointmentId());
         assertTrue(result.reply().contains("预约已成功创建"));
-        assertTrue(result.reply().contains("预约编号：82"));
+        assertTrue(!result.reply().contains("预约编号"));
+        assertTrue(!result.reply().contains("82"));
         assertTrue(!result.reply().contains("doctorId"));
         assertTrue(!result.reply().contains("slotId"));
     }
