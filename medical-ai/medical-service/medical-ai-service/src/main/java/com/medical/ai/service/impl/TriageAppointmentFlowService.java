@@ -110,6 +110,14 @@ public class TriageAppointmentFlowService {
         }
 
         Long appointmentId = createOrReuseAppointment(patientId, selectedDoctor.doctorId(), selectedSlot.getId(), sessionId);
+        if (appointmentId == null) {
+            return new TriageFlowResult("""
+                    抱歉，这次没有成功提交预约。
+
+                    您可以稍后再确认一次预约，或换一个医生/时间段，我再帮您处理。""".strip() + DISCLAIMER,
+                    null,
+                    List.of("确认预约", "换个时间", "重新选择医生"));
+        }
         return new TriageFlowResult(buildAppointmentSuccessReply(selectedDoctor, selectedSlot, appointmentId), appointmentId);
     }
 
@@ -333,7 +341,14 @@ public class TriageAppointmentFlowService {
         }
         R<Long> created = remoteAppointmentService.createAppointment(patientId, doctorId, slotId, sessionId);
         if (created == null || !created.isSuccess() || created.getData() == null) {
-            throw new IllegalStateException("预约创建失败，请稍后重试");
+            log.warn("Failed to create appointment in triage flow, patientId={}, doctorId={}, slotId={}, sessionId={}, responseCode={}, responseMsg={}",
+                    patientId,
+                    doctorId,
+                    slotId,
+                    sessionId,
+                    created == null ? null : created.getCode(),
+                    created == null ? null : created.getMsg());
+            return null;
         }
         return created.getData();
     }

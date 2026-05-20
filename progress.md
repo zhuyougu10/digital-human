@@ -156,3 +156,9 @@
 - 修复：`ChatServiceImpl` 在 TRIAGE 对话中先同步结构化摘要；只有主诉、伴随症状、持续时间、严重程度、既往史、AI判断均完整，且用户已给出明确预约时间或进入选医生/确认预约阶段时，才切换到 `TriageAppointmentFlowService` 状态机处理查医生、选医生、号源与创建预约。
 - 保留：摘要不完整时继续走导诊 Agent 自然追问，不提前进入查医生；状态机回复继续走 SSE complete/TTS 与 suggestedReplies。
 - 验证：`mvn test -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml "-Dtest=TriageAgentTest,ChatServiceImplTest,SummaryServiceImplTest,TriageAppointmentFlowServiceTest" "-Dsurefire.failIfNoSpecifiedTests=false"` 通过，40 tests；`mvn clean package -DskipTests -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml` 通过；已热更新并重启 `medical-ai-service` 容器。
+
+## 2026-05-20 18:12:00 [DONE] 修复导诊预约确认阶段 SSE 500
+- 现象：小程序 `pages/chat/chat.vue` 在 18:02:04 收到 `/api/ai/chat/send` HTTP 500。
+- 根因：数据库重置后 `medical_appointment.appointment_event_outbox` 等 outbox 表缺失，预约服务创建预约事务回滚；AI 状态机随后把创建失败以 `IllegalStateException` 抛出，导致 SSE 请求直接 500。
+- 修复：已在运行库执行 `rabbitmq-outbox-init.sql` 补齐 outbox/消费/通知/审计表并重启预约服务；`TriageAppointmentFlowService` 改为在远程预约创建失败时返回可读失败回复和建议气泡，不再抛异常中断 SSE。
+- 验证：`mvn test -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml "-Dtest=TriageAppointmentFlowServiceTest,ChatServiceImplTest" "-Dsurefire.failIfNoSpecifiedTests=false"` 通过，32 tests；`mvn clean package -DskipTests -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml` 通过；已热更新并重启 `medical-ai-service`。

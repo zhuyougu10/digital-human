@@ -19,6 +19,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -198,6 +199,37 @@ class TriageAppointmentFlowServiceTest {
         assertTrue(!result.reply().contains("82"));
         assertTrue(!result.reply().contains("doctorId"));
         assertTrue(!result.reply().contains("slotId"));
+    }
+
+    @Test
+    void handle_shouldReturnFailureReplyWhenAppointmentCreationFails() {
+        DoctorInfoDTO doctor = doctor(2L, "李四");
+        SlotInfoDTO slot = slot(462L, 2L, "李四", "morning");
+        when(remoteDoctorService.getDoctorByName("李四")).thenReturn(R.ok(doctor));
+        when(remoteDoctorService.getDoctorById(2L)).thenReturn(R.ok(doctor));
+        when(remoteScheduleService.getAvailableSlots(2L, "2026-05-25")).thenReturn(R.ok(List.of(slot)));
+        when(remoteAppointmentService.getAppointmentByPatientAndSlot(4L, 462L)).thenReturn(R.ok(null));
+        when(remoteAppointmentService.createAppointment(4L, 2L, 462L, 10L)).thenReturn(R.fail("预约创建失败，请稍后重试"));
+
+        TriageAppointmentFlowService.TriageFlowResult result = flowService.handle(
+                10L,
+                4L,
+                List.of(
+                        user("我感冒咳嗽"),
+                        user("已经三天了"),
+                        user("没有其他症状"),
+                        user("症状较轻，不影响日常活动"),
+                        user("没有基础病和过敏史"),
+                        user("想预约2026年5月25日上午"),
+                        assistant("1. 李四（内科，副主任医师，挂号费=0.00元）"),
+                        user("选1"),
+                        assistant("医生：李四\n就诊时间：2026-05-25 上午 08:00-12:00\n请回复“确认预约”"),
+                        user("确认预约")),
+                summary("感冒", "无其他明显伴随症状", "三天", "较轻", "无特殊既往史"));
+
+        assertNull(result.appointmentId());
+        assertTrue(result.reply().contains("没有成功提交预约"));
+        assertTrue(result.suggestedReplies().contains("换个时间"));
     }
 
     private ChatMessage user(String content) {
