@@ -1087,11 +1087,18 @@ public class ChatServiceImpl implements ChatService {
                 ttsError.setSegmentIndex(segmentIndex);
                 ttsError.setTotalSegments(totalSegments);
                 ttsSink.tryEmitNext(ttsError);
+                finishTtsTask(ttsSink, pendingTtsTasks, ttsSchedulingComplete);
             }, () -> {
-                if (pendingTtsTasks.decrementAndGet() == 0 && ttsSchedulingComplete.get()) {
-                    ttsSink.tryEmitComplete();
-                }
+                finishTtsTask(ttsSink, pendingTtsTasks, ttsSchedulingComplete);
             });
+    }
+
+    private void finishTtsTask(Sinks.Many<SseMessageVO> ttsSink,
+                               AtomicInteger pendingTtsTasks,
+                               AtomicBoolean ttsSchedulingComplete) {
+        if (pendingTtsTasks.decrementAndGet() == 0 && ttsSchedulingComplete.get()) {
+            ttsSink.tryEmitComplete();
+        }
     }
 
     private SseMessageVO buildTtsEvent(String sentence,

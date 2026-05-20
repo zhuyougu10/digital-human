@@ -1,5 +1,11 @@
 # 进度日志
 
+## 2026-05-20 22:32:00 [DONE] 修复 TTS 超时导致 SSE 会话卡住
+- 现象：22:25 左右患者端停在输入中状态；AI 服务日志显示 `sessionId=6` 多个 `TTS 合成失败` 和 `TimeoutException`，知识库检索已完成，问题不在知识库/医生服务。
+- 根因：`ChatServiceImpl.scheduleTtsSynthesis` 只在 TTS 正常 complete 时递减 `pendingTtsTasks`；TTS 超时走 error callback 后没有递减，导致 `ttsSink` 永远不 complete，SSE 连接一直不结束，前端保持 loading。
+- 修复：抽出 `finishTtsTask`，TTS 成功和失败都会递减 pending 计数并在归零后关闭 `ttsSink`；即使 TTS 服务超时，也会发送 `tts_error` 并正常结束流。
+- 验证：新增 `chat_shouldCompleteStreamWhenTtsSynthesisFails` 覆盖两个 TTS 分段同时失败时 SSE 仍 complete；`mvn test -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml "-Dtest=ChatServiceImplTest,TriageAppointmentFlowServiceTest" "-Dsurefire.failIfNoSpecifiedTests=false"` 通过，38 tests；`mvn clean package -DskipTests -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml` 通过；已热更新并重启 `medical-ai-service` 容器。
+
 ## 2026-05-20 22:20:00 [DONE] 修复“帮我预约一下”未进入状态机
 - 根因：真实回复使用“请问您需要我帮您预约挂号吗？”这类文案，但 `ChatServiceImpl` 的状态机入口只识别“需要我继续帮您预约...”等表达，漏掉“不带继续”的预约挂号确认句，导致用户回复“好的，帮我预约一下”后仍由模型接管。
 - 修复：补齐 `需要我帮您预约/需要我帮你预约/帮您预约挂号/帮你预约挂号/预约挂号吗` 等就医确认提示识别；`TriageAppointmentFlowService` 同步补齐相同识别。
