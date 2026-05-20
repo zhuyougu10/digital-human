@@ -46,13 +46,43 @@ class TriageAppointmentFlowServiceTest {
     }
 
     @Test
-    void handle_shouldAskAppointmentTimeFirst() {
+    void handle_shouldAskDurationBeforeAppointmentFlow() {
         TriageAppointmentFlowService.TriageFlowResult result = flowService.handle(
                 10L,
                 4L,
                 List.of(user("我感冒咳嗽，想看医生")));
 
-        assertTrue(result.reply().contains("先告诉我想预约的日期和时段"));
+        assertTrue(result.reply().contains("持续多久"));
+        assertTrue(result.suggestedReplies().contains("已经三天了"));
+        verify(remoteDoctorService, never()).searchBySymptom(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void handle_shouldAskAssociatedInfoBeforeAppointmentFlow() {
+        TriageAppointmentFlowService.TriageFlowResult result = flowService.handle(
+                10L,
+                4L,
+                List.of(
+                        user("我感冒咳嗽，想看医生"),
+                        user("已经三天了")));
+
+        assertTrue(result.reply().contains("伴随情况"));
+        assertTrue(result.suggestedReplies().contains("没有其他症状"));
+        verify(remoteDoctorService, never()).searchBySymptom(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void handle_shouldAskAppointmentTimeAfterEnoughTriageInfo() {
+        TriageAppointmentFlowService.TriageFlowResult result = flowService.handle(
+                10L,
+                4L,
+                List.of(
+                        user("我感冒咳嗽，想看医生"),
+                        user("已经三天了"),
+                        user("没有其他症状")));
+
+        assertTrue(result.reply().contains("病情信息已经基本够用了"));
+        assertTrue(result.suggestedReplies().contains("2026年5月25日上午"));
         verify(remoteDoctorService, never()).searchBySymptom(org.mockito.ArgumentMatchers.anyString());
     }
 
@@ -66,11 +96,16 @@ class TriageAppointmentFlowServiceTest {
         TriageAppointmentFlowService.TriageFlowResult result = flowService.handle(
                 10L,
                 4L,
-                List.of(user("我感冒咳嗽，想预约2026年5月25日上午")));
+                List.of(
+                        user("我感冒咳嗽"),
+                        user("已经三天了"),
+                        user("没有其他症状"),
+                        user("想预约2026年5月25日上午")));
 
         assertTrue(result.reply().contains("请回复序号或医生姓名选择"));
         assertTrue(result.reply().contains("doctorId=2"));
         assertTrue(result.reply().contains("slotId=462"));
+        assertTrue(result.suggestedReplies().contains("选1"));
         verify(remoteDoctorService).searchBySymptom("咳嗽");
     }
 
@@ -87,7 +122,10 @@ class TriageAppointmentFlowServiceTest {
                 10L,
                 4L,
                 List.of(
-                        user("我感冒咳嗽，想预约2026年5月25日上午"),
+                        user("我感冒咳嗽"),
+                        user("已经三天了"),
+                        user("没有其他症状"),
+                        user("想预约2026年5月25日上午"),
                         assistant("1. 李四（doctorId=2，内科，slotId=462）"),
                         user("选1"),
                         assistant("医生：李四（doctorId=2）\nslotId=462，请回复“确认预约”"),

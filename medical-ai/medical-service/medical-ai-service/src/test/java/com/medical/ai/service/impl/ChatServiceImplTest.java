@@ -126,7 +126,7 @@ class ChatServiceImplTest {
         userMessage.setContent("2026年5月25日上午");
         when(messageMapper.selectList(any())).thenReturn(List.of(userMessage));
         when(triageAppointmentFlowService.handle(eq(1L), eq(38L), any()))
-                .thenReturn(new TriageAppointmentFlowService.TriageFlowResult("请回复序号选择医生", null));
+                .thenReturn(new TriageAppointmentFlowService.TriageFlowResult("请回复序号选择医生", null, List.of("选1", "选2")));
         when(ttsService.synthesize(any())).thenReturn("/ai/chat/tts/triage-flow.mp3");
 
         List<SseMessageVO> events = chatService.chat(1L, 38L, "2026年5月25日上午")
@@ -138,6 +138,7 @@ class ChatServiceImplTest {
         assertEquals("token", events.get(0).getType());
         assertEquals("complete", events.get(1).getType());
         assertEquals("请回复序号选择医生", events.get(1).getContent());
+        assertSuggestedReplies(events.get(1).getMetadata(), "选1", "选2");
         assertEquals("tts", events.get(2).getType());
         verify(chatModel, never()).stream(any(Prompt.class));
     }

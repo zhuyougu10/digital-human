@@ -46,17 +46,41 @@ public class TriageAppointmentFlowService {
 
     public TriageFlowResult handle(Long sessionId, Long patientId, List<ChatMessage> messages) {
         FlowContext context = FlowContext.from(messages);
+        TriageInfo triageInfo = extractTriageInfo(context.allUserText());
+        if (!triageInfo.hasSymptom()) {
+            return new TriageFlowResult("""
+                    我先了解一下您的主要不舒服，再帮您判断适合预约哪类医生。
+
+                    请您描述一下主要症状，比如哪里不舒服、有什么表现？""".strip() + DISCLAIMER,
+                    null,
+                    List.of("咳嗽发热", "头痛头晕", "腹痛恶心"));
+        }
+        if (!triageInfo.hasDuration()) {
+            return new TriageFlowResult("我了解了您的主要不舒服。为了判断就诊紧急程度，请问这些症状持续多久了？"
+                    + DISCLAIMER,
+                    null,
+                    List.of("今天刚开始", "已经三天了", "一周左右"));
+        }
+        if (!triageInfo.hasAssociatedInfo()) {
+            return new TriageFlowResult("还需要确认一下伴随情况：有没有发热、胸闷气短、剧烈疼痛、呕吐，或其他明显不舒服？"
+                    + DISCLAIMER,
+                    null,
+                    List.of("伴有发烧", "没有其他症状", "有胸闷气短"));
+        }
+
         AppointmentTime appointmentTime = extractAppointmentTime(context.allUserText());
         if (appointmentTime == null) {
             return new TriageFlowResult("""
-                    为了先把预约范围定下来，请您先告诉我想预约的日期和时段。
+                    病情信息已经基本够用了。接下来请告诉我想预约的日期和时段。
 
-                    例如：2026年5月25日上午，或 2026-05-25 下午。""".strip() + DISCLAIMER, null);
+                    例如：2026年5月25日上午，或 2026-05-25 下午。""".strip() + DISCLAIMER,
+                    null,
+                    List.of("2026年5月25日上午", "2026-05-25 下午", "明天上午"));
         }
 
         SelectedDoctor selectedDoctor = resolveSelectedDoctor(context);
         if (selectedDoctor == null) {
-            return new TriageFlowResult(buildDoctorSelectionReply(context, appointmentTime), null);
+            return buildDoctorSelectionResult(context, appointmentTime);
         }
 
         SlotInfoDTO selectedSlot = resolveSelectedSlot(context, selectedDoctor, appointmentTime);
@@ -65,19 +89,23 @@ public class TriageAppointmentFlowService {
         }
 
         if (!isConfirming(context.latestUserText())) {
-            return new TriageFlowResult(buildAppointmentConfirmationReply(selectedDoctor, selectedSlot), null);
+            return new TriageFlowResult(buildAppointmentConfirmationReply(selectedDoctor, selectedSlot),
+                    null,
+                    List.of("确认预约", "我再看看"));
         }
 
         Long appointmentId = createOrReuseAppointment(patientId, selectedDoctor.doctorId(), selectedSlot.getId(), sessionId);
         return new TriageFlowResult(buildAppointmentSuccessReply(selectedDoctor, selectedSlot, appointmentId), appointmentId);
     }
 
-    private String buildDoctorSelectionReply(FlowContext context, AppointmentTime appointmentTime) {
+    private TriageFlowResult buildDoctorSelectionResult(FlowContext context, AppointmentTime appointmentTime) {
         List<DoctorCandidate> candidates = findAvailableDoctors(context.allUserText(), appointmentTime);
         if (candidates.isEmpty()) {
-            return "您想预约的时间是：" + appointmentTime.display() + "。\n\n"
+            return new TriageFlowResult("您想预约的时间是：" + appointmentTime.display() + "。\n\n"
                     + "我暂时没有找到该时段有可用号源的匹配医生。请换一个日期或时段，我再帮您查。"
-                    + DISCLAIMER;
+                    + DISCLAIMER,
+                    null,
+                    List.of("明天上午", "后天下午", "换个时间"));
         }
 
         StringBuilder reply = new StringBuilder();
@@ -101,7 +129,11 @@ public class TriageAppointmentFlowService {
                     .append("）\n");
         }
         reply.append("\n请回复“选1”或医生姓名。").append(DISCLAIMER);
-        return reply.toString();
+        List<String> suggestedReplies = new ArrayList<>();
+        for (int i = 0; i < candidates.size() && i < 3; i++) {
+            suggestedReplies.add("选" + (i + 1));
+        }
+        return new TriageFlowResult(reply.toString(), null, suggestedReplies);
     }
 
     private String buildSlotSelectionReply(SelectedDoctor selectedDoctor, AppointmentTime appointmentTime) {
@@ -162,6 +194,19 @@ public class TriageAppointmentFlowService {
             }
         }
         return List.of();
+    }
+
+    private TriageInfo extractTriageInfo(String text) {
+        String source = text == null ? "" : text;
+        boolean hasSymptom = SYMPTOM_KEYWORDS.stream().anyMatch(source::contains)
+                || source.contains("不舒服") || source.contains("疼") || source.contains("痛");
+        boolean hasDuration = Pattern.compile("([0-9一二两三四五六七八九十半]+\\s*(天|日|周|星期|月|小时|分钟))|今天|昨天|刚开始|好几天|一周|半天|昨晚")
+                .matcher(source)
+                .find();
+        boolean hasAssociatedInfo = containsAny(source,
+                "伴有", "还有", "同时", "发热", "发烧", "胸闷", "气短", "呼吸困难", "呕吐", "恶心", "头晕",
+                "没有其他", "无其他", "不伴", "没有发烧", "没有发热");
+        return new TriageInfo(hasSymptom, hasDuration, hasAssociatedInfo);
     }
 
     private SelectedDoctor resolveSelectedDoctor(FlowContext context) {
@@ -357,7 +402,25 @@ public class TriageAppointmentFlowService {
         return value == null || String.valueOf(value).isBlank() ? "-" : String.valueOf(value);
     }
 
-    public record TriageFlowResult(String reply, Long appointmentId) {
+    private boolean containsAny(String text, String... needles) {
+        if (text == null || text.isBlank()) {
+            return false;
+        }
+        for (String needle : needles) {
+            if (text.contains(needle)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public record TriageFlowResult(String reply, Long appointmentId, List<String> suggestedReplies) {
+        public TriageFlowResult(String reply, Long appointmentId) {
+            this(reply, appointmentId, List.of());
+        }
+    }
+
+    private record TriageInfo(boolean hasSymptom, boolean hasDuration, boolean hasAssociatedInfo) {
     }
 
     private record AppointmentTime(LocalDate date, String period) {

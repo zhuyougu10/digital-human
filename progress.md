@@ -1,5 +1,12 @@
 # 进度日志
 
+## 2026-05-20 10:29:00 [DONE] 导诊流程补回病情前置询问和选择气泡
+- 调整：导诊状态机进入挂号前必须先收集主诉/症状、持续时间、伴随症状或危险信号否认；信息不足时不会查医生或创建预约。
+- 调整：确定性导诊结果直接返回 `suggestedReplies`，`ChatServiceImpl` 将其写入 assistant metadata，前端 `ChatMessage.vue` 可继续渲染选择气泡。
+- 修复：持续时间识别补充中文数字，如“三天”“一周”，避免用户选择气泡后仍被重复追问。
+- 验证：`TriageAppointmentFlowServiceTest` 覆盖问病情、问持续时间、问伴随症状、信息足够后再问预约时间、找医生与确认预约；`ChatServiceImplTest#chat_shouldUseDeterministicTriageFlowInsteadOfChatModel` 验证确定性气泡写入 metadata。
+- 构建：`medical-ai-service` 聚焦测试通过，`mvn clean package -DskipTests -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml` 通过。
+
 ## 2026-05-20 09:50:00 [DONE] 导诊 Agent 确定性重构并完成真实流程复测
 - 重构：废弃原 `TriageAgent` 的提示词和工具编排，导诊会话在 `ChatServiceImpl` 中直接进入 `TriageAppointmentFlowService` 确定性状态机，不再让大模型决定预约步骤。
 - 新流程：第一轮必须先收集预约日期和上午/下午；拿到时间后按症状搜索医生并过滤该时段可用号源；用户通过“选1”或医生姓名选人；最后必须回复“确认预约”才创建预约。

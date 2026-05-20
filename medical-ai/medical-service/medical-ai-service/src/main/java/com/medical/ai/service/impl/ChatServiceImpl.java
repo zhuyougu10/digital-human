@@ -309,6 +309,10 @@ public class ChatServiceImpl implements ChatService {
         return Mono.fromCallable(() -> {
             String reply = result.reply();
             Map<String, Object> metadata = buildAssistantMetadata(session, userMessage, reply);
+            List<String> deterministicSuggestions = normalizeSuggestedReplies(result.suggestedReplies());
+            if (!deterministicSuggestions.isEmpty()) {
+                metadata.put(SUGGESTED_REPLIES_KEY, deterministicSuggestions);
+            }
 
             ChatMessage assistantMsg = new ChatMessage();
             assistantMsg.setSessionId(sessionId);
