@@ -150,3 +150,9 @@
 - 已确认 `doctor-service` / `appointment-service` 的 Seata 启动失败来自本地缺少 Seata 配置中心数据，默认 Nacos 语义保持不变。
 - 已为这两个服务补充 `application-local.yml`，仅将 Seata 配置源切换为 file，保留其作为事务参与者的角色。
 - 已更新 README 的本地启动步骤，补充 `seata-server` 前置条件与 `local` profile 启动方式。
+
+## 2026-05-20 15:47:00 [DONE] 导诊查医生阶段切换为状态机
+- 根因：导诊 Agent 同时负责病情追问、查医生、选医生、预约，模型偶发跳步骤或输出内部 ID，导致流程不稳定。
+- 修复：`ChatServiceImpl` 在 TRIAGE 对话中先同步结构化摘要；只有主诉、伴随症状、持续时间、严重程度、既往史、AI判断均完整，且用户已给出明确预约时间或进入选医生/确认预约阶段时，才切换到 `TriageAppointmentFlowService` 状态机处理查医生、选医生、号源与创建预约。
+- 保留：摘要不完整时继续走导诊 Agent 自然追问，不提前进入查医生；状态机回复继续走 SSE complete/TTS 与 suggestedReplies。
+- 验证：`mvn test -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml "-Dtest=TriageAgentTest,ChatServiceImplTest,SummaryServiceImplTest,TriageAppointmentFlowServiceTest" "-Dsurefire.failIfNoSpecifiedTests=false"` 通过，40 tests；`mvn clean package -DskipTests -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml` 通过；已热更新并重启 `medical-ai-service` 容器。

@@ -170,6 +170,47 @@ class ChatServiceImplTest {
     }
 
     @Test
+    void chat_shouldUseDeterministicTriageFlowAfterSummaryReadyAndTimeProvided() {
+        ChatSession session = new ChatSession();
+        session.setId(1L);
+        session.setUserId(38L);
+        session.setAgentType("TRIAGE");
+        session.setTitle("新对话");
+        when(sessionMapper.selectById(1L)).thenReturn(session);
+
+        ChatMessage userMessage = new ChatMessage();
+        userMessage.setSessionId(1L);
+        userMessage.setRole("user");
+        userMessage.setContent("我想预约2026年5月25日上午");
+        when(messageMapper.selectList(any())).thenReturn(List.of(userMessage));
+
+        ConversationSummaryVO summary = new ConversationSummaryVO();
+        summary.setChiefComplaint("感冒");
+        summary.setSymptoms("咳嗽");
+        summary.setDuration("三天");
+        summary.setSeverity("较轻");
+        summary.setMedicalHistory("无特殊既往史");
+        summary.setAiAssessment("病情信息基本完整，可进入挂号流程。");
+        when(summaryService.syncTriageSummary(eq(1L), eq(38L), eq(null), any())).thenReturn(summary);
+        when(triageAppointmentFlowService.handle(eq(1L), eq(38L), any(), eq(summary)))
+                .thenReturn(new TriageAppointmentFlowService.TriageFlowResult("已找到可预约医生，请回复序号选择。", null, List.of("选1")));
+        lenient().when(ttsService.synthesize(any())).thenReturn("/ai/chat/tts/triage-flow.mp3");
+
+        List<SseMessageVO> events = chatService.chat(1L, 38L, "我想预约2026年5月25日上午")
+                .takeUntil(event -> "complete".equals(event.getType()))
+                .collectList()
+                .block(Duration.ofSeconds(2));
+
+        assertNotNull(events);
+        SseMessageVO complete = findFirstEventByType(events, "complete");
+        assertNotNull(complete);
+        assertEquals("已找到可预约医生，请回复序号选择。", complete.getContent());
+        assertIterableEquals(List.of("选1"), (List<String>) complete.getMetadata().get("suggestedReplies"));
+        verify(chatModel, never()).stream(any(Prompt.class));
+        verify(triageAppointmentFlowService).handle(eq(1L), eq(38L), any(), eq(summary));
+    }
+
+    @Test
     void chat_shouldInjectAppointmentSuccessGuardIntoTriageSystemPrompt() {
         ChatSession session = new ChatSession();
         session.setId(1L);
@@ -842,7 +883,11 @@ class ChatServiceImplTest {
         assertEquals(1, ttsEvents.get(1).getSegmentIndex());
         assertEquals("/ai/chat/tts/seg-2.mp3", ttsEvents.get(1).getTtsUrl());
 
-        verify(messageMapper).updateById(argThat(hasTtsUrl("/ai/chat/tts/seg-1.mp3")));
+        verify(messageMapper).updateById(argThat((ChatMessage message) ->
+            message != null
+                && "第一句。第二句。".equals(message.getContent())
+                && List.of("/ai/chat/tts/seg-1.mp3", "/ai/chat/tts/seg-2.mp3").contains(message.getTtsUrl())
+        ));
     }
 
     @Test

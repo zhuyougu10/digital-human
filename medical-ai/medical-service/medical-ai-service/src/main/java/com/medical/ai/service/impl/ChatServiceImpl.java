@@ -77,6 +77,7 @@ public class ChatServiceImpl implements ChatService {
     private static final Pattern CONFIRM_PERIOD_PATTERN = Pattern.compile("确认[^。\n]{0,20}(上午|下午)");
     private static final Pattern APPOINTMENT_PERIOD_PATTERN = Pattern.compile("预约[^。\n]{0,20}(上午|下午)");
     private static final Pattern SIMPLE_PERIOD_PATTERN = Pattern.compile("(上午|下午)");
+    private static final Pattern OPTION_CHOICE_PATTERN = Pattern.compile("选\\s*\\d+");
     private static final String APPOINTMENT_GUARD_FALLBACK_REPLY = "抱歉，刚才尚未成功创建预约，请重新确认医生与时间后，我再为您提交预约。";
     private static final String TRIAGE_TTS_EXCLUDED_DISCLAIMER = "AI导诊仅供参考，不能替代专业医生诊断";
     private static final String AVATAR_CUE_KEY = "avatarCue";
@@ -160,7 +161,15 @@ public class ChatServiceImpl implements ChatService {
 
         if ("TRIAGE".equals(session.getAgentType())) {
             List<ChatMessage> sessionMessages = loadSessionMessages(sessionId);
-            summaryService.syncTriageSummary(sessionId, userId, null, sessionMessages);
+            ConversationSummaryVO triageSummary = summaryService.syncTriageSummary(sessionId, userId, null, sessionMessages);
+            if (shouldUseDeterministicAppointmentFlow(sessionMessages, triageSummary)) {
+                TriageAppointmentFlowService.TriageFlowResult triageResult =
+                        triageAppointmentFlowService.handle(sessionId, userId, sessionMessages, triageSummary);
+                if (triageResult != null) {
+                    return buildDeterministicTriageResponse(session, sessionId, message, triageResult)
+                            .doFinally(signalType -> sentinelEntry.exit());
+                }
+            }
         }
 
         Agent agent = agentFactory.getAgent(session.getAgentType());
@@ -340,6 +349,72 @@ public class ChatServiceImpl implements ChatService {
                         .subscribeOn(Schedulers.boundedElastic())
                         .flatMapMany(event -> event == null ? Flux.empty() : Flux.just(event))
         ));
+    }
+
+    private boolean shouldUseDeterministicAppointmentFlow(List<ChatMessage> messages, ConversationSummaryVO summary) {
+        return isTriageSummaryReadyForAppointment(summary) && isAppointmentFlowStarted(messages);
+    }
+
+    private boolean isTriageSummaryReadyForAppointment(ConversationSummaryVO summary) {
+        if (summary == null) {
+            return false;
+        }
+        return hasSummaryValue(summary.getChiefComplaint())
+                && hasSummaryValue(summary.getSymptoms())
+                && hasSummaryValue(summary.getDuration())
+                && hasSummaryValue(summary.getSeverity())
+                && hasSummaryValue(summary.getMedicalHistory())
+                && hasSummaryValue(summary.getAiAssessment());
+    }
+
+    private boolean hasSummaryValue(String value) {
+        return value != null
+                && !value.isBlank()
+                && !"未提及".equals(value)
+                && !"-".equals(value);
+    }
+
+    private boolean isAppointmentFlowStarted(List<ChatMessage> messages) {
+        String allText = allMessageText(messages);
+        String latestUserText = latestMessageText(messages, "user");
+        String lastAssistantText = latestMessageText(messages, "assistant");
+        return hasAppointmentTimeSignal(allText)
+                || OPTION_CHOICE_PATTERN.matcher(latestUserText).find()
+                || containsAny(latestUserText, "确认预约", "提交预约")
+                || containsAny(lastAssistantText, "请回复序号", "请选择医生", "已为您选定医生", "确认预约", "就诊时间");
+    }
+
+    private boolean hasAppointmentTimeSignal(String text) {
+        if (text == null || text.isBlank()) {
+            return false;
+        }
+        boolean hasDate = DATE_PATTERN.matcher(text).find() || containsAny(text, "今天", "明天", "后天");
+        boolean hasPeriod = containsAny(text, "上午", "下午", "早上", "中午", "晚上")
+                || Pattern.compile("\\b(?:0?[8-9]|1[0-8])[:：]\\d{2}\\b").matcher(text).find();
+        return hasDate && hasPeriod;
+    }
+
+    private String allMessageText(List<ChatMessage> messages) {
+        if (messages == null || messages.isEmpty()) {
+            return "";
+        }
+        return messages.stream()
+                .map(ChatMessage::getContent)
+                .filter(Objects::nonNull)
+                .collect(Collectors.joining("\n"));
+    }
+
+    private String latestMessageText(List<ChatMessage> messages, String role) {
+        if (messages == null || messages.isEmpty()) {
+            return "";
+        }
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            ChatMessage message = messages.get(i);
+            if (message != null && role.equals(message.getRole()) && message.getContent() != null) {
+                return message.getContent();
+            }
+        }
+        return "";
     }
 
     private SseMessageVO buildDeterministicTriageTtsEvent(Long sessionId, DeterministicTriagePreparedResponse prepared) {
