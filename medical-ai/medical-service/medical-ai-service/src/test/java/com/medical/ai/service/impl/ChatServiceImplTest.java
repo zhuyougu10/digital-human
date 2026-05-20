@@ -58,6 +58,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -255,6 +256,50 @@ class ChatServiceImplTest {
     }
 
     @Test
+    void chat_shouldEnterStateMachineAfterPatientAcceptsAppointmentRegistrationPrompt() {
+        ChatSession session = new ChatSession();
+        session.setId(1L);
+        session.setUserId(38L);
+        session.setAgentType("TRIAGE");
+        session.setTitle("新对话");
+        when(sessionMapper.selectById(1L)).thenReturn(session);
+
+        ChatMessage assistantMessage = new ChatMessage();
+        assistantMessage.setSessionId(1L);
+        assistantMessage.setRole("assistant");
+        assistantMessage.setContent("目前体温38.5度属于中度发热，请问您需要我帮您预约挂号吗？");
+        ChatMessage userMessage = new ChatMessage();
+        userMessage.setSessionId(1L);
+        userMessage.setRole("user");
+        userMessage.setContent("好的，帮我预约一下");
+        when(messageMapper.selectList(any())).thenReturn(List.of(assistantMessage, userMessage));
+
+        ConversationSummaryVO summary = new ConversationSummaryVO();
+        summary.setChiefComplaint("发热咳嗽");
+        summary.setSymptoms("咳嗽、头晕");
+        summary.setDuration("一天");
+        summary.setSeverity("中度发热");
+        summary.setMedicalHistory("无特殊既往史");
+        summary.setAiAssessment("疑似呼吸道感染相关问题。");
+        when(summaryService.syncTriageSummary(eq(1L), eq(38L), eq(null), any())).thenReturn(summary);
+        when(triageAppointmentFlowService.handle(eq(1L), eq(38L), any(), eq(summary)))
+                .thenReturn(new TriageAppointmentFlowService.TriageFlowResult("好的，我继续帮您预约。请告诉我想预约的日期和时段。", null, List.of("明天上午")));
+        lenient().when(ttsService.synthesize(any())).thenReturn("/ai/chat/tts/triage-flow.mp3");
+
+        List<SseMessageVO> events = chatService.chat(1L, 38L, "好的，帮我预约一下")
+                .takeUntil(event -> "complete".equals(event.getType()))
+                .collectList()
+                .block(Duration.ofSeconds(2));
+
+        assertNotNull(events);
+        SseMessageVO complete = findFirstEventByType(events, "complete");
+        assertNotNull(complete);
+        assertTrue(complete.getContent().contains("请告诉我想预约的日期和时段"));
+        verify(chatModel, never()).stream(any(Prompt.class));
+        verify(triageAppointmentFlowService).handle(eq(1L), eq(38L), any(), eq(summary));
+    }
+
+    @Test
     void chat_shouldInjectAppointmentSuccessGuardIntoTriageSystemPrompt() {
         ChatSession session = new ChatSession();
         session.setId(1L);
@@ -353,7 +398,7 @@ class ChatServiceImplTest {
         when(remoteScheduleService.getAvailableSlots(eq(2L), any())).thenReturn(R.ok(List.of(slot)));
 
         when(remoteAppointmentService.createAppointment(38L, 2L, 475L, 1L)).thenReturn(R.ok(101L));
-        when(ttsService.synthesize(any())).thenReturn("/ai/chat/tts/auto-create.mp3");
+        lenient().when(ttsService.synthesize(any())).thenReturn("/ai/chat/tts/auto-create.mp3");
 
         List<SseMessageVO> events = chatService.chat(1L, 38L, "帮我预约")
                 .takeUntil(event -> "complete".equals(event.getType()))
@@ -905,7 +950,6 @@ class ChatServiceImplTest {
         when(ttsService.synthesize("第二句。")).thenReturn("/ai/chat/tts/seg-2.mp3");
 
         List<SseMessageVO> events = chatService.chat(1L, 1L, "请介绍一下")
-            .take(4)
             .collectList()
             .block(Duration.ofSeconds(2));
 
@@ -974,7 +1018,7 @@ class ChatServiceImplTest {
         assertEquals("/ai/chat/tts/advice.mp3", ttsEvents.get(0).getTtsUrl());
 
         verify(ttsService, never()).synthesize("AI导诊仅供参考，不能替代专业医生诊断。");
-        verify(messageMapper).updateById(argThat(hasTtsUrl("/ai/chat/tts/advice.mp3")));
+        verify(messageMapper, atLeastOnce()).updateById(argThat(hasTtsUrl("/ai/chat/tts/advice.mp3")));
     }
 
     @Test

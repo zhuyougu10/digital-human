@@ -1,5 +1,11 @@
 # 进度日志
 
+## 2026-05-20 22:20:00 [DONE] 修复“帮我预约一下”未进入状态机
+- 根因：真实回复使用“请问您需要我帮您预约挂号吗？”这类文案，但 `ChatServiceImpl` 的状态机入口只识别“需要我继续帮您预约...”等表达，漏掉“不带继续”的预约挂号确认句，导致用户回复“好的，帮我预约一下”后仍由模型接管。
+- 修复：补齐 `需要我帮您预约/需要我帮你预约/帮您预约挂号/帮你预约挂号/预约挂号吗` 等就医确认提示识别；`TriageAppointmentFlowService` 同步补齐相同识别。
+- 验证：新增截图同款回归用例，确认 assistant 说“需要我帮您预约挂号吗？”后，用户说“好的，帮我预约一下”会直接进入状态机并询问预约日期和时段。
+- 验证：`mvn test -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml "-Dtest=TriageAppointmentFlowServiceTest,ChatServiceImplTest" "-Dsurefire.failIfNoSpecifiedTests=false"` 通过，37 tests；`mvn clean package -DskipTests -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml` 通过；已热更新并重启 `medical-ai-service` 容器。
+
 ## 2026-05-20 21:56:00 [DONE] 修复用户确认就医后未立即进入预约状态机
 - 根因：`ChatServiceImpl` 只有在结构化摘要完全就绪时才切入确定性导诊状态机；截图中用户已经表达“线上问诊/挂号/就诊”意图后，仍可能继续由模型自由回复，导致绕回解释、推荐医生顺序不稳定、跳过号源确认。
 - 修复：导诊入口改为满足任一条件即进入状态机：摘要完整、用户在就医确认问题后明确接受就医、或上一轮已经是确定性预约提示。这样用户确认就医后会立即进入“先选时间”状态机。

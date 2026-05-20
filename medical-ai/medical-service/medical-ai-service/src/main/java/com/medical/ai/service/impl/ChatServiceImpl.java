@@ -405,6 +405,11 @@ public class ChatServiceImpl implements ChatService {
 
     private boolean hasCareDecisionPrompt(String assistantText) {
         return containsAny(assistantText,
+                "需要我帮您预约",
+                "需要我帮你预约",
+                "帮您预约挂号",
+                "帮你预约挂号",
+                "预约挂号吗",
                 "需要我继续帮您预约医生就诊",
                 "需要我继续帮您预约",
                 "是否需要就医",
