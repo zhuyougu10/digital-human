@@ -1,5 +1,13 @@
 # 进度日志
 
+## 2026-05-20 09:50:00 [DONE] 导诊 Agent 确定性重构并完成真实流程复测
+- 重构：废弃原 `TriageAgent` 的提示词和工具编排，导诊会话在 `ChatServiceImpl` 中直接进入 `TriageAppointmentFlowService` 确定性状态机，不再让大模型决定预约步骤。
+- 新流程：第一轮必须先收集预约日期和上午/下午；拿到时间后按症状搜索医生并过滤该时段可用号源；用户通过“选1”或医生姓名选人；最后必须回复“确认预约”才创建预约。
+- 修复：真实复测发现“我想预约2026年5月26日上午，咳嗽”这类句子会把日期和流程词混入医生搜索，导致查不到医生；已改为抽取明确症状关键词并按候选词兜底搜索。
+- 验证：通过 `TriageAppointmentFlowServiceTest`、`TriageAgentTest`、`ChatServiceImplTest#chat_shouldUseDeterministicTriageFlowInsteadOfChatModel`，并完成 `medical-ai-service` 模块打包。
+- 真实复测：已热更新并重启 `medical-ai-service` 容器；使用指定患者 token 创建 `sessionId=256`，按“先问时间 -> 找医生 -> 选孙七 doctorId=5 -> 确认预约”创建 `appointmentId=84`、`slotId=480`、`2026-05-26 morning`。
+- 医生端确认：登录 `doctor_sunqi/123456` 后，医生预约列表可见 `appointmentId=84`；结束会话后 `summary/session/256` 与 `summary/appointment/84` 均返回 `summaryId=51` 且 `appointmentId=84`。
+
 ## 2026-05-20 00:45:00 [DONE] 使用指定患者 token 复测并修复预约成功文案误判
 - 复测 token：指定患者 token 对应 `userId=4`，真实网关路径为 `/api/ai/chat/**`、`/api/appointment/appointment/**`。
 - 复现：`sessionId=250/251/252` 中 AI 工具实际创建预约 `appointmentId=79/80/81`，患者端和医生端均可见，摘要也能绑定预约，但最终 assistant 回复被守卫改写为“尚未成功创建预约”。

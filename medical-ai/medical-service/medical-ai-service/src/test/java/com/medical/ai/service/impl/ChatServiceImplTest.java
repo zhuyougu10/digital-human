@@ -87,6 +87,9 @@ class ChatServiceImplTest {
     @Mock
     private RemoteScheduleService remoteScheduleService;
 
+    @Mock
+    private TriageAppointmentFlowService triageAppointmentFlowService;
+
     private ChatServiceImpl chatService;
 
     private static final String APPOINTMENT_SUCCESS_GUARD_TEXT = "只有在 createAppointment 工具明确返回 success=true 且 appointmentId 非空时，才允许回复“预约成功”";
@@ -103,8 +106,40 @@ class ChatServiceImplTest {
             summaryService,
             remoteAppointmentService,
             remoteScheduleService,
+            triageAppointmentFlowService,
             new ObjectMapper()
         );
+    }
+
+    @Test
+    void chat_shouldUseDeterministicTriageFlowInsteadOfChatModel() {
+        ChatSession session = new ChatSession();
+        session.setId(1L);
+        session.setUserId(38L);
+        session.setAgentType("TRIAGE");
+        session.setTitle("鏂板璇?");
+        when(sessionMapper.selectById(1L)).thenReturn(session);
+
+        ChatMessage userMessage = new ChatMessage();
+        userMessage.setSessionId(1L);
+        userMessage.setRole("user");
+        userMessage.setContent("2026年5月25日上午");
+        when(messageMapper.selectList(any())).thenReturn(List.of(userMessage));
+        when(triageAppointmentFlowService.handle(eq(1L), eq(38L), any()))
+                .thenReturn(new TriageAppointmentFlowService.TriageFlowResult("请回复序号选择医生", null));
+        when(ttsService.synthesize(any())).thenReturn("/ai/chat/tts/triage-flow.mp3");
+
+        List<SseMessageVO> events = chatService.chat(1L, 38L, "2026年5月25日上午")
+                .take(3)
+                .collectList()
+                .block(Duration.ofSeconds(2));
+
+        assertNotNull(events);
+        assertEquals("token", events.get(0).getType());
+        assertEquals("complete", events.get(1).getType());
+        assertEquals("请回复序号选择医生", events.get(1).getContent());
+        assertEquals("tts", events.get(2).getType());
+        verify(chatModel, never()).stream(any(Prompt.class));
     }
 
     @Test

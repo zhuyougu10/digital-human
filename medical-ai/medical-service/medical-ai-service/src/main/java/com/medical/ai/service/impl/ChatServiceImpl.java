@@ -98,6 +98,7 @@ public class ChatServiceImpl implements ChatService {
     private final SummaryService summaryService;
     private final RemoteAppointmentService remoteAppointmentService;
     private final RemoteScheduleService remoteScheduleService;
+    private final TriageAppointmentFlowService triageAppointmentFlowService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -155,6 +156,17 @@ public class ChatServiceImpl implements ChatService {
         userMsg.setRole("user");
         userMsg.setContent(message);
         messageMapper.insert(userMsg);
+
+        if ("TRIAGE".equals(session.getAgentType())) {
+            TriageAppointmentFlowService.TriageFlowResult triageResult = triageAppointmentFlowService.handle(
+                    sessionId,
+                    userId,
+                    loadSessionMessages(sessionId));
+            if (triageResult != null) {
+                return buildDeterministicTriageResponse(session, sessionId, message, triageResult)
+                        .doFinally(signalType -> sentinelEntry.exit());
+            }
+        }
 
         Agent agent = agentFactory.getAgent(session.getAgentType());
         List<Message> chatMessages = buildChatMessages(sessionId, agent, userId);
@@ -280,6 +292,68 @@ public class ChatServiceImpl implements ChatService {
 
         return Flux.merge(chatEvents, ttsSink.asFlux())
             .doFinally(signalType -> sentinelEntry.exit());
+    }
+
+    private List<ChatMessage> loadSessionMessages(Long sessionId) {
+        return messageMapper.selectList(
+                new LambdaQueryWrapper<ChatMessage>()
+                        .eq(ChatMessage::getSessionId, sessionId)
+                        .orderByAsc(ChatMessage::getCreateTime)
+        );
+    }
+
+    private Flux<SseMessageVO> buildDeterministicTriageResponse(ChatSession session,
+                                                                Long sessionId,
+                                                                String userMessage,
+                                                                TriageAppointmentFlowService.TriageFlowResult result) {
+        return Mono.fromCallable(() -> {
+            String reply = result.reply();
+            Map<String, Object> metadata = buildAssistantMetadata(session, userMessage, reply);
+
+            ChatMessage assistantMsg = new ChatMessage();
+            assistantMsg.setSessionId(sessionId);
+            assistantMsg.setRole("assistant");
+            assistantMsg.setContent(reply);
+            assistantMsg.setMetadata(writeMetadataJson(metadata));
+            messageMapper.insert(assistantMsg);
+
+            if (DEFAULT_SESSION_TITLE.equals(session.getTitle()) && userMessage != null && !userMessage.isEmpty()) {
+                session.setTitle(userMessage.length() > 20 ? userMessage.substring(0, 20) + "..." : userMessage);
+                sessionMapper.updateById(session);
+            }
+
+            SseMessageVO token = new SseMessageVO();
+            token.setType("token");
+            token.setContent(reply);
+
+            SseMessageVO complete = new SseMessageVO();
+            complete.setType("complete");
+            complete.setContent(reply);
+            complete.setMetadata(metadata);
+
+            List<SseMessageVO> events = new ArrayList<>();
+            events.add(token);
+            events.add(complete);
+
+            try {
+                String ttsUrl = ttsService.synthesize(reply);
+                if (ttsUrl != null && !ttsUrl.isBlank()) {
+                    assistantMsg.setTtsUrl(ttsUrl);
+                    messageMapper.updateById(assistantMsg);
+
+                    SseMessageVO tts = new SseMessageVO();
+                    tts.setType("tts");
+                    tts.setTtsUrl(ttsUrl);
+                    tts.setMetadata(metadata);
+                    tts.setSegmentIndex(0);
+                    tts.setTotalSegments(1);
+                    events.add(tts);
+                }
+            } catch (Exception e) {
+                log.warn("Deterministic triage TTS failed, sessionId={}, error={}", sessionId, e.getMessage());
+            }
+            return events;
+        }).subscribeOn(Schedulers.boundedElastic()).flatMapMany(Flux::fromIterable);
     }
 
     @Override
