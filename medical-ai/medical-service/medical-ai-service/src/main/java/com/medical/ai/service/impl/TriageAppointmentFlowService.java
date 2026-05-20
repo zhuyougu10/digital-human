@@ -1,6 +1,7 @@
 package com.medical.ai.service.impl;
 
 import com.medical.ai.domain.entity.ChatMessage;
+import com.medical.ai.domain.vo.ConversationSummaryVO;
 import com.medical.api.appointment.RemoteAppointmentService;
 import com.medical.api.appointment.dto.AppointmentDTO;
 import com.medical.api.doctor.RemoteDoctorService;
@@ -46,9 +47,9 @@ public class TriageAppointmentFlowService {
     private final RemoteScheduleService remoteScheduleService;
     private final RemoteAppointmentService remoteAppointmentService;
 
-    public TriageFlowResult handle(Long sessionId, Long patientId, List<ChatMessage> messages) {
+    public TriageFlowResult handle(Long sessionId, Long patientId, List<ChatMessage> messages, ConversationSummaryVO summary) {
         FlowContext context = FlowContext.from(messages);
-        TriageInfo triageInfo = extractTriageInfo(context.allUserText());
+        TriageInfo triageInfo = extractTriageInfo(context.allUserText(), summary);
         if (!triageInfo.hasSymptom()) {
             return new TriageFlowResult("""
                     我先了解一下您的主要不舒服，再帮您判断适合预约哪类医生。
@@ -74,6 +75,12 @@ public class TriageAppointmentFlowService {
                     + DISCLAIMER,
                     null,
                     List.of("症状较轻", "中等不适", "比较严重"));
+        }
+        if (!triageInfo.hasMedicalHistory()) {
+            return new TriageFlowResult("还需要补充既往史：您是否有基础病、过敏史、长期用药，或以前相关疾病史？"
+                    + DISCLAIMER,
+                    null,
+                    List.of("没有基础病和过敏史", "有高血压", "有药物过敏史"));
         }
 
         AppointmentTime appointmentTime = extractAppointmentTime(context.allUserText());
@@ -199,7 +206,15 @@ public class TriageAppointmentFlowService {
         return List.of();
     }
 
-    private TriageInfo extractTriageInfo(String text) {
+    private TriageInfo extractTriageInfo(String text, ConversationSummaryVO summary) {
+        if (summary != null) {
+            return new TriageInfo(
+                    hasSummaryValue(summary.getChiefComplaint()),
+                    hasSummaryValue(summary.getDuration()),
+                    hasSummaryValue(summary.getSymptoms()),
+                    hasSummaryValue(summary.getSeverity()),
+                    hasSummaryValue(summary.getMedicalHistory()));
+        }
         String source = text == null ? "" : text;
         boolean hasSymptom = SYMPTOM_KEYWORDS.stream().anyMatch(source::contains)
                 || source.contains("不舒服") || source.contains("疼") || source.contains("痛");
@@ -212,7 +227,14 @@ public class TriageAppointmentFlowService {
         boolean hasSeverityInfo = containsAny(source,
                 "轻微", "较轻", "中等", "一般", "严重", "剧烈", "很痛", "明显", "影响",
                 "不能", "睡眠", "进食", "日常", "活动", "还好", "不严重", "可忍受");
-        return new TriageInfo(hasSymptom, hasDuration, hasAssociatedInfo, hasSeverityInfo);
+        boolean hasMedicalHistory = containsAny(source,
+                "既往史", "基础病", "过敏", "长期用药", "高血压", "糖尿病", "冠心病", "心脏病", "哮喘",
+                "没有基础病", "无基础病", "没有过敏史", "无过敏史", "没有既往史", "无既往史");
+        return new TriageInfo(hasSymptom, hasDuration, hasAssociatedInfo, hasSeverityInfo, hasMedicalHistory);
+    }
+
+    private boolean hasSummaryValue(String value) {
+        return value != null && !value.isBlank() && !"未提及".equals(value) && !"-".equals(value);
     }
 
     private SelectedDoctor resolveSelectedDoctor(FlowContext context) {
@@ -465,7 +487,8 @@ public class TriageAppointmentFlowService {
     private record TriageInfo(boolean hasSymptom,
                               boolean hasDuration,
                               boolean hasAssociatedInfo,
-                              boolean hasSeverityInfo) {
+                              boolean hasSeverityInfo,
+                              boolean hasMedicalHistory) {
     }
 
     private record AppointmentTime(LocalDate date, String period) {

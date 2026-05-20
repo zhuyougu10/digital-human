@@ -13,6 +13,7 @@ import com.medical.ai.domain.entity.ChatMessage;
 import com.medical.ai.domain.entity.ChatSession;
 import com.medical.ai.domain.vo.ChatMessageVO;
 import com.medical.ai.domain.vo.ChatSessionVO;
+import com.medical.ai.domain.vo.ConversationSummaryVO;
 import com.medical.ai.domain.vo.SseMessageVO;
 import com.medical.ai.mapper.ChatMessageMapper;
 import com.medical.ai.mapper.ChatSessionMapper;
@@ -158,10 +159,13 @@ public class ChatServiceImpl implements ChatService {
         messageMapper.insert(userMsg);
 
         if ("TRIAGE".equals(session.getAgentType())) {
+            List<ChatMessage> sessionMessages = loadSessionMessages(sessionId);
+            ConversationSummaryVO triageSummary = summaryService.syncTriageSummary(sessionId, userId, null, sessionMessages);
             TriageAppointmentFlowService.TriageFlowResult triageResult = triageAppointmentFlowService.handle(
                     sessionId,
                     userId,
-                    loadSessionMessages(sessionId));
+                    sessionMessages,
+                    triageSummary);
             if (triageResult != null) {
                 return buildDeterministicTriageResponse(session, sessionId, message, triageResult)
                         .doFinally(signalType -> sentinelEntry.exit());
@@ -320,6 +324,10 @@ public class ChatServiceImpl implements ChatService {
             assistantMsg.setContent(reply);
             assistantMsg.setMetadata(writeMetadataJson(metadata));
             messageMapper.insert(assistantMsg);
+
+            if (result.appointmentId() != null) {
+                summaryService.syncTriageSummary(sessionId, session.getUserId(), result.appointmentId(), loadSessionMessages(sessionId));
+            }
 
             if (DEFAULT_SESSION_TITLE.equals(session.getTitle()) && userMessage != null && !userMessage.isEmpty()) {
                 session.setTitle(userMessage.length() > 20 ? userMessage.substring(0, 20) + "..." : userMessage);

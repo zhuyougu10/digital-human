@@ -2,6 +2,7 @@ package com.medical.ai.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.medical.ai.agent.AgentFactory;
+import com.medical.ai.domain.entity.ChatMessage;
 import com.medical.ai.domain.entity.ConversationSummary;
 import com.medical.ai.domain.vo.ConversationSummaryVO;
 import com.medical.ai.mapper.ChatMessageMapper;
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.openai.OpenAiChatModel;
 
@@ -64,6 +66,68 @@ class SummaryServiceImplTest {
                 remoteAppointmentService,
                 remoteDoctorService
         );
+    }
+
+    @Test
+    void syncTriageSummary_shouldInsertStructuredFieldsAndAlwaysSetAiAssessment() {
+        when(summaryMapper.selectOne(any())).thenReturn(null);
+
+        ConversationSummaryVO result = summaryService.syncTriageSummary(
+                10L,
+                4L,
+                null,
+                List.of(
+                        user("我感冒咳嗽"),
+                        user("已经三天了"),
+                        user("没有其他症状"),
+                        user("症状较轻，不影响日常活动"),
+                        user("没有基础病和过敏史")));
+
+        assertNotNull(result);
+        assertEquals("感冒", result.getChiefComplaint());
+        assertEquals("无其他明显伴随症状", result.getSymptoms());
+        assertEquals("三天", result.getDuration());
+        assertEquals("较轻", result.getSeverity());
+        assertEquals("无特殊既往史", result.getMedicalHistory());
+        assertNotNull(result.getAiAssessment());
+
+        ArgumentCaptor<ConversationSummary> captor = ArgumentCaptor.forClass(ConversationSummary.class);
+        verify(summaryMapper).insert(captor.capture());
+        assertEquals("感冒", captor.getValue().getChiefComplaint());
+        assertEquals("无特殊既往史", captor.getValue().getMedicalHistory());
+        assertNotNull(captor.getValue().getAiAssessment());
+    }
+
+    @Test
+    void syncTriageSummary_shouldUpdateMissingFieldsAndBindAppointment() {
+        ConversationSummary existing = new ConversationSummary();
+        existing.setId(99L);
+        existing.setSessionId(10L);
+        existing.setUserId(4L);
+        existing.setChiefComplaint("感冒");
+        existing.setSymptoms("未提及");
+        existing.setDuration("未提及");
+        existing.setSeverity("未提及");
+        existing.setMedicalHistory("未提及");
+        existing.setAiAssessment("-");
+        when(summaryMapper.selectOne(any())).thenReturn(existing);
+
+        ConversationSummaryVO result = summaryService.syncTriageSummary(
+                10L,
+                4L,
+                82L,
+                List.of(
+                        user("我感冒咳嗽"),
+                        user("已经三天了"),
+                        user("没有其他症状"),
+                        user("症状较轻，不影响日常活动"),
+                        user("没有基础病和过敏史")));
+
+        assertEquals(82L, result.getAppointmentId());
+        assertEquals("三天", result.getDuration());
+        assertEquals("较轻", result.getSeverity());
+        assertNotNull(result.getAiAssessment());
+        verify(summaryMapper).updateById(existing);
     }
 
     @Test
@@ -174,5 +238,12 @@ class SummaryServiceImplTest {
                 () -> summaryService.getSummaryByAppointment(10L, 1L, List.of(UserConstants.ROLE_ADMIN)));
 
         assertEquals(ErrorCode.APPOINTMENT_NOT_FOUND.getCode(), exception.getCode());
+    }
+
+    private ChatMessage user(String content) {
+        ChatMessage message = new ChatMessage();
+        message.setRole("user");
+        message.setContent(content);
+        return message;
     }
 }

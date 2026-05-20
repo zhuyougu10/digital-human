@@ -1,5 +1,13 @@
 # 进度日志
 
+## 2026-05-20 14:21:00 [DONE] 导诊追问改为基于结构化摘要并逐轮同步
+- 根因：导诊状态机此前只根据会话原文临时判断信息是否足够，`conversation_summary` 只在结束会话时由 SummaryAgent 生成一次，导致医生端结构化字段仍出现“持续时间/严重程度/伴随症状未提及”和 `aiAssessment=-`，追问也不会按摘要缺失项推进。
+- 修复：新增 `SummaryService.syncTriageSummary`，每轮患者消息入库后立即抽取并 upsert 结构化摘要字段；导诊状态机优先按结构化摘要字段判断下一问，字段顺序为主诉、持续时间、伴随症状、严重程度、既往史，信息完整后才进入预约时间/医生选择/确认预约流程。
+- 修复：摘要同步保证 `aiAssessment` 永远有值；既往史缺失时会明确追问基础病、过敏史、长期用药或相关疾病史；预约成功后再次同步摘要并绑定 `appointmentId`。
+- 修复：由于摘要会提前创建，`generateSummary` 在摘要已存在时仍会更新 `appointmentId` 并将会话状态置为结束，避免结束会话逻辑被提前摘要短路。
+- 验证：`mvn test -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml "-Dtest=SummaryServiceImplTest,TriageAppointmentFlowServiceTest,ChatServiceImplTest" "-Dsurefire.failIfNoSpecifiedTests=false"` 通过，38 个用例成功；`mvn clean package -DskipTests -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml` 通过。
+- 部署：已将新 `medical-ai-service-1.0.0.jar` 复制到运行中的 `medical-ai-service` 容器并重启，容器当前为运行状态。
+
 ## 2026-05-20 13:15:00 [DONE] 修复预约成功文案继续暴露内部编号
 - 根因：导诊确定性流程已隐藏 `doctorId/slotId`，但成功文案仍展示 `预约编号`；同时 ChatService 的兜底成功守卫会把 `appointmentId/预约ID` 重新拼回患者可见回复，且已验证预约成功分支会原样返回模型文案。
 - 修复：确定性导诊成功文案移除预约编号；ChatService 对成功工具、已验证预约、兜底创建/绑定成功的最终回复统一执行患者可见清洗，移除 `patientId/doctorId/slotId/appointmentId/患者ID/医生ID/时间段ID/预约ID/预约编号/预约单号` 等内部标识，同时保留医生、时间、挂号费等可读信息；纯 ID 文案清空后返回固定成功提示。

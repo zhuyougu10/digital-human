@@ -22,6 +22,7 @@ import com.medical.common.core.domain.R;
 import com.medical.common.core.exception.BusinessException;
 import com.medical.common.core.exception.ErrorCode;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;
@@ -34,12 +35,23 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class SummaryServiceImpl implements SummaryService {
+
+    private static final String NOT_MENTIONED = "未提及";
+    private static final String NO_HISTORY = "无特殊既往史";
+    private static final List<String> SYMPTOM_KEYWORDS = List.of(
+            "感冒", "咳嗽", "发热", "发烧", "嗓子痛", "咽痛", "头痛", "头疼", "头晕", "眩晕",
+            "胸痛", "胸闷", "腹痛", "胃痛", "皮疹", "失眠", "心悸", "鼻塞", "流涕", "恶心", "呕吐");
+    private static final Pattern DURATION_PATTERN = Pattern.compile("([0-9一二两三四五六七八九十半]+\\s*(天|日|周|星期|月|小时|分钟))|今天|昨天|刚开始|好几天|一周|半天|昨晚");
 
     private final ChatSessionMapper sessionMapper;
     private final ChatMessageMapper messageMapper;
@@ -59,6 +71,15 @@ public class SummaryServiceImpl implements SummaryService {
                     .eq(ConversationSummary::getSessionId, sessionId)
             );
             if (existing != null) {
+                if (appointmentId != null && !appointmentId.equals(existing.getAppointmentId())) {
+                    existing.setAppointmentId(appointmentId);
+                    summaryMapper.updateById(existing);
+                }
+                ChatSession session = sessionMapper.selectById(sessionId);
+                if (session != null) {
+                    session.setStatus(2);
+                    sessionMapper.updateById(session);
+                }
                 log.info("Summary already exists for session {}", sessionId);
                 return;
             }
@@ -122,6 +143,33 @@ public class SummaryServiceImpl implements SummaryService {
     }
 
     @Override
+    public ConversationSummaryVO syncTriageSummary(Long sessionId, Long userId, Long appointmentId, List<ChatMessage> messages) {
+        ConversationSummary extracted = extractStructuredTriageSummary(sessionId, userId, appointmentId, messages);
+        ConversationSummary existing = summaryMapper.selectOne(
+                new LambdaQueryWrapper<ConversationSummary>()
+                        .eq(ConversationSummary::getSessionId, sessionId)
+        );
+        if (existing == null) {
+            summaryMapper.insert(extracted);
+            return toVO(extracted);
+        }
+
+        existing.setUserId(userId);
+        if (appointmentId != null) {
+            existing.setAppointmentId(appointmentId);
+        }
+        existing.setChiefComplaint(extracted.getChiefComplaint());
+        existing.setSymptoms(extracted.getSymptoms());
+        existing.setDuration(extracted.getDuration());
+        existing.setSeverity(extracted.getSeverity());
+        existing.setMedicalHistory(extracted.getMedicalHistory());
+        existing.setAiAssessment(extracted.getAiAssessment());
+        existing.setFullSummary(extracted.getFullSummary());
+        summaryMapper.updateById(existing);
+        return toVO(existing);
+    }
+
+    @Override
     public ConversationSummaryVO getSummaryBySession(Long sessionId, Long userId) {
         validateSessionOwner(sessionId, userId);
         ConversationSummary summary = summaryMapper.selectOne(
@@ -179,6 +227,173 @@ public class SummaryServiceImpl implements SummaryService {
     private String getJsonField(JsonNode json, String field) {
         JsonNode node = json.get(field);
         return node != null ? node.asText() : null;
+    }
+
+    private ConversationSummary extractStructuredTriageSummary(Long sessionId, Long userId, Long appointmentId, List<ChatMessage> messages) {
+        List<String> userMessages = messages == null ? List.of() : messages.stream()
+                .filter(message -> message != null && "user".equals(message.getRole()))
+                .map(ChatMessage::getContent)
+                .filter(Objects::nonNull)
+                .filter(content -> !content.isBlank())
+                .toList();
+        String allUserText = String.join("\n", userMessages);
+
+        ConversationSummary summary = new ConversationSummary();
+        summary.setSessionId(sessionId);
+        summary.setUserId(userId);
+        summary.setAppointmentId(appointmentId);
+        summary.setChiefComplaint(resolveChiefComplaint(allUserText));
+        summary.setSymptoms(resolveAssociatedSymptoms(allUserText, summary.getChiefComplaint()));
+        summary.setDuration(resolveDuration(allUserText));
+        summary.setSeverity(resolveSeverity(allUserText));
+        summary.setMedicalHistory(resolveMedicalHistory(allUserText));
+        summary.setAiAssessment(resolveAiAssessment(summary));
+        summary.setFullSummary(writeStructuredSummary(summary));
+        return summary;
+    }
+
+    private String resolveChiefComplaint(String text) {
+        if (text == null || text.isBlank()) {
+            return NOT_MENTIONED;
+        }
+        for (String keyword : SYMPTOM_KEYWORDS) {
+            if (text.contains(keyword)) {
+                return keyword;
+            }
+        }
+        if (text.contains("不舒服")) {
+            return "不舒服";
+        }
+        if (text.contains("疼") || text.contains("痛")) {
+            return "疼痛不适";
+        }
+        return NOT_MENTIONED;
+    }
+
+    private String resolveAssociatedSymptoms(String text, String chiefComplaint) {
+        if (text == null || text.isBlank()) {
+            return NOT_MENTIONED;
+        }
+        if (containsAny(text, "没有其他症状", "无其他症状", "不伴", "没有其他不舒服")) {
+            return "无其他明显伴随症状";
+        }
+        Set<String> symptoms = new LinkedHashSet<>();
+        for (String keyword : SYMPTOM_KEYWORDS) {
+            if (text.contains(keyword) && !keyword.equals(chiefComplaint)) {
+                symptoms.add(keyword);
+            }
+        }
+        if (containsAny(text, "胸闷", "气短", "呼吸困难")) {
+            symptoms.add("胸闷气短");
+        }
+        if (containsAny(text, "伴有", "还有", "同时") && symptoms.isEmpty()) {
+            return "有伴随不适，具体症状需进一步确认";
+        }
+        return symptoms.isEmpty() ? NOT_MENTIONED : String.join("、", symptoms);
+    }
+
+    private String resolveDuration(String text) {
+        Matcher matcher = DURATION_PATTERN.matcher(text == null ? "" : text);
+        return matcher.find() ? matcher.group() : NOT_MENTIONED;
+    }
+
+    private String resolveSeverity(String text) {
+        if (text == null || text.isBlank()) {
+            return NOT_MENTIONED;
+        }
+        if (containsAny(text, "严重", "剧烈", "很痛", "不能", "明显影响", "比较严重")) {
+            return "较重";
+        }
+        if (containsAny(text, "中等", "一般", "中等不适")) {
+            return "中等";
+        }
+        if (containsAny(text, "轻微", "较轻", "不严重", "可忍受", "还好", "不影响")) {
+            return "较轻";
+        }
+        return NOT_MENTIONED;
+    }
+
+    private String resolveMedicalHistory(String text) {
+        if (text == null || text.isBlank()) {
+            return NOT_MENTIONED;
+        }
+        if (containsAny(text, "无既往史", "没有既往史", "无基础病", "没有基础病", "无过敏史", "没有过敏史", "没有长期用药")) {
+            return NO_HISTORY;
+        }
+        List<String> histories = new ArrayList<>();
+        if (containsAny(text, "高血压")) {
+            histories.add("高血压");
+        }
+        if (containsAny(text, "糖尿病")) {
+            histories.add("糖尿病");
+        }
+        if (containsAny(text, "冠心病", "心脏病")) {
+            histories.add("心血管病史");
+        }
+        if (containsAny(text, "哮喘")) {
+            histories.add("哮喘");
+        }
+        if (containsAny(text, "过敏")) {
+            histories.add("过敏史");
+        }
+        if (containsAny(text, "长期用药")) {
+            histories.add("长期用药史");
+        }
+        return histories.isEmpty() ? NOT_MENTIONED : String.join("、", histories);
+    }
+
+    private String resolveAiAssessment(ConversationSummary summary) {
+        if (isMissing(summary.getChiefComplaint())) {
+            return "当前主诉信息不足，需先补充主要不适。";
+        }
+        List<String> missing = new ArrayList<>();
+        if (isMissing(summary.getDuration())) {
+            missing.add("持续时间");
+        }
+        if (isMissing(summary.getSymptoms())) {
+            missing.add("伴随症状");
+        }
+        if (isMissing(summary.getSeverity())) {
+            missing.add("严重程度");
+        }
+        if (isMissing(summary.getMedicalHistory())) {
+            missing.add("既往史");
+        }
+        if (!missing.isEmpty()) {
+            return "已记录主诉，仍需补充" + String.join("、", missing) + "后再进入挂号。";
+        }
+        return "病情信息基本完整，可进入预约挂号流程；如出现明显加重或急症表现，应及时线下就医。";
+    }
+
+    private String writeStructuredSummary(ConversationSummary summary) {
+        return "{"
+                + "\"chiefComplaint\":\"" + escapeJson(summary.getChiefComplaint()) + "\","
+                + "\"symptoms\":\"" + escapeJson(summary.getSymptoms()) + "\","
+                + "\"duration\":\"" + escapeJson(summary.getDuration()) + "\","
+                + "\"severity\":\"" + escapeJson(summary.getSeverity()) + "\","
+                + "\"medicalHistory\":\"" + escapeJson(summary.getMedicalHistory()) + "\","
+                + "\"aiAssessment\":\"" + escapeJson(summary.getAiAssessment()) + "\""
+                + "}";
+    }
+
+    private boolean isMissing(String value) {
+        return value == null || value.isBlank() || NOT_MENTIONED.equals(value) || "-".equals(value);
+    }
+
+    private boolean containsAny(String text, String... needles) {
+        if (text == null || text.isBlank()) {
+            return false;
+        }
+        for (String needle : needles) {
+            if (text.contains(needle)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String escapeJson(String text) {
+        return text == null ? "" : text.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     private ConversationSummaryVO toVO(ConversationSummary summary) {

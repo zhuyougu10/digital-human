@@ -1,6 +1,7 @@
 package com.medical.ai.service.impl;
 
 import com.medical.ai.domain.entity.ChatMessage;
+import com.medical.ai.domain.vo.ConversationSummaryVO;
 import com.medical.api.appointment.RemoteAppointmentService;
 import com.medical.api.doctor.RemoteDoctorService;
 import com.medical.api.doctor.RemoteScheduleService;
@@ -50,7 +51,8 @@ class TriageAppointmentFlowServiceTest {
         TriageAppointmentFlowService.TriageFlowResult result = flowService.handle(
                 10L,
                 4L,
-                List.of(user("我感冒咳嗽，想看医生")));
+                List.of(user("我感冒咳嗽，想看医生")),
+                summary("感冒", "未提及", "未提及", "未提及", "未提及"));
 
         assertTrue(result.reply().contains("持续多久"));
         assertTrue(result.suggestedReplies().contains("已经三天了"));
@@ -64,7 +66,8 @@ class TriageAppointmentFlowServiceTest {
                 4L,
                 List.of(
                         user("我感冒咳嗽，想看医生"),
-                        user("已经三天了")));
+                        user("已经三天了")),
+                summary("感冒", "未提及", "三天", "未提及", "未提及"));
 
         assertTrue(result.reply().contains("伴随情况"));
         assertTrue(result.suggestedReplies().contains("没有其他症状"));
@@ -79,7 +82,8 @@ class TriageAppointmentFlowServiceTest {
                 List.of(
                         user("我感冒咳嗽，想看医生"),
                         user("已经三天了"),
-                        user("没有其他症状")));
+                        user("没有其他症状")),
+                summary("感冒", "无其他明显伴随症状", "三天", "未提及", "未提及"));
 
         assertTrue(result.reply().contains("严重程度"));
         assertTrue(result.suggestedReplies().contains("症状较轻"));
@@ -95,7 +99,9 @@ class TriageAppointmentFlowServiceTest {
                         user("我感冒咳嗽，想看医生"),
                         user("已经三天了"),
                         user("没有其他症状"),
-                        user("症状较轻，不影响日常活动")));
+                        user("症状较轻，不影响日常活动"),
+                        user("没有基础病和过敏史")),
+                summary("感冒", "无其他明显伴随症状", "三天", "较轻", "无特殊既往史"));
 
         assertTrue(result.reply().contains("病情信息已经基本够用了"));
         assertTrue(result.suggestedReplies().contains("2026年5月25日上午"));
@@ -107,9 +113,27 @@ class TriageAppointmentFlowServiceTest {
         TriageAppointmentFlowService.TriageFlowResult result = flowService.handle(
                 10L,
                 4L,
-                List.of(user("我咳嗽发热三天了，没有其他症状，想预约2026年5月25日上午")));
+                List.of(user("我咳嗽发热三天了，没有其他症状，想预约2026年5月25日上午")),
+                summary("咳嗽", "发热", "三天", "未提及", "未提及"));
 
         assertTrue(result.reply().contains("严重程度"));
+        verify(remoteDoctorService, never()).searchBySymptom(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void handle_shouldAskMedicalHistoryWhenStructuredSummaryStillMissingIt() {
+        TriageAppointmentFlowService.TriageFlowResult result = flowService.handle(
+                10L,
+                4L,
+                List.of(
+                        user("我感冒咳嗽，想看医生"),
+                        user("已经三天了"),
+                        user("没有其他症状"),
+                        user("症状较轻，不影响日常活动")),
+                summary("感冒", "无其他明显伴随症状", "三天", "较轻", "未提及"));
+
+        assertTrue(result.reply().contains("既往史"));
+        assertTrue(result.suggestedReplies().contains("没有基础病和过敏史"));
         verify(remoteDoctorService, never()).searchBySymptom(org.mockito.ArgumentMatchers.anyString());
     }
 
@@ -128,7 +152,9 @@ class TriageAppointmentFlowServiceTest {
                         user("已经三天了"),
                         user("没有其他症状"),
                         user("症状较轻，不影响日常活动"),
-                        user("想预约2026年5月25日上午")));
+                        user("没有基础病和过敏史"),
+                        user("想预约2026年5月25日上午")),
+                summary("感冒", "无其他明显伴随症状", "三天", "较轻", "无特殊既往史"));
 
         assertTrue(result.reply().contains("请回复序号或医生姓名选择"));
         assertTrue(result.reply().contains("李四"));
@@ -158,11 +184,13 @@ class TriageAppointmentFlowServiceTest {
                         user("已经三天了"),
                         user("没有其他症状"),
                         user("症状较轻，不影响日常活动"),
+                        user("没有基础病和过敏史"),
                         user("想预约2026年5月25日上午"),
                         assistant("1. 李四（内科，副主任医师，挂号费=0.00元）"),
                         user("选1"),
                         assistant("医生：李四\n就诊时间：2026-05-25 上午 08:00-12:00\n请回复“确认预约”"),
-                        user("确认预约")));
+                        user("确认预约")),
+                summary("感冒", "无其他明显伴随症状", "三天", "较轻", "无特殊既往史"));
 
         assertEquals(82L, result.appointmentId());
         assertTrue(result.reply().contains("预约已成功创建"));
@@ -184,6 +212,21 @@ class TriageAppointmentFlowServiceTest {
         message.setRole("assistant");
         message.setContent(content);
         return message;
+    }
+
+    private ConversationSummaryVO summary(String chiefComplaint,
+                                          String symptoms,
+                                          String duration,
+                                          String severity,
+                                          String medicalHistory) {
+        ConversationSummaryVO summary = new ConversationSummaryVO();
+        summary.setChiefComplaint(chiefComplaint);
+        summary.setSymptoms(symptoms);
+        summary.setDuration(duration);
+        summary.setSeverity(severity);
+        summary.setMedicalHistory(medicalHistory);
+        summary.setAiAssessment("已记录主诉，继续补充结构化病情信息。");
+        return summary;
     }
 
     private DoctorInfoDTO doctor(Long id, String name) {
