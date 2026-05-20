@@ -85,7 +85,7 @@ class SummaryServiceImplTest {
 
         assertNotNull(result);
         assertEquals("感冒", result.getChiefComplaint());
-        assertEquals("无其他明显伴随症状", result.getSymptoms());
+        assertEquals("咳嗽、无其他明显伴随症状", result.getSymptoms());
         assertEquals("三天", result.getDuration());
         assertEquals("较轻", result.getSeverity());
         assertEquals("无特殊既往史", result.getMedicalHistory());

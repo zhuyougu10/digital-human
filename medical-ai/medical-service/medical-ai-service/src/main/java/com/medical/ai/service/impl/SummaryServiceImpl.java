@@ -51,6 +51,9 @@ public class SummaryServiceImpl implements SummaryService {
     private static final List<String> SYMPTOM_KEYWORDS = List.of(
             "感冒", "咳嗽", "发热", "发烧", "嗓子痛", "咽痛", "头痛", "头疼", "头晕", "眩晕",
             "胸痛", "胸闷", "腹痛", "胃痛", "皮疹", "失眠", "心悸", "鼻塞", "流涕", "恶心", "呕吐");
+    private static final List<String> BODY_LOCATION_KEYWORDS = List.of(
+            "头", "额头", "太阳穴", "后脑勺", "眼睛", "鼻", "鼻子", "咽", "咽喉", "喉咙", "嗓子",
+            "胸", "胸口", "心口", "腹", "肚子", "胃", "腰", "背", "皮肤", "四肢", "关节");
     private static final Pattern DURATION_PATTERN = Pattern.compile("([0-9一二两三四五六七八九十半]+\\s*(天|日|周|星期|月|小时|分钟))|今天|昨天|刚开始|好几天|一周|半天|昨晚");
 
     private final ChatSessionMapper sessionMapper;
@@ -274,10 +277,14 @@ public class SummaryServiceImpl implements SummaryService {
         if (text == null || text.isBlank()) {
             return NOT_MENTIONED;
         }
-        if (containsAny(text, "没有其他症状", "无其他症状", "不伴", "没有其他不舒服")) {
-            return "无其他明显伴随症状";
-        }
         Set<String> symptoms = new LinkedHashSet<>();
+        List<String> locations = BODY_LOCATION_KEYWORDS.stream()
+                .filter(text::contains)
+                .distinct()
+                .toList();
+        if (!locations.isEmpty()) {
+            symptoms.add("部位：" + String.join("、", locations));
+        }
         for (String keyword : SYMPTOM_KEYWORDS) {
             if (text.contains(keyword) && !keyword.equals(chiefComplaint)) {
                 symptoms.add(keyword);
@@ -285,6 +292,9 @@ public class SummaryServiceImpl implements SummaryService {
         }
         if (containsAny(text, "胸闷", "气短", "呼吸困难")) {
             symptoms.add("胸闷气短");
+        }
+        if (containsAny(text, "没有其他症状", "无其他症状", "不伴", "没有其他不舒服")) {
+            symptoms.add("无其他明显伴随症状");
         }
         if (containsAny(text, "伴有", "还有", "同时") && symptoms.isEmpty()) {
             return "有伴随不适，具体症状需进一步确认";
@@ -350,6 +360,9 @@ public class SummaryServiceImpl implements SummaryService {
         if (isMissing(summary.getDuration())) {
             missing.add("持续时间");
         }
+        if (!hasLocationInfo(summary)) {
+            missing.add("不适部位");
+        }
         if (isMissing(summary.getSymptoms())) {
             missing.add("伴随症状");
         }
@@ -378,6 +391,14 @@ public class SummaryServiceImpl implements SummaryService {
 
     private boolean isMissing(String value) {
         return value == null || value.isBlank() || NOT_MENTIONED.equals(value) || "-".equals(value);
+    }
+
+    private boolean hasLocationInfo(ConversationSummary summary) {
+        if (summary == null) {
+            return false;
+        }
+        String text = Objects.toString(summary.getChiefComplaint(), "") + "\n" + Objects.toString(summary.getSymptoms(), "");
+        return BODY_LOCATION_KEYWORDS.stream().anyMatch(text::contains);
     }
 
     private boolean containsAny(String text, String... needles) {

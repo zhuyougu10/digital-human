@@ -114,7 +114,7 @@ class ChatServiceImplTest {
     }
 
     @Test
-    void chat_shouldUseDeterministicTriageFlowInsteadOfChatModel() {
+    void chat_shouldLetTriageAgentUseModelWithSynchronizedSummary() {
         ChatSession session = new ChatSession();
         session.setId(1L);
         session.setUserId(38L);
@@ -135,25 +135,37 @@ class ChatServiceImplTest {
         summary.setMedicalHistory("未提及");
         summary.setAiAssessment("已记录主诉，仍需补充信息。");
         when(summaryService.syncTriageSummary(eq(1L), eq(38L), eq(null), any())).thenReturn(summary);
-        when(triageAppointmentFlowService.handle(eq(1L), eq(38L), any(), eq(summary)))
-                .thenReturn(new TriageAppointmentFlowService.TriageFlowResult("请回复序号选择医生", null, List.of("选1", "选2")));
+        when(summaryService.getSummaryBySession(1L, 38L)).thenReturn(summary);
+        Agent agent = mock(Agent.class);
+        when(agentFactory.getAgent("TRIAGE")).thenReturn(agent);
+        when(agent.getToolNames()).thenReturn(List.of("searchDoctorBySymptom", "getAvailableSlots", "createAppointment"));
+        when(agent.getSystemPrompt()).thenReturn("triage-system");
+        when(agent.getAgentType()).thenReturn("TRIAGE");
+        when(chatModel.stream(argThat((Prompt prompt) -> {
+            if (prompt == null || prompt.getInstructions() == null || prompt.getInstructions().isEmpty()) {
+                return false;
+            }
+            String systemText = prompt.getInstructions().get(0).getText();
+            return systemText.contains("当前结构化导诊摘要")
+                    && systemText.contains("主诉：感冒")
+                    && systemText.contains("AI判断：已记录主诉，仍需补充信息。");
+        }))).thenReturn(Flux.just(mockChatResponse("感冒已经记录了，我再确认一下：这些症状持续多久了？")));
         lenient().when(ttsService.synthesize(any())).thenAnswer(invocation -> {
             Thread.sleep(500L);
             return "/ai/chat/tts/triage-flow.mp3";
         });
 
         List<SseMessageVO> events = chatService.chat(1L, 38L, "2026年5月25日上午")
-                .take(2)
+                .takeUntil(event -> "complete".equals(event.getType()))
                 .collectList()
                 .block(Duration.ofSeconds(2));
 
         assertNotNull(events);
-        assertEquals(2, events.size());
-        assertEquals("token", events.get(0).getType());
-        assertEquals("complete", events.get(1).getType());
-        assertEquals("请回复序号选择医生", events.get(1).getContent());
-        assertSuggestedReplies(events.get(1).getMetadata(), "选1", "选2");
-        verify(chatModel, never()).stream(any(Prompt.class));
+        SseMessageVO complete = findFirstEventByType(events, "complete");
+        assertNotNull(complete);
+        assertEquals("感冒已经记录了，我再确认一下：这些症状持续多久了？", complete.getContent());
+        verify(chatModel).stream(any(Prompt.class));
+        verify(triageAppointmentFlowService, never()).handle(any(), any(), any(), any());
         verify(summaryService).syncTriageSummary(eq(1L), eq(38L), eq(null), any());
     }
 

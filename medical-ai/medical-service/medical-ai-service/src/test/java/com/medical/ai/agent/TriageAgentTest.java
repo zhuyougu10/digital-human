@@ -1,6 +1,7 @@
 package com.medical.ai.agent;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -8,12 +9,16 @@ import org.junit.jupiter.api.Test;
 class TriageAgentTest {
 
     @Test
-    void triageAgent_shouldDelegateAppointmentFlowToDeterministicService() {
+    void triageAgent_shouldUseToolsAndNaturalSummaryDrivenPrompt() {
         TriageAgent triageAgent = new TriageAgent();
 
         assertEquals("TRIAGE", triageAgent.getAgentType());
-        assertTrue(triageAgent.getToolNames().isEmpty());
-        assertTrue(triageAgent.getSystemPrompt().contains("deterministic appointment flow"));
-        assertTrue(triageAgent.getSystemPrompt().contains("collect appointment time"));
+        assertEquals(3, triageAgent.getToolNames().size());
+        assertTrue(triageAgent.getToolNames().contains("searchDoctorBySymptom"));
+        assertTrue(triageAgent.getToolNames().contains("getAvailableSlots"));
+        assertTrue(triageAgent.getToolNames().contains("createAppointment"));
+        assertTrue(triageAgent.getSystemPrompt().contains("当前结构化导诊摘要"));
+        assertTrue(triageAgent.getSystemPrompt().contains("像真人一样"));
+        assertFalse(triageAgent.getSystemPrompt().contains("deterministic appointment flow"));
     }
 }

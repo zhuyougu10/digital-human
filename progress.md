@@ -1,5 +1,13 @@
 # 进度日志
 
+## 2026-05-20 14:48:00 [DONE] 导诊恢复为 Agent 自主追问和工具调用
+- 根因：上一版为了稳定性把 `TRIAGE` 强制短路到确定性状态机，`TriageAgent` 本身没有工具列表，只能按固定模板问答；这不符合“像人一样”的导诊体验，也限制了模型基于上下文自主判断和调用工具。
+- 修复：`TriageAgent` 恢复 `searchDoctorBySymptom`、`getAvailableSlots`、`createAppointment` 三个工具，并重写系统提示词，要求模型根据当前结构化导诊摘要自然追问、一次只问关键缺口、信息完整后再进入预约工具链。
+- 修复：`ChatServiceImpl` 不再对 `TRIAGE` 走确定性状态机短路；每轮仍先同步结构化摘要，然后把当前摘要注入系统提示，让 Agent 自己决定继续追问还是调用工具。
+- 保留：结构化摘要同步、`aiAssessment` 必填、预约成功守卫、患者可见回复隐藏内部 ID 的保护逻辑仍然保留。
+- 验证：`mvn test -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml "-Dtest=TriageAgentTest,ChatServiceImplTest,SummaryServiceImplTest" "-Dsurefire.failIfNoSpecifiedTests=false"` 通过，31 个用例成功；`mvn clean package -DskipTests -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml` 通过。
+- 部署：已将新 `medical-ai-service-1.0.0.jar` 复制到运行中的 `medical-ai-service` 容器并重启，容器当前为运行状态。
+
 ## 2026-05-20 14:21:00 [DONE] 导诊追问改为基于结构化摘要并逐轮同步
 - 根因：导诊状态机此前只根据会话原文临时判断信息是否足够，`conversation_summary` 只在结束会话时由 SummaryAgent 生成一次，导致医生端结构化字段仍出现“持续时间/严重程度/伴随症状未提及”和 `aiAssessment=-`，追问也不会按摘要缺失项推进。
 - 修复：新增 `SummaryService.syncTriageSummary`，每轮患者消息入库后立即抽取并 upsert 结构化摘要字段；导诊状态机优先按结构化摘要字段判断下一问，字段顺序为主诉、持续时间、伴随症状、严重程度、既往史，信息完整后才进入预约时间/医生选择/确认预约流程。

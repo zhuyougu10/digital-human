@@ -160,16 +160,7 @@ public class ChatServiceImpl implements ChatService {
 
         if ("TRIAGE".equals(session.getAgentType())) {
             List<ChatMessage> sessionMessages = loadSessionMessages(sessionId);
-            ConversationSummaryVO triageSummary = summaryService.syncTriageSummary(sessionId, userId, null, sessionMessages);
-            TriageAppointmentFlowService.TriageFlowResult triageResult = triageAppointmentFlowService.handle(
-                    sessionId,
-                    userId,
-                    sessionMessages,
-                    triageSummary);
-            if (triageResult != null) {
-                return buildDeterministicTriageResponse(session, sessionId, message, triageResult)
-                        .doFinally(signalType -> sentinelEntry.exit());
-            }
+            summaryService.syncTriageSummary(sessionId, userId, null, sessionMessages);
         }
 
         Agent agent = agentFactory.getAgent(session.getAgentType());
@@ -435,6 +426,7 @@ public class ChatServiceImpl implements ChatService {
         if ("TRIAGE".equals(agent.getAgentType()) && userId != null) {
             systemPrompt += "\n\n当前患者信息：\n- patientId = " + userId
                 + "\n- sessionId = " + sessionId
+                + "\n\n当前结构化导诊摘要：\n" + buildTriageSummaryPrompt(sessionId, userId)
                 + "\n在调用 createAppointment 工具时，请务必使用上面的 patientId。"
                 + "\n在调用 createAppointment 工具时，请务必使用上面的 sessionId。"
                 + "\n只有在 createAppointment 工具明确返回 success=true 且 appointmentId 非空时，才允许回复“预约成功”；"
@@ -459,6 +451,38 @@ public class ChatServiceImpl implements ChatService {
             }
         }
         return messages;
+    }
+
+    private String buildTriageSummaryPrompt(Long sessionId, Long userId) {
+        try {
+            ConversationSummaryVO summary = summaryService.getSummaryBySession(sessionId, userId);
+            if (summary == null) {
+                return "- 主诉：未提及\n"
+                    + "- 伴随症状：未提及\n"
+                    + "- 持续时间：未提及\n"
+                    + "- 严重程度：未提及\n"
+                    + "- 既往史：未提及\n"
+                    + "- AI判断：当前病情信息不足，需继续追问。";
+            }
+            return "- 主诉：" + visibleSummaryValue(summary.getChiefComplaint()) + "\n"
+                + "- 伴随症状：" + visibleSummaryValue(summary.getSymptoms()) + "\n"
+                + "- 持续时间：" + visibleSummaryValue(summary.getDuration()) + "\n"
+                + "- 严重程度：" + visibleSummaryValue(summary.getSeverity()) + "\n"
+                + "- 既往史：" + visibleSummaryValue(summary.getMedicalHistory()) + "\n"
+                + "- AI判断：" + visibleSummaryValue(summary.getAiAssessment());
+        } catch (Exception e) {
+            log.warn("Failed to load triage summary for prompt, sessionId={}, userId={}, error={}", sessionId, userId, e.getMessage());
+            return "- 主诉：未提及\n"
+                + "- 伴随症状：未提及\n"
+                + "- 持续时间：未提及\n"
+                + "- 严重程度：未提及\n"
+                + "- 既往史：未提及\n"
+                + "- AI判断：当前病情信息不足，需继续追问。";
+        }
+    }
+
+    private String visibleSummaryValue(String value) {
+        return value == null || value.isBlank() ? "未提及" : value;
     }
 
     private ChatSessionVO toSessionVO(ChatSession session) {
