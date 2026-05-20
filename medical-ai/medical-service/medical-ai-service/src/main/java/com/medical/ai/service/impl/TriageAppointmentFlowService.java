@@ -67,6 +67,12 @@ public class TriageAppointmentFlowService {
                     null,
                     List.of("伴有发烧", "没有其他症状", "有胸闷气短"));
         }
+        if (!triageInfo.hasSeverityInfo()) {
+            return new TriageFlowResult("我再确认一下严重程度：目前症状是轻微、中等，还是很严重？有没有影响进食、睡眠或日常活动？"
+                    + DISCLAIMER,
+                    null,
+                    List.of("症状较轻", "中等不适", "比较严重"));
+        }
 
         AppointmentTime appointmentTime = extractAppointmentTime(context.allUserText());
         if (appointmentTime == null) {
@@ -206,7 +212,10 @@ public class TriageAppointmentFlowService {
         boolean hasAssociatedInfo = containsAny(source,
                 "伴有", "还有", "同时", "发热", "发烧", "胸闷", "气短", "呼吸困难", "呕吐", "恶心", "头晕",
                 "没有其他", "无其他", "不伴", "没有发烧", "没有发热");
-        return new TriageInfo(hasSymptom, hasDuration, hasAssociatedInfo);
+        boolean hasSeverityInfo = containsAny(source,
+                "轻微", "较轻", "中等", "一般", "严重", "剧烈", "很痛", "明显", "影响",
+                "不能", "睡眠", "进食", "日常", "活动", "还好", "不严重", "可忍受");
+        return new TriageInfo(hasSymptom, hasDuration, hasAssociatedInfo, hasSeverityInfo);
     }
 
     private SelectedDoctor resolveSelectedDoctor(FlowContext context) {
@@ -420,7 +429,10 @@ public class TriageAppointmentFlowService {
         }
     }
 
-    private record TriageInfo(boolean hasSymptom, boolean hasDuration, boolean hasAssociatedInfo) {
+    private record TriageInfo(boolean hasSymptom,
+                              boolean hasDuration,
+                              boolean hasAssociatedInfo,
+                              boolean hasSeverityInfo) {
     }
 
     private record AppointmentTime(LocalDate date, String period) {

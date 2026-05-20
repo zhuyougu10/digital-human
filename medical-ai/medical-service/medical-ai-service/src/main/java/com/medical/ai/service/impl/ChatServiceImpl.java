@@ -308,7 +308,7 @@ public class ChatServiceImpl implements ChatService {
                                                                 TriageAppointmentFlowService.TriageFlowResult result) {
         return Mono.fromCallable(() -> {
             String reply = result.reply();
-            Map<String, Object> metadata = buildAssistantMetadata(session, userMessage, reply);
+            Map<String, Object> metadata = buildAvatarCueMetadata(session, userMessage, reply);
             List<String> deterministicSuggestions = normalizeSuggestedReplies(result.suggestedReplies());
             if (!deterministicSuggestions.isEmpty()) {
                 metadata.put(SUGGESTED_REPLIES_KEY, deterministicSuggestions);
@@ -334,30 +334,43 @@ public class ChatServiceImpl implements ChatService {
             complete.setType("complete");
             complete.setContent(reply);
             complete.setMetadata(metadata);
+            return new DeterministicTriagePreparedResponse(reply, metadata, assistantMsg, token, complete);
+        }).subscribeOn(Schedulers.boundedElastic()).flatMapMany(prepared -> Flux.concat(
+                Flux.just(prepared.token(), prepared.complete()),
+                Mono.fromCallable(() -> buildDeterministicTriageTtsEvent(sessionId, prepared))
+                        .subscribeOn(Schedulers.boundedElastic())
+                        .flatMapMany(event -> event == null ? Flux.empty() : Flux.just(event))
+        ));
+    }
 
-            List<SseMessageVO> events = new ArrayList<>();
-            events.add(token);
-            events.add(complete);
-
-            try {
-                String ttsUrl = ttsService.synthesize(reply);
-                if (ttsUrl != null && !ttsUrl.isBlank()) {
-                    assistantMsg.setTtsUrl(ttsUrl);
-                    messageMapper.updateById(assistantMsg);
-
-                    SseMessageVO tts = new SseMessageVO();
-                    tts.setType("tts");
-                    tts.setTtsUrl(ttsUrl);
-                    tts.setMetadata(metadata);
-                    tts.setSegmentIndex(0);
-                    tts.setTotalSegments(1);
-                    events.add(tts);
-                }
-            } catch (Exception e) {
-                log.warn("Deterministic triage TTS failed, sessionId={}, error={}", sessionId, e.getMessage());
+    private SseMessageVO buildDeterministicTriageTtsEvent(Long sessionId, DeterministicTriagePreparedResponse prepared) {
+        try {
+            String ttsUrl = ttsService.synthesize(prepared.reply());
+            if (ttsUrl == null || ttsUrl.isBlank()) {
+                return null;
             }
-            return events;
-        }).subscribeOn(Schedulers.boundedElastic()).flatMapMany(Flux::fromIterable);
+            ChatMessage assistantMsg = prepared.assistantMessage();
+            assistantMsg.setTtsUrl(ttsUrl);
+            messageMapper.updateById(assistantMsg);
+
+            SseMessageVO tts = new SseMessageVO();
+            tts.setType("tts");
+            tts.setTtsUrl(ttsUrl);
+            tts.setMetadata(prepared.metadata());
+            tts.setSegmentIndex(0);
+            tts.setTotalSegments(1);
+            return tts;
+        } catch (Exception e) {
+            log.warn("Deterministic triage TTS failed, sessionId={}, error={}", sessionId, e.getMessage());
+            return null;
+        }
+    }
+
+    private record DeterministicTriagePreparedResponse(String reply,
+                                                       Map<String, Object> metadata,
+                                                       ChatMessage assistantMessage,
+                                                       SseMessageVO token,
+                                                       SseMessageVO complete) {
     }
 
     @Override

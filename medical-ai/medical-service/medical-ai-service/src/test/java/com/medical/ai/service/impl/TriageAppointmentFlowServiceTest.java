@@ -72,7 +72,7 @@ class TriageAppointmentFlowServiceTest {
     }
 
     @Test
-    void handle_shouldAskAppointmentTimeAfterEnoughTriageInfo() {
+    void handle_shouldAskSeverityBeforeAppointmentFlow() {
         TriageAppointmentFlowService.TriageFlowResult result = flowService.handle(
                 10L,
                 4L,
@@ -81,8 +81,35 @@ class TriageAppointmentFlowServiceTest {
                         user("已经三天了"),
                         user("没有其他症状")));
 
+        assertTrue(result.reply().contains("严重程度"));
+        assertTrue(result.suggestedReplies().contains("症状较轻"));
+        verify(remoteDoctorService, never()).searchBySymptom(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void handle_shouldAskAppointmentTimeAfterEnoughTriageInfo() {
+        TriageAppointmentFlowService.TriageFlowResult result = flowService.handle(
+                10L,
+                4L,
+                List.of(
+                        user("我感冒咳嗽，想看医生"),
+                        user("已经三天了"),
+                        user("没有其他症状"),
+                        user("症状较轻，不影响日常活动")));
+
         assertTrue(result.reply().contains("病情信息已经基本够用了"));
         assertTrue(result.suggestedReplies().contains("2026年5月25日上午"));
+        verify(remoteDoctorService, never()).searchBySymptom(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void handle_shouldStillAskSeverityWhenFirstMessageContainsSymptomDurationAndAssociatedInfo() {
+        TriageAppointmentFlowService.TriageFlowResult result = flowService.handle(
+                10L,
+                4L,
+                List.of(user("我咳嗽发热三天了，没有其他症状，想预约2026年5月25日上午")));
+
+        assertTrue(result.reply().contains("严重程度"));
         verify(remoteDoctorService, never()).searchBySymptom(org.mockito.ArgumentMatchers.anyString());
     }
 
@@ -100,6 +127,7 @@ class TriageAppointmentFlowServiceTest {
                         user("我感冒咳嗽"),
                         user("已经三天了"),
                         user("没有其他症状"),
+                        user("症状较轻，不影响日常活动"),
                         user("想预约2026年5月25日上午")));
 
         assertTrue(result.reply().contains("请回复序号或医生姓名选择"));
@@ -125,6 +153,7 @@ class TriageAppointmentFlowServiceTest {
                         user("我感冒咳嗽"),
                         user("已经三天了"),
                         user("没有其他症状"),
+                        user("症状较轻，不影响日常活动"),
                         user("想预约2026年5月25日上午"),
                         assistant("1. 李四（doctorId=2，内科，slotId=462）"),
                         user("选1"),

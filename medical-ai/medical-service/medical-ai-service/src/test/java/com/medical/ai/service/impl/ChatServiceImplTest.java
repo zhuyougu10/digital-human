@@ -56,6 +56,7 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -127,19 +128,22 @@ class ChatServiceImplTest {
         when(messageMapper.selectList(any())).thenReturn(List.of(userMessage));
         when(triageAppointmentFlowService.handle(eq(1L), eq(38L), any()))
                 .thenReturn(new TriageAppointmentFlowService.TriageFlowResult("请回复序号选择医生", null, List.of("选1", "选2")));
-        when(ttsService.synthesize(any())).thenReturn("/ai/chat/tts/triage-flow.mp3");
+        lenient().when(ttsService.synthesize(any())).thenAnswer(invocation -> {
+            Thread.sleep(500L);
+            return "/ai/chat/tts/triage-flow.mp3";
+        });
 
         List<SseMessageVO> events = chatService.chat(1L, 38L, "2026年5月25日上午")
-                .take(3)
+                .take(2)
                 .collectList()
-                .block(Duration.ofSeconds(2));
+                .block(Duration.ofMillis(300));
 
         assertNotNull(events);
+        assertEquals(2, events.size());
         assertEquals("token", events.get(0).getType());
         assertEquals("complete", events.get(1).getType());
         assertEquals("请回复序号选择医生", events.get(1).getContent());
         assertSuggestedReplies(events.get(1).getMetadata(), "选1", "选2");
-        assertEquals("tts", events.get(2).getType());
         verify(chatModel, never()).stream(any(Prompt.class));
     }
 
