@@ -13,6 +13,7 @@ import com.medical.api.knowledge.dto.KnowledgeSearchRequest;
 import com.medical.api.knowledge.dto.KnowledgeSearchResult;
 import com.medical.common.core.domain.R;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -35,6 +36,7 @@ public class TriageAppointmentFlowService {
     private static final ZoneId SERVER_ZONE = ZoneId.systemDefault();
     private static final Pattern DATE_CN_PATTERN = Pattern.compile("(20\\d{2})年(\\d{1,2})月(\\d{1,2})日");
     private static final Pattern DATE_DASH_PATTERN = Pattern.compile("(20\\d{2})[-/](\\d{1,2})[-/](\\d{1,2})");
+    private static final Pattern WEEKDAY_PATTERN = Pattern.compile("(下周|下星期|下个周|下个星期|本周|这周|这个周|本星期|这个星期)?\\s*(周|星期|礼拜)([一二三四五六日天])");
     private static final Pattern DOCTOR_ID_PATTERN = Pattern.compile("doctorId\\s*[:：=]?\\s*(\\d+)", Pattern.CASE_INSENSITIVE);
     private static final Pattern SLOT_ID_PATTERN = Pattern.compile("slotId\\s*[:：=]?\\s*(\\d+)", Pattern.CASE_INSENSITIVE);
     private static final Pattern OPTION_SELECTION_PATTERN = Pattern.compile("(?:选|选择|第)\\s*(\\d+)\\s*(?:个|位|名)?");
@@ -141,7 +143,7 @@ public class TriageAppointmentFlowService {
                     List.of("需要就医", "暂时先观察", "帮我预约"));
         }
 
-        AppointmentTime appointmentTime = extractAppointmentTime(context.allUserText());
+        AppointmentTime appointmentTime = resolveAppointmentTime(context);
         if (appointmentTime == null) {
             return new TriageFlowResult("""
                     好的，我继续帮您预约。请告诉我想预约的日期和时段。
@@ -149,6 +151,14 @@ public class TriageAppointmentFlowService {
                     例如：2026年5月25日上午，或 2026-05-25 下午。""".strip(),
                     null,
                     List.of("2026年5月25日上午", "2026-05-25 下午", "明天上午"));
+        }
+        if (isPastAppointmentTime(appointmentTime)) {
+            return new TriageFlowResult("""
+                    这个就诊时段已经过去，不能再预约。
+
+                    请重新告诉我一个未来的预约日期和时段，例如：明天上午、下周三下午。""".strip(),
+                    null,
+                    List.of("明天上午", "下周三下午", "换个时间"));
         }
 
         SelectedDoctor selectedDoctor = resolveSelectedDoctor(context);
@@ -308,7 +318,14 @@ public class TriageAppointmentFlowService {
     private boolean hasCareDecisionPrompt(FlowContext context) {
         return containsAny(context.allAssistantText(),
                 "初步判断",
+                "初步看",
+                "初步考虑",
+                "初步疑似诊断方向",
                 "疑似",
+                "上呼吸道感染",
+                "需要去医院看看",
+                "需要去医院",
+                "医院看看",
                 "需要我帮您预约",
                 "需要我帮你预约",
                 "帮您预约挂号",
@@ -319,7 +336,8 @@ public class TriageAppointmentFlowService {
                 "是否需要就医",
                 "需要就医吗",
                 "是否需要看医生",
-                "要不要就医");
+                "要不要就医",
+                "预约医生就诊吗");
     }
 
     private boolean wantsMedicalCare(String text) {
@@ -346,7 +364,7 @@ public class TriageAppointmentFlowService {
     }
 
     private boolean isAppointmentFlowInProgress(FlowContext context) {
-        return extractAppointmentTime(context.allUserText()) != null
+        return resolveAppointmentTime(context) != null
                 || containsAny(context.allAssistantText(), "请回复序号", "请选择医生", "已为您选定医生", "确认预约", "就诊时间")
                 || OPTION_SELECTION_PATTERN.matcher(context.latestUserText()).find()
                 || isConfirming(context.latestUserText());
@@ -621,6 +639,53 @@ public class TriageAppointmentFlowService {
                 : List.of();
     }
 
+    private AppointmentTime resolveAppointmentTime(FlowContext context) {
+        String latestUserText = context.latestUserText();
+        boolean latestHasDate = extractDate(latestUserText) != null;
+        boolean latestHasPeriod = extractPeriod(latestUserText) != null;
+        AppointmentTime latestTime = extractAppointmentTime(latestUserText);
+        if (latestTime != null) {
+            return latestTime;
+        }
+        if (latestHasDate || latestHasPeriod) {
+            return null;
+        }
+        if (isSelectingDoctorOrConfirming(context)) {
+            return extractMostRecentAppointmentTime(context);
+        }
+        return null;
+    }
+
+    private AppointmentTime extractMostRecentAppointmentTime(FlowContext context) {
+        for (int i = context.messages().size() - 1; i >= 0; i--) {
+            AppointmentTime appointmentTime = extractAppointmentTime(context.messages().get(i).getContent());
+            if (appointmentTime != null) {
+                return appointmentTime;
+            }
+        }
+        return null;
+    }
+
+    private boolean isSelectingDoctorOrConfirming(FlowContext context) {
+        String latestUserText = context.latestUserText();
+        String lastAssistantText = context.lastAssistantText();
+        return OPTION_SELECTION_PATTERN.matcher(latestUserText).find()
+                || containsAny(latestUserText, "确认预约", "提交预约")
+                || containsAny(lastAssistantText, "请回复序号", "请选择医生", "已为您选定医生和时间", "请回复“确认预约”");
+    }
+
+    private boolean isPastAppointmentTime(AppointmentTime appointmentTime) {
+        LocalDate today = LocalDate.now(SERVER_ZONE);
+        if (appointmentTime.date().isBefore(today)) {
+            return true;
+        }
+        if (appointmentTime.date().isAfter(today)) {
+            return false;
+        }
+        LocalTime periodEnd = "afternoon".equals(appointmentTime.period()) ? LocalTime.of(18, 0) : LocalTime.of(12, 0);
+        return !LocalTime.now(SERVER_ZONE).isBefore(periodEnd);
+    }
+
     private AppointmentTime extractAppointmentTime(String text) {
         LocalDate date = extractDate(text);
         String period = extractPeriod(text);
@@ -652,7 +717,33 @@ public class TriageAppointmentFlowService {
         if (text.contains("今天")) {
             return today;
         }
+        Matcher weekday = WEEKDAY_PATTERN.matcher(text);
+        if (weekday.find()) {
+            return resolveWeekday(today, weekday.group(1), weekday.group(3));
+        }
         return null;
+    }
+
+    private LocalDate resolveWeekday(LocalDate today, String prefix, String weekdayText) {
+        int targetDayOfWeek = switch (weekdayText) {
+            case "一" -> 1;
+            case "二" -> 2;
+            case "三" -> 3;
+            case "四" -> 4;
+            case "五" -> 5;
+            case "六" -> 6;
+            case "日", "天" -> 7;
+            default -> today.getDayOfWeek().getValue();
+        };
+        int currentDayOfWeek = today.getDayOfWeek().getValue();
+        boolean explicitNextWeek = containsAny(prefix, "下周", "下星期", "下个周", "下个星期");
+        int daysToAdd = targetDayOfWeek - currentDayOfWeek;
+        if (explicitNextWeek) {
+            daysToAdd += 7;
+        } else if (daysToAdd <= 0) {
+            daysToAdd += 7;
+        }
+        return today.plusDays(daysToAdd);
     }
 
     private String extractPeriod(String text) {

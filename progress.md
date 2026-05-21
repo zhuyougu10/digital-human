@@ -1,5 +1,12 @@
 # 进度日志
 
+## 2026-05-21 22:35:00 [DONE] 修复导诊重复初判与错误沿用当天上午预约时间
+- 现象：患者已收到“上呼吸道感染/感冒或流感相关”的初步判断后，回复“需要就医”时系统又重复输出一次初判，并可能因知识库检索内容变化改成“中耳炎”；同时患者说“今天上午刚开始”描述的是症状持续时间，却被状态机误当成预约时间，晚上 22:14 仍推荐当天上午 08:00-12:00，用户纠正“下周三”时也可能继续沿用旧的 2026-05-21 上午。
+- 根因：`TriageAppointmentFlowService` 的预约时间抽取使用了全部用户文本，导致早期病情描述里的“今天上午”污染后续预约时间；时间纠正只给日期未给时段时，也没有阻断旧时段复用。另一个根因是“已完成初判/是否就医”的识别词过窄，只覆盖固定模板，未覆盖模型自然回复中的“初步看”“上呼吸道感染”“需要去医院看看”等表达。
+- 修复：预约时间改为优先只解析最新用户输入；如果最新输入只包含日期或只包含时段，则继续要求用户补全日期和时段，不再拼接历史旧值；仅在选医生/确认预约阶段才从最近消息向前回溯已明确选定的完整预约时间；新增“下周/星期/周几”解析；新增过期时段拦截，当天上午/下午结束后不再允许预约该时段。
+- 修复：扩展已初判提示识别，覆盖自然语言里的“初步看/初步考虑/初步疑似诊断方向/上呼吸道感染/需要去医院看看/预约医生就诊吗”等表达，用户确认就医后直接进入询问预约日期和时段，不再重复知识库初判或改变诊断方向。
+- 验证：新增截图同类回归用例，覆盖“已初判后不重复检索知识库”“今天上午刚开始不作为预约时间”“下周三只有日期时继续要求时段”“下周三下午覆盖旧的今天上午”；`mvn test -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml "-Dtest=TriageAppointmentFlowServiceTest,ChatServiceImplTest" "-Dsurefire.failIfNoSpecifiedTests=false"` 通过，45 tests；`mvn clean package -DskipTests -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml` 通过。已热更新并重启 `medical-ai-service` 容器，启动完成并注册到 Nacos。
+
 ## 2026-05-20 22:32:00 [DONE] 修复 TTS 超时导致 SSE 会话卡住
 - 现象：22:25 左右患者端停在输入中状态；AI 服务日志显示 `sessionId=6` 多个 `TTS 合成失败` 和 `TimeoutException`，知识库检索已完成，问题不在知识库/医生服务。
 - 根因：`ChatServiceImpl.scheduleTtsSynthesis` 只在 TTS 正常 complete 时递减 `pendingTtsTasks`；TTS 超时走 error callback 后没有递减，导致 `ttsSink` 永远不 complete，SSE 连接一直不结束，前端保持 loading。

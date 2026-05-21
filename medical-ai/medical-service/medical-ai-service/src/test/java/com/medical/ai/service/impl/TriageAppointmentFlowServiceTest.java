@@ -127,6 +127,59 @@ class TriageAppointmentFlowServiceTest {
     }
 
     @Test
+    void handle_shouldNotRepeatCareDecisionWhenAssistantAlreadyGaveInitialDiagnosis() {
+        TriageAppointmentFlowService.TriageFlowResult result = flowService.handle(
+                10L,
+                4L,
+                List.of(
+                        user("我头疼发烧，嗓子疼，还有点流鼻涕"),
+                        user("今天上午刚开始"),
+                        user("体温38.5度"),
+                        user("没有基础病和过敏史"),
+                        assistant("根据您的情况，今天上午开始发烧38.5度，伴有头疼、嗓子疼、流鼻涕，初步看这些症状比较像是上呼吸道感染，也就是我们常说的感冒或流感。您需要去医院看看吗？"),
+                        user("需要就医")),
+                summaryWithAssessment(
+                        "发热、咽痛、流涕",
+                        "头疼、嗓子疼、流鼻涕",
+                        "今天上午",
+                        "中等不适",
+                        "没有基础病和过敏史",
+                        "疑似上呼吸道感染或感冒相关问题。"));
+
+        assertTrue(result.reply().contains("请告诉我想预约的日期和时段"));
+        assertTrue(!result.reply().contains("初步疑似诊断方向"));
+        assertTrue(!result.reply().contains("中耳炎"));
+        verify(remoteKnowledgeService, never()).search(org.mockito.ArgumentMatchers.any(KnowledgeSearchRequest.class));
+        verify(remoteDoctorService, never()).searchBySymptom(org.mockito.ArgumentMatchers.anyString());
+        verify(remoteScheduleService, never()).getAvailableSlots(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void handle_shouldNotTreatSymptomDurationTodayMorningAsAppointmentTime() {
+        TriageAppointmentFlowService.TriageFlowResult result = flowService.handle(
+                10L,
+                4L,
+                List.of(
+                        user("我头疼发烧，嗓子疼，还有点流鼻涕"),
+                        user("今天上午刚开始"),
+                        user("体温38.5度"),
+                        user("没有基础病和过敏史"),
+                        assistant("初步看这些症状比较像是上呼吸道感染。您需要去医院看看吗？"),
+                        user("需要就医")),
+                summaryWithAssessment(
+                        "发热、咽痛、流涕",
+                        "头疼、嗓子疼、流鼻涕",
+                        "今天上午",
+                        "中等不适",
+                        "没有基础病和过敏史",
+                        "疑似上呼吸道感染或感冒相关问题。"));
+
+        assertTrue(result.reply().contains("请告诉我想预约的日期和时段"));
+        verify(remoteDoctorService, never()).searchBySymptom(org.mockito.ArgumentMatchers.anyString());
+        verify(remoteScheduleService, never()).getAvailableSlots(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
     void handle_shouldNotShowBookingReadinessAsInitialDiagnosis() {
         when(remoteKnowledgeService.search(org.mockito.ArgumentMatchers.any(KnowledgeSearchRequest.class)))
                 .thenReturn(R.ok(List.of()));
@@ -371,6 +424,68 @@ class TriageAppointmentFlowServiceTest {
         verify(remoteDoctorService, never()).searchBySymptom(org.mockito.ArgumentMatchers.anyString());
     }
 
+    @Test
+    void handle_shouldAskForPeriodWhenPatientCorrectsDateOnly() {
+        TriageAppointmentFlowService.TriageFlowResult result = flowService.handle(
+                10L,
+                4L,
+                List.of(
+                        user("我头疼发烧，嗓子疼，还有点流鼻涕"),
+                        user("今天上午刚开始"),
+                        user("体温38.5度"),
+                        user("没有基础病和过敏史"),
+                        assistant("初步看这些症状比较像是上呼吸道感染。您需要去医院看看吗？"),
+                        user("需要就医"),
+                        assistant("好的，我继续帮您预约。请告诉我想预约的日期和时段。"),
+                        user("下周三")),
+                summaryWithAssessment(
+                        "发热、咽痛、流涕",
+                        "头疼、嗓子疼、流鼻涕",
+                        "今天上午",
+                        "中等不适",
+                        "没有基础病和过敏史",
+                        "疑似上呼吸道感染或感冒相关问题。"),
+                true);
+
+        assertTrue(result.reply().contains("请告诉我想预约的日期和时段"));
+        verify(remoteDoctorService, never()).searchBySymptom(org.mockito.ArgumentMatchers.anyString());
+        verify(remoteScheduleService, never()).getAvailableSlots(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void handle_shouldUseLatestCorrectedWeekdayTimeInsteadOfEarlierTodayMorningText() {
+        LocalDate nextWednesday = nextWeekday(LocalDate.now(), 3);
+        DoctorInfoDTO doctor = doctor(2L, "李四");
+        SlotInfoDTO slot = slot(462L, 2L, "李四", "afternoon", nextWednesday);
+        when(remoteDoctorService.searchBySymptom(org.mockito.ArgumentMatchers.anyString())).thenReturn(R.ok(List.of(doctor)));
+        when(remoteScheduleService.getAvailableSlots(2L, nextWednesday.toString())).thenReturn(R.ok(List.of(slot)));
+
+        TriageAppointmentFlowService.TriageFlowResult result = flowService.handle(
+                10L,
+                4L,
+                List.of(
+                        user("我头疼发烧，嗓子疼，还有点流鼻涕"),
+                        user("今天上午刚开始"),
+                        user("体温38.5度"),
+                        user("没有基础病和过敏史"),
+                        assistant("初步看这些症状比较像是上呼吸道感染。您需要去医院看看吗？"),
+                        user("需要就医"),
+                        assistant("好的，我继续帮您预约。请告诉我想预约的日期和时段。"),
+                        user("下周三下午")),
+                summaryWithAssessment(
+                        "发热、咽痛、流涕",
+                        "头疼、嗓子疼、流鼻涕",
+                        "今天上午",
+                        "中等不适",
+                        "没有基础病和过敏史",
+                        "疑似上呼吸道感染或感冒相关问题。"),
+                true);
+
+        assertTrue(result.reply().contains(nextWednesday + " 下午"));
+        assertTrue(!result.reply().contains(LocalDate.now() + " 上午"));
+        verify(remoteScheduleService).getAvailableSlots(2L, nextWednesday.toString());
+    }
+
     private ChatMessage user(String content) {
         ChatMessage message = new ChatMessage();
         message.setRole("user");
@@ -440,11 +555,15 @@ class TriageAppointmentFlowServiceTest {
     }
 
     private SlotInfoDTO slot(Long id, Long doctorId, String doctorName, String period) {
+        return slot(id, doctorId, doctorName, period, LocalDate.of(2026, 5, 25));
+    }
+
+    private SlotInfoDTO slot(Long id, Long doctorId, String doctorName, String period, LocalDate date) {
         SlotInfoDTO slot = new SlotInfoDTO();
         slot.setId(id);
         slot.setDoctorId(doctorId);
         slot.setDoctorName(doctorName);
-        slot.setScheduleDate(LocalDate.of(2026, 5, 25));
+        slot.setScheduleDate(date);
         slot.setPeriod(period);
         slot.setStartTime("morning".equals(period) ? LocalTime.of(8, 0) : LocalTime.of(14, 0));
         slot.setEndTime("morning".equals(period) ? LocalTime.of(12, 0) : LocalTime.of(18, 0));
@@ -452,5 +571,11 @@ class TriageAppointmentFlowServiceTest {
         slot.setBookedSlots(0);
         slot.setAvailableSlots(20);
         return slot;
+    }
+
+    private LocalDate nextWeekday(LocalDate today, int targetDayOfWeek) {
+        int daysToAdd = targetDayOfWeek - today.getDayOfWeek().getValue();
+        daysToAdd += 7;
+        return today.plusDays(daysToAdd);
     }
 }
