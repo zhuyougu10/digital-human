@@ -52,6 +52,16 @@ public class TriageAppointmentFlowService {
     private final RemoteKnowledgeService remoteKnowledgeService;
 
     public TriageFlowResult handle(Long sessionId, Long patientId, List<ChatMessage> messages, ConversationSummaryVO summary) {
+        return handle(sessionId, patientId, messages, summary, false);
+    }
+
+    public TriageFlowResult handle(
+            Long sessionId,
+            Long patientId,
+            List<ChatMessage> messages,
+            ConversationSummaryVO summary,
+            boolean forceAppointmentFlow
+    ) {
         FlowContext context = FlowContext.from(messages);
         TriageInfo triageInfo = extractTriageInfo(context.allUserText(), summary);
         if (!triageInfo.hasSymptom()) {
@@ -100,7 +110,7 @@ public class TriageAppointmentFlowService {
                     null,
                     List.of("我想预约", "再问问症状", "结束"));
         }
-        if (!wantsMedicalCare(context.latestUserText()) && !isAppointmentFlowInProgress(context)) {
+        if (!forceAppointmentFlow && !wantsMedicalCare(context.latestUserText()) && !isAppointmentFlowInProgress(context)) {
             return new TriageFlowResult("您是否需要我继续帮您预约医生就诊？"
                     + DISCLAIMER,
                     null,

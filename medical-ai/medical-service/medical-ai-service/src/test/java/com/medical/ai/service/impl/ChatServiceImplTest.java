@@ -52,6 +52,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -166,7 +167,7 @@ class ChatServiceImplTest {
         assertNotNull(complete);
         assertEquals("感冒已经记录了，我再确认一下：这些症状持续多久了？", complete.getContent());
         verify(chatModel).stream(any(Prompt.class));
-        verify(triageAppointmentFlowService, never()).handle(any(), any(), any(), any());
+        verify(triageAppointmentFlowService, never()).handle(any(), any(), any(), any(), anyBoolean());
         verify(summaryService).syncTriageSummary(eq(1L), eq(38L), eq(null), any());
     }
 
@@ -193,7 +194,7 @@ class ChatServiceImplTest {
         summary.setMedicalHistory("无特殊既往史");
         summary.setAiAssessment("病情信息基本完整，可进入挂号流程。");
         when(summaryService.syncTriageSummary(eq(1L), eq(38L), eq(null), any())).thenReturn(summary);
-        when(triageAppointmentFlowService.handle(eq(1L), eq(38L), any(), eq(summary)))
+        when(triageAppointmentFlowService.handle(eq(1L), eq(38L), any(), eq(summary), eq(false)))
                 .thenReturn(new TriageAppointmentFlowService.TriageFlowResult("已找到可预约医生，请回复序号选择。", null, List.of("选1")));
         lenient().when(ttsService.synthesize(any())).thenReturn("/ai/chat/tts/triage-flow.mp3");
 
@@ -208,7 +209,7 @@ class ChatServiceImplTest {
         assertEquals("已找到可预约医生，请回复序号选择。", complete.getContent());
         assertIterableEquals(List.of("选1"), (List<String>) complete.getMetadata().get("suggestedReplies"));
         verify(chatModel, never()).stream(any(Prompt.class));
-        verify(triageAppointmentFlowService).handle(eq(1L), eq(38L), any(), eq(summary));
+        verify(triageAppointmentFlowService).handle(eq(1L), eq(38L), any(), eq(summary), eq(false));
     }
 
     @Test
@@ -238,7 +239,8 @@ class ChatServiceImplTest {
         summary.setMedicalHistory("未提及");
         summary.setAiAssessment("疑似上呼吸道感染。");
         when(summaryService.syncTriageSummary(eq(1L), eq(38L), eq(null), any())).thenReturn(summary);
-        when(triageAppointmentFlowService.handle(eq(1L), eq(38L), any(), eq(summary)))
+        when(chatModel.call(any(Prompt.class))).thenReturn(mockChatResponse("{\"enterStateMachine\":true,\"reason\":\"patient agrees to care\"}"));
+        when(triageAppointmentFlowService.handle(eq(1L), eq(38L), any(), eq(summary), eq(true)))
                 .thenReturn(new TriageAppointmentFlowService.TriageFlowResult("好的，我继续帮您预约。请告诉我想预约的日期和时段。", null, List.of("明天上午")));
         lenient().when(ttsService.synthesize(any())).thenReturn("/ai/chat/tts/triage-flow.mp3");
 
@@ -252,7 +254,53 @@ class ChatServiceImplTest {
         assertNotNull(complete);
         assertTrue(complete.getContent().contains("请告诉我想预约的日期和时段"));
         verify(chatModel, never()).stream(any(Prompt.class));
-        verify(triageAppointmentFlowService).handle(eq(1L), eq(38L), any(), eq(summary));
+        verify(triageAppointmentFlowService).handle(eq(1L), eq(38L), any(), eq(summary), eq(true));
+    }
+
+    @Test
+    void chat_shouldUseAiIntentToEnterStateMachineWhenPatientSaysTheyWillVisitHospital() {
+        ChatSession session = new ChatSession();
+        session.setId(1L);
+        session.setUserId(38L);
+        session.setAgentType("TRIAGE");
+        session.setTitle("新对话");
+        when(sessionMapper.selectById(1L)).thenReturn(session);
+
+        ChatMessage assistantMessage = new ChatMessage();
+        assistantMessage.setSessionId(1L);
+        assistantMessage.setRole("assistant");
+        assistantMessage.setContent("为了更放心一些，您是否需要去医院看看，让医生明确诊断一下呢？");
+        ChatMessage userMessage = new ChatMessage();
+        userMessage.setSessionId(1L);
+        userMessage.setRole("user");
+        userMessage.setContent("好的，那我先去医院看看");
+        when(messageMapper.selectList(any())).thenReturn(List.of(assistantMessage, userMessage));
+
+        ConversationSummaryVO summary = new ConversationSummaryVO();
+        summary.setChiefComplaint("头疼");
+        summary.setSymptoms("无其他明显不适");
+        summary.setDuration("一天");
+        summary.setSeverity("轻度不适");
+        summary.setMedicalHistory("-");
+        summary.setAiAssessment("疑似偏头痛或紧张性头痛相关问题");
+        when(summaryService.syncTriageSummary(eq(1L), eq(38L), eq(null), any())).thenReturn(summary);
+        when(chatModel.call(any(Prompt.class))).thenReturn(mockChatResponse("{\"enterStateMachine\":true,\"reason\":\"用户同意去医院看看\"}"));
+        when(triageAppointmentFlowService.handle(eq(1L), eq(38L), any(), eq(summary), eq(true)))
+                .thenReturn(new TriageAppointmentFlowService.TriageFlowResult("好的，我继续帮您预约。请告诉我想预约的日期和时段。", null, List.of("明天上午")));
+        lenient().when(ttsService.synthesize(any())).thenReturn("/ai/chat/tts/triage-flow.mp3");
+
+        List<SseMessageVO> events = chatService.chat(1L, 38L, "好的，那我先去医院看看")
+                .takeUntil(event -> "complete".equals(event.getType()))
+                .collectList()
+                .block(Duration.ofSeconds(2));
+
+        assertNotNull(events);
+        SseMessageVO complete = findFirstEventByType(events, "complete");
+        assertNotNull(complete);
+        assertEquals("好的，我继续帮您预约。请告诉我想预约的日期和时段。", complete.getContent());
+        verify(chatModel).call(any(Prompt.class));
+        verify(chatModel, never()).stream(any(Prompt.class));
+        verify(triageAppointmentFlowService).handle(eq(1L), eq(38L), any(), eq(summary), eq(true));
     }
 
     @Test
@@ -282,7 +330,8 @@ class ChatServiceImplTest {
         summary.setMedicalHistory("无特殊既往史");
         summary.setAiAssessment("疑似呼吸道感染相关问题。");
         when(summaryService.syncTriageSummary(eq(1L), eq(38L), eq(null), any())).thenReturn(summary);
-        when(triageAppointmentFlowService.handle(eq(1L), eq(38L), any(), eq(summary)))
+        when(chatModel.call(any(Prompt.class))).thenReturn(mockChatResponse("{\"enterStateMachine\":true,\"reason\":\"patient asks to book\"}"));
+        when(triageAppointmentFlowService.handle(eq(1L), eq(38L), any(), eq(summary), eq(true)))
                 .thenReturn(new TriageAppointmentFlowService.TriageFlowResult("好的，我继续帮您预约。请告诉我想预约的日期和时段。", null, List.of("明天上午")));
         lenient().when(ttsService.synthesize(any())).thenReturn("/ai/chat/tts/triage-flow.mp3");
 
@@ -296,7 +345,7 @@ class ChatServiceImplTest {
         assertNotNull(complete);
         assertTrue(complete.getContent().contains("请告诉我想预约的日期和时段"));
         verify(chatModel, never()).stream(any(Prompt.class));
-        verify(triageAppointmentFlowService).handle(eq(1L), eq(38L), any(), eq(summary));
+        verify(triageAppointmentFlowService).handle(eq(1L), eq(38L), any(), eq(summary), eq(true));
     }
 
     @Test

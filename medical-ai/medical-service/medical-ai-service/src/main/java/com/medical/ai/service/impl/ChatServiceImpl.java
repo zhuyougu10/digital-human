@@ -50,6 +50,7 @@ import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
@@ -162,9 +163,10 @@ public class ChatServiceImpl implements ChatService {
         if ("TRIAGE".equals(session.getAgentType())) {
             List<ChatMessage> sessionMessages = loadSessionMessages(sessionId);
             ConversationSummaryVO triageSummary = summaryService.syncTriageSummary(sessionId, userId, null, sessionMessages);
-            if (shouldUseDeterministicAppointmentFlow(sessionMessages, triageSummary)) {
+            boolean forceAppointmentFlow = shouldForceAppointmentFlowByAi(sessionMessages, triageSummary);
+            if (shouldUseDeterministicAppointmentFlow(sessionMessages, triageSummary, forceAppointmentFlow)) {
                 TriageAppointmentFlowService.TriageFlowResult triageResult =
-                        triageAppointmentFlowService.handle(sessionId, userId, sessionMessages, triageSummary);
+                        triageAppointmentFlowService.handle(sessionId, userId, sessionMessages, triageSummary, forceAppointmentFlow);
                 if (triageResult != null) {
                     return buildDeterministicTriageResponse(session, sessionId, message, triageResult)
                             .doFinally(signalType -> sentinelEntry.exit());
@@ -351,10 +353,107 @@ public class ChatServiceImpl implements ChatService {
         ));
     }
 
-    private boolean shouldUseDeterministicAppointmentFlow(List<ChatMessage> messages, ConversationSummaryVO summary) {
+    private boolean shouldUseDeterministicAppointmentFlow(
+            List<ChatMessage> messages,
+            ConversationSummaryVO summary,
+            boolean forceAppointmentFlow
+    ) {
         return isTriageSummaryReadyForAppointment(summary)
-                || isCareDecisionAccepted(messages)
+                || forceAppointmentFlow
                 || hasDeterministicAppointmentPrompt(messages);
+    }
+
+    private boolean shouldForceAppointmentFlowByAi(List<ChatMessage> messages, ConversationSummaryVO summary) {
+        if (hasDeterministicAppointmentPrompt(messages)) {
+            return false;
+        }
+        String latestUserText = latestMessageText(messages, "user");
+        if (latestUserText == null || latestUserText.isBlank() || !hasAssistantMessage(messages)) {
+            return false;
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("latestUserMessage", latestUserText);
+        payload.put("recentConversation", recentConversationText(messages, 8));
+        payload.put("triageSummary", buildIntentSummaryPayload(summary));
+        try {
+            ChatResponse response = chatModel.call(new Prompt(List.of(
+                    new SystemMessage("""
+                            You are an intent classifier for a medical triage booking flow.
+                            Decide semantically whether the latest user message shows a tendency to seek care, register, book, visit a hospital or clinic, see a doctor, or have the system arrange a doctor.
+                            Do not use mechanical keyword matching. Use the recent conversation and the user's latest intent.
+                            Return true when the user agrees after the assistant asks whether they want medical care or booking.
+                            Return false when the user is only describing symptoms, asking for general advice, or choosing to observe for now.
+                            Output JSON only: {"enterStateMachine":true|false,"reason":"short reason"}.
+                            """),
+                    new UserMessage(objectMapper.writeValueAsString(payload))
+            )));
+            String content = response == null || response.getResult() == null || response.getResult().getOutput() == null
+                    ? null
+                    : response.getResult().getOutput().getContent();
+            String json = extractJsonObject(content);
+            if (json == null) {
+                return false;
+            }
+            Map<String, Object> result = objectMapper.readValue(json, new TypeReference<>() {
+            });
+            boolean enterStateMachine = Boolean.TRUE.equals(result.get("enterStateMachine"))
+                    || "true".equalsIgnoreCase(String.valueOf(result.get("enterStateMachine")));
+            if (enterStateMachine) {
+                log.info("AI intent classifier routed triage session into appointment state machine, reason={}", result.get("reason"));
+            }
+            return enterStateMachine;
+        } catch (Exception ex) {
+            log.warn("AI appointment intent classification failed, keep normal triage flow: {}", ex.getMessage());
+            return false;
+        }
+    }
+
+    private boolean hasAssistantMessage(List<ChatMessage> messages) {
+        if (messages == null || messages.isEmpty()) {
+            return false;
+        }
+        return messages.stream().anyMatch(message -> message != null && "assistant".equals(message.getRole()));
+    }
+
+    private Map<String, Object> buildIntentSummaryPayload(ConversationSummaryVO summary) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        if (summary == null) {
+            return payload;
+        }
+        payload.put("chiefComplaint", summary.getChiefComplaint());
+        payload.put("symptoms", summary.getSymptoms());
+        payload.put("duration", summary.getDuration());
+        payload.put("severity", summary.getSeverity());
+        payload.put("medicalHistory", summary.getMedicalHistory());
+        payload.put("aiAssessment", summary.getAiAssessment());
+        return payload;
+    }
+
+    private String recentConversationText(List<ChatMessage> messages, int maxMessages) {
+        if (messages == null || messages.isEmpty()) {
+            return "";
+        }
+        int start = Math.max(0, messages.size() - maxMessages);
+        return messages.subList(start, messages.size()).stream()
+                .filter(Objects::nonNull)
+                .map(message -> nullToEmpty(message.getRole()) + ": " + nullToEmpty(message.getContent()))
+                .collect(Collectors.joining("\n"));
+    }
+
+    private String extractJsonObject(String content) {
+        if (content == null || content.isBlank()) {
+            return null;
+        }
+        int start = content.indexOf('{');
+        int end = content.lastIndexOf('}');
+        if (start < 0 || end <= start) {
+            return null;
+        }
+        return content.substring(start, end + 1);
+    }
+
+    private String nullToEmpty(String value) {
+        return value == null ? "" : value;
     }
 
     private boolean isTriageSummaryReadyForAppointment(ConversationSummaryVO summary) {

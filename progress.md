@@ -189,3 +189,7 @@
 - 根因：数据库重置后 `medical_appointment.appointment_event_outbox` 等 outbox 表缺失，预约服务创建预约事务回滚；AI 状态机随后把创建失败以 `IllegalStateException` 抛出，导致 SSE 请求直接 500。
 - 修复：已在运行库执行 `rabbitmq-outbox-init.sql` 补齐 outbox/消费/通知/审计表并重启预约服务；`TriageAppointmentFlowService` 改为在远程预约创建失败时返回可读失败回复和建议气泡，不再抛异常中断 SSE。
 - 验证：`mvn test -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml "-Dtest=TriageAppointmentFlowServiceTest,ChatServiceImplTest" "-Dsurefire.failIfNoSpecifiedTests=false"` 通过，32 tests；`mvn clean package -DskipTests -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml` 通过；已热更新并重启 `medical-ai-service`。
+## 2026-05-21 21:25:00 [DONE] 导诊就医倾向进入状态机改为 AI 语义判定
+- 根因：`ChatServiceImpl` 入口用固定短语判断用户是否接受就医/挂号，`TriageAppointmentFlowService` 内部也会再次用固定短语确认，因此“好的，那我先去医院看看”这类语义明确但未命中特定短语的回复，会继续走自由推荐或被状态机二次拦截。
+- 修复：入口新增轻量 AI JSON 分类器，只判断最新用户消息是否有就医/挂号/预约倾向；判定为 true 后立即进入导诊预约状态机，并向状态机传入 `forceAppointmentFlow=true`，跳过内部旧的就医意愿短语判断，直接进入“先选时间 -> 查号源医生 -> 选医生 -> 确认 -> 创建预约”流程。
+- 验证：新增截图同类用例“好的，那我先去医院看看”；`mvn test -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml "-Dtest=ChatServiceImplTest,TriageAppointmentFlowServiceTest" "-Dsurefire.failIfNoSpecifiedTests=false"` 通过，39 tests；`mvn clean package -DskipTests -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml` 通过；已热更新并重启 `medical-ai-service` 容器，启动完成并注册到 Nacos。
