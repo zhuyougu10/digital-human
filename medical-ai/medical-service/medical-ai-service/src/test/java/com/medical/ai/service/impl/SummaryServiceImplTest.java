@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -90,12 +91,36 @@ class SummaryServiceImplTest {
         assertEquals("较轻", result.getSeverity());
         assertEquals("无特殊既往史", result.getMedicalHistory());
         assertNotNull(result.getAiAssessment());
+        assertEquals("疑似上呼吸道感染、感冒或咽喉炎相关问题，建议结合体温、症状变化和医生面诊进一步确认；如症状加重或出现急症表现，应及时线下就医。",
+                result.getAiAssessment());
 
         ArgumentCaptor<ConversationSummary> captor = ArgumentCaptor.forClass(ConversationSummary.class);
         verify(summaryMapper).insert(captor.capture());
         assertEquals("感冒", captor.getValue().getChiefComplaint());
         assertEquals("无特殊既往史", captor.getValue().getMedicalHistory());
-        assertNotNull(captor.getValue().getAiAssessment());
+        assertEquals("疑似上呼吸道感染、感冒或咽喉炎相关问题，建议结合体温、症状变化和医生面诊进一步确认；如症状加重或出现急症表现，应及时线下就医。",
+                captor.getValue().getAiAssessment());
+    }
+
+    @Test
+    void syncTriageSummary_shouldWriteClinicalAssessmentInsteadOfBookingReadiness() {
+        when(summaryMapper.selectOne(any())).thenReturn(null);
+
+        ConversationSummaryVO result = summaryService.syncTriageSummary(
+                10L,
+                4L,
+                null,
+                List.of(
+                        user("我有点头疼，喉咙有点疼，还有点发热"),
+                        user("大概两天了"),
+                        user("不算太严重，还能忍受"),
+                        user("没有基础病")));
+
+        assertNotNull(result.getAiAssessment());
+        assertTrue(result.getAiAssessment().contains("疑似"));
+        assertTrue(result.getAiAssessment().contains("上呼吸道感染"));
+        assertTrue(!result.getAiAssessment().contains("病情信息基本完整"));
+        assertTrue(!result.getAiAssessment().contains("预约挂号流程"));
     }
 
     @Test

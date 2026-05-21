@@ -198,3 +198,9 @@
 - 根因：预约状态机查医生时使用了全部用户文本，包含“没有基础病和过敏史”；医生服务文本搜索可能把“过敏”命中皮肤科医生，状态机只检查号源，不再按主诉/症状目标科室过滤，导致头疼、喉咙痛场景推荐皮肤科。
 - 修复：状态机查医生改为只用结构化摘要中的主诉、伴随症状、AI 判断构造搜索词，剔除既往史/过敏史噪声；增加症状到目标科室映射并对返回医生做科室过滤，头疼、喉咙痛只能保留神经内科/内科/耳鼻喉科等匹配科室；预约阶段去掉重复免责声明。
 - 验证：新增“头疼+喉咙痛+没有过敏史”用例，医生服务即使返回皮肤科也不会展示；`mvn test -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml "-Dtest=TriageAppointmentFlowServiceTest,ChatServiceImplTest" "-Dsurefire.failIfNoSpecifiedTests=false"` 通过，40 tests；`mvn clean package -DskipTests -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml` 通过；已热更新并重启 `medical-ai-service`。
+
+## 2026-05-21 21:57:00 [DONE] 导诊先知识库初诊再预约
+- 根因：结构化摘要的 `aiAssessment` 在信息完整时写成“病情信息基本完整，可进入预约挂号流程”，状态机又把该字段当作“初步判断”展示，导致用户看到的不是初步疑似诊断，而是流程状态。
+- 修复：`aiAssessment` 改为生成临床方向，如“疑似上呼吸道感染、感冒或咽喉炎相关问题”；病情字段足够后不再强制要求“不适部位”；状态机文案改为“初步疑似诊断方向”，且遇到旧的流程性判断会回退为知识库/症状推断，不展示“可进入预约流程”作为诊断。
+- 流程约束：信息足够后必须先检索知识库并输出初步疑似诊断方向，再询问是否预约；在用户确认预约前，不查医生、不查号源、不进入预约子流程。
+- 验证：`mvn test -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml "-Dtest=SummaryServiceImplTest,TriageAppointmentFlowServiceTest,ChatServiceImplTest" "-Dsurefire.failIfNoSpecifiedTests=false"` 通过，50 tests；`mvn clean package -DskipTests -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml` 通过；已热更新并重启 `medical-ai-service`。

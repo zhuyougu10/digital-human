@@ -117,11 +117,41 @@ class TriageAppointmentFlowServiceTest {
                 summary("感冒", "无其他明显伴随症状", "三天", "较轻", "无特殊既往史"));
 
         assertTrue(result.reply().contains("知识库资料"));
+        assertTrue(result.reply().contains("初步疑似诊断方向"));
         assertTrue(result.reply().contains("疑似"));
         assertTrue(result.reply().contains("需要我继续帮您预约医生就诊吗"));
         assertTrue(result.suggestedReplies().contains("需要就医"));
         verify(remoteDoctorService, never()).searchBySymptom(org.mockito.ArgumentMatchers.anyString());
+        verify(remoteScheduleService, never()).getAvailableSlots(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyString());
         verify(remoteKnowledgeService).search(org.mockito.ArgumentMatchers.any(KnowledgeSearchRequest.class));
+    }
+
+    @Test
+    void handle_shouldNotShowBookingReadinessAsInitialDiagnosis() {
+        when(remoteKnowledgeService.search(org.mockito.ArgumentMatchers.any(KnowledgeSearchRequest.class)))
+                .thenReturn(R.ok(List.of()));
+
+        TriageAppointmentFlowService.TriageFlowResult result = flowService.handle(
+                10L,
+                4L,
+                List.of(
+                        user("我有点头疼，喉咙有点疼，还有点发热"),
+                        user("大概两天了"),
+                        user("不算太严重，还能忍受"),
+                        user("没有基础病")),
+                summaryWithAssessment(
+                        "头疼",
+                        "喉咙痛、发热",
+                        "两天",
+                        "较轻",
+                        "无特殊既往史",
+                        "病情信息基本完整，可进入预约挂号流程；如出现明显加重或急症表现，应及时线下就医。"));
+
+        assertTrue(result.reply().contains("初步疑似诊断方向"));
+        assertTrue(result.reply().contains("疑似与"));
+        assertTrue(result.reply().contains("上呼吸道感染"));
+        assertTrue(!result.reply().contains("病情信息基本完整"));
+        assertTrue(!result.reply().contains("预约挂号流程"));
     }
 
     @Test
@@ -360,13 +390,28 @@ class TriageAppointmentFlowServiceTest {
                                           String duration,
                                           String severity,
                                           String medicalHistory) {
+        return summaryWithAssessment(
+                chiefComplaint,
+                symptoms,
+                duration,
+                severity,
+                medicalHistory,
+                "已记录主诉，继续补充结构化病情信息。");
+    }
+
+    private ConversationSummaryVO summaryWithAssessment(String chiefComplaint,
+                                                        String symptoms,
+                                                        String duration,
+                                                        String severity,
+                                                        String medicalHistory,
+                                                        String aiAssessment) {
         ConversationSummaryVO summary = new ConversationSummaryVO();
         summary.setChiefComplaint(chiefComplaint);
         summary.setSymptoms(symptoms);
         summary.setDuration(duration);
         summary.setSeverity(severity);
         summary.setMedicalHistory(medicalHistory);
-        summary.setAiAssessment("已记录主诉，继续补充结构化病情信息。");
+        summary.setAiAssessment(aiAssessment);
         return summary;
     }
 

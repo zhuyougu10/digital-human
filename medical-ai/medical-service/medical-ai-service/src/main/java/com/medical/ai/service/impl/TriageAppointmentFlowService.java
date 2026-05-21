@@ -189,7 +189,7 @@ public class TriageAppointmentFlowService {
             assessment = "疑似与" + suspectedCondition(query) + "相关，建议结合后续变化和医生面诊进一步确认。";
         }
         return """
-                目前信息基本完整。结合您的描述和知识库资料，我的初步判断是：
+                目前信息基本完整。结合您的描述和知识库资料，我的初步疑似诊断方向是：
 
                 %s
 
@@ -278,7 +278,14 @@ public class TriageAppointmentFlowService {
     }
 
     private boolean isGenericAssessment(String assessment) {
-        return containsAny(assessment, "已记录主诉", "继续补充结构化病情信息", "AI判断", "未提及");
+        return containsAny(assessment,
+                "已记录主诉",
+                "继续补充结构化病情信息",
+                "病情信息基本完整",
+                "进入预约",
+                "预约挂号流程",
+                "AI判断",
+                "未提及");
     }
 
     private String suspectedCondition(String text) {

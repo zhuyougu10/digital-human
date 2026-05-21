@@ -360,9 +360,6 @@ public class SummaryServiceImpl implements SummaryService {
         if (isMissing(summary.getDuration())) {
             missing.add("持续时间");
         }
-        if (!hasLocationInfo(summary)) {
-            missing.add("不适部位");
-        }
         if (isMissing(summary.getSymptoms())) {
             missing.add("伴随症状");
         }
@@ -375,7 +372,27 @@ public class SummaryServiceImpl implements SummaryService {
         if (!missing.isEmpty()) {
             return "已记录主诉，仍需补充" + String.join("、", missing) + "后再进入挂号。";
         }
-        return "病情信息基本完整，可进入预约挂号流程；如出现明显加重或急症表现，应及时线下就医。";
+        return buildClinicalAssessment(summary);
+    }
+
+    private String buildClinicalAssessment(ConversationSummary summary) {
+        String symptomText = Objects.toString(summary.getChiefComplaint(), "")
+                + " " + Objects.toString(summary.getSymptoms(), "");
+        String suspectedCondition;
+        if (containsAny(symptomText, "发热", "发烧", "咳嗽", "嗓子痛", "咽痛", "喉咙", "鼻塞", "流涕", "感冒")) {
+            suspectedCondition = "上呼吸道感染、感冒或咽喉炎相关问题";
+        } else if (containsAny(symptomText, "头痛", "头疼", "头晕", "眩晕")) {
+            suspectedCondition = "偏头痛、紧张性头痛或其他头痛相关问题";
+        } else if (containsAny(symptomText, "腹痛", "胃痛", "恶心", "呕吐", "腹泻")) {
+            suspectedCondition = "胃肠道不适或消化系统相关问题";
+        } else if (containsAny(symptomText, "皮疹", "湿疹", "痤疮")) {
+            suspectedCondition = "皮肤炎症或皮肤过敏相关问题";
+        } else if (containsAny(symptomText, "胸痛", "胸闷", "心悸")) {
+            suspectedCondition = "胸部不适或心肺相关问题";
+        } else {
+            suspectedCondition = "当前症状相关疾病";
+        }
+        return "疑似" + suspectedCondition + "，建议结合体温、症状变化和医生面诊进一步确认；如症状加重或出现急症表现，应及时线下就医。";
     }
 
     private String writeStructuredSummary(ConversationSummary summary) {
@@ -391,14 +408,6 @@ public class SummaryServiceImpl implements SummaryService {
 
     private boolean isMissing(String value) {
         return value == null || value.isBlank() || NOT_MENTIONED.equals(value) || "-".equals(value);
-    }
-
-    private boolean hasLocationInfo(ConversationSummary summary) {
-        if (summary == null) {
-            return false;
-        }
-        String text = Objects.toString(summary.getChiefComplaint(), "") + "\n" + Objects.toString(summary.getSymptoms(), "");
-        return BODY_LOCATION_KEYWORDS.stream().anyMatch(text::contains);
     }
 
     private boolean containsAny(String text, String... needles) {
