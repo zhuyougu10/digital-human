@@ -193,3 +193,8 @@
 - 根因：`ChatServiceImpl` 入口用固定短语判断用户是否接受就医/挂号，`TriageAppointmentFlowService` 内部也会再次用固定短语确认，因此“好的，那我先去医院看看”这类语义明确但未命中特定短语的回复，会继续走自由推荐或被状态机二次拦截。
 - 修复：入口新增轻量 AI JSON 分类器，只判断最新用户消息是否有就医/挂号/预约倾向；判定为 true 后立即进入导诊预约状态机，并向状态机传入 `forceAppointmentFlow=true`，跳过内部旧的就医意愿短语判断，直接进入“先选时间 -> 查号源医生 -> 选医生 -> 确认 -> 创建预约”流程。
 - 验证：新增截图同类用例“好的，那我先去医院看看”；`mvn test -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml "-Dtest=ChatServiceImplTest,TriageAppointmentFlowServiceTest" "-Dsurefire.failIfNoSpecifiedTests=false"` 通过，39 tests；`mvn clean package -DskipTests -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml` 通过；已热更新并重启 `medical-ai-service` 容器，启动完成并注册到 Nacos。
+
+## 2026-05-21 21:42:00 [DONE] 导诊预约医生推荐错误过滤
+- 根因：预约状态机查医生时使用了全部用户文本，包含“没有基础病和过敏史”；医生服务文本搜索可能把“过敏”命中皮肤科医生，状态机只检查号源，不再按主诉/症状目标科室过滤，导致头疼、喉咙痛场景推荐皮肤科。
+- 修复：状态机查医生改为只用结构化摘要中的主诉、伴随症状、AI 判断构造搜索词，剔除既往史/过敏史噪声；增加症状到目标科室映射并对返回医生做科室过滤，头疼、喉咙痛只能保留神经内科/内科/耳鼻喉科等匹配科室；预约阶段去掉重复免责声明。
+- 验证：新增“头疼+喉咙痛+没有过敏史”用例，医生服务即使返回皮肤科也不会展示；`mvn test -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml "-Dtest=TriageAppointmentFlowServiceTest,ChatServiceImplTest" "-Dsurefire.failIfNoSpecifiedTests=false"` 通过，40 tests；`mvn clean package -DskipTests -pl medical-service/medical-ai-service -am -f medical-ai/pom.xml` 通过；已热更新并重启 `medical-ai-service`。

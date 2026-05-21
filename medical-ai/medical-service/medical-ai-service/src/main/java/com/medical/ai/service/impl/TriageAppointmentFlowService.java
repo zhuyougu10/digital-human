@@ -44,6 +44,30 @@ public class TriageAppointmentFlowService {
     private static final List<String> SYMPTOM_KEYWORDS = List.of(
             "咳嗽", "发热", "发烧", "感冒", "嗓子痛", "咽痛", "头痛", "头疼", "头晕", "眩晕",
             "胸痛", "胸闷", "腹痛", "胃痛", "皮疹", "失眠", "心悸", "鼻塞", "流涕", "恶心");
+    private static final Map<String, List<String>> SYMPTOM_DEPARTMENT_MAPPING = Map.ofEntries(
+            Map.entry("发烧", List.of("内科", "儿科")),
+            Map.entry("发热", List.of("内科", "儿科")),
+            Map.entry("咳嗽", List.of("内科", "儿科")),
+            Map.entry("感冒", List.of("内科", "儿科")),
+            Map.entry("流涕", List.of("内科", "耳鼻喉科")),
+            Map.entry("鼻塞", List.of("耳鼻喉科", "内科")),
+            Map.entry("喉咙痛", List.of("耳鼻喉科", "内科")),
+            Map.entry("咽喉痛", List.of("耳鼻喉科", "内科")),
+            Map.entry("嗓子痛", List.of("耳鼻喉科", "内科")),
+            Map.entry("咽痛", List.of("耳鼻喉科", "内科")),
+            Map.entry("头痛", List.of("神经内科", "内科")),
+            Map.entry("头疼", List.of("神经内科", "内科")),
+            Map.entry("头晕", List.of("神经内科", "内科")),
+            Map.entry("眩晕", List.of("神经内科", "内科")),
+            Map.entry("腹痛", List.of("内科", "外科", "妇产科", "儿科")),
+            Map.entry("胃痛", List.of("内科")),
+            Map.entry("恶心", List.of("内科")),
+            Map.entry("呕吐", List.of("内科", "儿科")),
+            Map.entry("皮疹", List.of("皮肤科")),
+            Map.entry("湿疹", List.of("皮肤科")),
+            Map.entry("痤疮", List.of("皮肤科")),
+            Map.entry("失眠", List.of("神经内科", "中医科"))
+    );
     private static final String DISCLAIMER = "\n\nAI导诊仅供参考，不能替代专业医生诊断。";
 
     private final RemoteDoctorService remoteDoctorService;
@@ -122,14 +146,14 @@ public class TriageAppointmentFlowService {
             return new TriageFlowResult("""
                     好的，我继续帮您预约。请告诉我想预约的日期和时段。
 
-                    例如：2026年5月25日上午，或 2026-05-25 下午。""".strip() + DISCLAIMER,
+                    例如：2026年5月25日上午，或 2026-05-25 下午。""".strip(),
                     null,
                     List.of("2026年5月25日上午", "2026-05-25 下午", "明天上午"));
         }
 
         SelectedDoctor selectedDoctor = resolveSelectedDoctor(context);
         if (selectedDoctor == null) {
-            return buildDoctorSelectionResult(context, appointmentTime);
+            return buildDoctorSelectionResult(context, summary, appointmentTime);
         }
 
         SlotInfoDTO selectedSlot = resolveSelectedSlot(context, selectedDoctor, appointmentTime);
@@ -148,7 +172,7 @@ public class TriageAppointmentFlowService {
             return new TriageFlowResult("""
                     抱歉，这次没有成功提交预约。
 
-                    您可以稍后再确认一次预约，或换一个医生/时间段，我再帮您处理。""".strip() + DISCLAIMER,
+                    您可以稍后再确认一次预约，或换一个医生/时间段，我再帮您处理。""".strip(),
                     null,
                     List.of("确认预约", "换个时间", "重新选择医生"));
         }
@@ -185,6 +209,26 @@ public class TriageAppointmentFlowService {
             query.append(userText);
         }
         return query.toString().trim();
+    }
+
+    private String buildDoctorSearchText(FlowContext context, ConversationSummaryVO summary) {
+        StringBuilder query = new StringBuilder();
+        if (summary != null) {
+            appendIfSummaryValue(query, summary.getChiefComplaint());
+            appendIfSummaryValue(query, summary.getSymptoms());
+            appendIfSummaryValue(query, summary.getAiAssessment());
+        }
+        if (query.isEmpty()) {
+            query.append(removeMedicalHistoryNoise(context.allUserText()));
+        }
+        return query.toString().trim();
+    }
+
+    private String removeMedicalHistoryNoise(String text) {
+        if (text == null || text.isBlank()) {
+            return "";
+        }
+        return text.replaceAll("(?m).*?(基础病|既往史|过敏史|过敏|长期用药).*?(\\R|$)", " ");
     }
 
     private void appendIfSummaryValue(StringBuilder target, String value) {
@@ -301,12 +345,12 @@ public class TriageAppointmentFlowService {
                 || isConfirming(context.latestUserText());
     }
 
-    private TriageFlowResult buildDoctorSelectionResult(FlowContext context, AppointmentTime appointmentTime) {
-        List<DoctorCandidate> candidates = findAvailableDoctors(context.allUserText(), appointmentTime);
+    private TriageFlowResult buildDoctorSelectionResult(FlowContext context, ConversationSummaryVO summary, AppointmentTime appointmentTime) {
+        String doctorSearchText = buildDoctorSearchText(context, summary);
+        List<DoctorCandidate> candidates = findAvailableDoctors(doctorSearchText, appointmentTime);
         if (candidates.isEmpty()) {
             return new TriageFlowResult("您想预约的时间是：" + appointmentTime.display() + "。\n\n"
-                    + "我暂时没有找到该时段有可用号源的匹配医生。请换一个日期或时段，我再帮您查。"
-                    + DISCLAIMER,
+                    + "我暂时没有找到该时段有可用号源的匹配医生。请换一个日期或时段，我再帮您查。",
                     null,
                     List.of("明天上午", "后天下午", "换个时间"));
         }
@@ -327,7 +371,7 @@ public class TriageAppointmentFlowService {
                     .append(candidate.doctor().getConsultationFee() == null ? "系统当前显示挂号费为0元" : candidate.doctor().getConsultationFee() + "元")
                     .append("）\n");
         }
-        reply.append("\n请回复“选1”或医生姓名。").append(DISCLAIMER);
+        reply.append("\n请回复“选1”或医生姓名。");
         List<String> suggestedReplies = new ArrayList<>();
         for (int i = 0; i < candidates.size() && i < 3; i++) {
             suggestedReplies.add("选" + (i + 1));
@@ -343,7 +387,7 @@ public class TriageAppointmentFlowService {
                 .toList();
         if (slots.isEmpty()) {
             return selectedDoctor.name() + "医生在 " + appointmentTime.display()
-                    + " 暂时没有可预约号源。请换一个时间，我再帮您查。" + DISCLAIMER;
+                    + " 暂时没有可预约号源。请换一个时间，我再帮您查。";
         }
         SlotInfoDTO slot = slots.get(0);
         return buildAppointmentConfirmationReply(selectedDoctor, slot);
@@ -355,7 +399,7 @@ public class TriageAppointmentFlowService {
                 + "- 就诊时间：" + slot.getScheduleDate() + " " + displayPeriod(slot.getPeriod())
                 + " " + slot.getStartTime() + "-" + slot.getEndTime() + "\n"
                 + "- 剩余号源：" + slot.getAvailableSlots() + " 个\n\n"
-                + "请回复“确认预约”，我就为您创建预约。" + DISCLAIMER;
+                + "请回复“确认预约”，我就为您创建预约。";
     }
 
     private String buildAppointmentSuccessReply(SelectedDoctor selectedDoctor, SlotInfoDTO slot, Long appointmentId) {
@@ -363,10 +407,11 @@ public class TriageAppointmentFlowService {
                 + "- 医生：" + selectedDoctor.name() + "\n"
                 + "- 就诊时间：" + slot.getScheduleDate() + " " + displayPeriod(slot.getPeriod())
                 + " " + slot.getStartTime() + "-" + slot.getEndTime() + "\n\n"
-                + "请您按时就诊，祝您早日康复！" + DISCLAIMER;
+                + "请您按时就诊，祝您早日康复！";
     }
 
     private List<DoctorCandidate> findAvailableDoctors(String keywords, AppointmentTime appointmentTime) {
+        List<String> targetDepartments = resolveTargetDepartments(keywords);
         for (String keyword : searchKeywordCandidates(keywords)) {
             R<List<DoctorInfoDTO>> response = remoteDoctorService.searchBySymptom(keyword);
             List<DoctorInfoDTO> doctors = response != null && response.isSuccess() && response.getData() != null
@@ -376,6 +421,9 @@ public class TriageAppointmentFlowService {
             Map<Long, DoctorCandidate> candidates = new LinkedHashMap<>();
             for (DoctorInfoDTO doctor : doctors) {
                 if (doctor == null || doctor.getId() == null) {
+                    continue;
+                }
+                if (!matchesTargetDepartment(doctor, targetDepartments)) {
                     continue;
                 }
                 Optional<SlotInfoDTO> slot = getAvailableSlots(doctor.getId(), appointmentTime.date()).stream()
@@ -392,6 +440,32 @@ public class TriageAppointmentFlowService {
             }
         }
         return List.of();
+    }
+
+    private List<String> resolveTargetDepartments(String text) {
+        List<String> departments = new ArrayList<>();
+        String source = text == null ? "" : text;
+        for (Map.Entry<String, List<String>> entry : SYMPTOM_DEPARTMENT_MAPPING.entrySet()) {
+            if (source.contains(entry.getKey())) {
+                for (String department : entry.getValue()) {
+                    if (!departments.contains(department)) {
+                        departments.add(department);
+                    }
+                }
+            }
+        }
+        return departments;
+    }
+
+    private boolean matchesTargetDepartment(DoctorInfoDTO doctor, List<String> targetDepartments) {
+        if (targetDepartments == null || targetDepartments.isEmpty()) {
+            return true;
+        }
+        String departmentNames = doctor.getDepartmentNames();
+        if (departmentNames == null || departmentNames.isBlank()) {
+            return false;
+        }
+        return targetDepartments.stream().anyMatch(departmentNames::contains);
     }
 
     private TriageInfo extractTriageInfo(String text, ConversationSummaryVO summary) {

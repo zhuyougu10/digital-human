@@ -18,6 +18,7 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -27,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.atLeastOnce;
 
 @ExtendWith(MockitoExtension.class)
 class TriageAppointmentFlowServiceTest {
@@ -178,7 +180,38 @@ class TriageAppointmentFlowServiceTest {
         assertTrue(!result.reply().contains("doctorId"));
         assertTrue(!result.reply().contains("slotId"));
         assertTrue(result.suggestedReplies().contains("选1"));
-        verify(remoteDoctorService).searchBySymptom("咳嗽");
+        verify(remoteDoctorService).searchBySymptom("感冒");
+    }
+
+    @Test
+    void handle_shouldNotRecommendDermatologyWhenMedicalHistoryMentionsNoAllergy() {
+        DoctorInfoDTO dermatologyDoctor = doctor(3L, "皮肤科医生", "皮肤科");
+        DoctorInfoDTO entDoctor = doctor(4L, "耳鼻喉医生", "耳鼻喉科");
+        SlotInfoDTO entSlot = slot(464L, 4L, "耳鼻喉医生", "morning");
+        when(remoteDoctorService.searchBySymptom(org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(R.ok(List.of(dermatologyDoctor, entDoctor)));
+        when(remoteScheduleService.getAvailableSlots(4L, "2026-05-25")).thenReturn(R.ok(List.of(entSlot)));
+
+        TriageAppointmentFlowService.TriageFlowResult result = flowService.handle(
+                10L,
+                4L,
+                List.of(
+                        user("我头疼，喉咙也有点疼"),
+                        user("已经好几天了，具体记不清了"),
+                        user("挺严重的，影响睡觉了"),
+                        user("没有基础病和过敏史"),
+                        assistant("目前信息基本完整。您需要我继续帮您预约医生就诊吗？"),
+                        user("需要就医"),
+                        user("2026-05-25 上午")),
+                summary("头疼、喉咙痛", "头疼、喉咙痛", "好几天", "较严重", "没有基础病和过敏史"),
+                true);
+
+        assertTrue(result.reply().contains("耳鼻喉医生"));
+        assertTrue(result.reply().contains("耳鼻喉科"));
+        assertTrue(!result.reply().contains("皮肤科"));
+        ArgumentCaptor<String> keywordCaptor = ArgumentCaptor.forClass(String.class);
+        verify(remoteDoctorService, atLeastOnce()).searchBySymptom(keywordCaptor.capture());
+        assertTrue(keywordCaptor.getAllValues().stream().noneMatch(keyword -> keyword.contains("过敏")));
     }
 
     @Test
@@ -347,11 +380,15 @@ class TriageAppointmentFlowServiceTest {
     }
 
     private DoctorInfoDTO doctor(Long id, String name) {
+        return doctor(id, name, "内科");
+    }
+
+    private DoctorInfoDTO doctor(Long id, String name, String departmentNames) {
         DoctorInfoDTO doctor = new DoctorInfoDTO();
         doctor.setId(id);
         doctor.setName(name);
         doctor.setTitle("副主任医师");
-        doctor.setDepartmentNames("内科");
+        doctor.setDepartmentNames(departmentNames);
         doctor.setSpecialties("感冒、咳嗽");
         doctor.setConsultationFee(BigDecimal.ZERO);
         return doctor;
